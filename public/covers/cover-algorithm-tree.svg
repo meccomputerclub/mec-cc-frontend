@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" width="1200" height="400">
+  <defs>
+    <linearGradient id="algo-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#081014" />
+      <stop offset="50%" stop-color="#0e1f1a" />
+      <stop offset="100%" stop-color="#071310" />
+    </linearGradient>
+    <pattern id="algo-dots" width="20" height="20" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.2" fill="rgba(163, 230, 53, 0.12)" />
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="400" fill="url(#algo-bg)"/>
+  <rect width="1200" height="400" fill="url(#algo-dots)"/>
+
+  <!-- Top Lime Accent -->
+  <line x1="0" y1="18" x2="1200" y2="18" stroke="#a3e635" stroke-width="2" stroke-opacity="0.4" stroke-dasharray="12 6"/>
+
+  <!-- Left: Binary Search Tree / Graph Structure -->
+  <g stroke="#a3e635" stroke-width="2" stroke-opacity="0.6">
+    <!-- Level 0 -->
+    <circle cx="240" cy="50" r="18" fill="#142e1f"/>
+    <!-- Level 1 -->
+    <line x1="240" y1="50" x2="140" y2="110"/>
+    <line x1="240" y1="50" x2="340" y2="110"/>
+    <circle cx="140" cy="110" r="16" fill="#142e1f"/>
+    <circle cx="340" cy="110" r="16" fill="#142e1f"/>
+    <!-- Level 2 -->
+    <line x1="140" y1="110" x2="80" y2="175"/>
+    <line x1="140" y1="110" x2="190" y2="175"/>
+    <line x1="340" y1="110" x2="290" y2="175"/>
+    <line x1="340" y1="110" x2="390" y2="175"/>
+    <circle cx="80" cy="175" r="14" fill="#142e1f"/>
+    <circle cx="190" cy="175" r="14" fill="#142e1f"/>
+    <circle cx="290" cy="175" r="14" fill="#142e1f"/>
+    <circle cx="390" cy="175" r="14" fill="#142e1f"/>
+  </g>
+
+  <!-- Node Values -->
+  <g fill="#a3e635" font-family="monospace" font-size="12" font-weight="900" text-anchor="middle">
+    <text x="240" y="55">50</text>
+    <text x="140" y="115">25</text>
+    <text x="340" y="115">75</text>
+    <text x="80" y="180">12</text>
+    <text x="190" y="180">37</text>
+    <text x="290" y="180">62</text>
+    <text x="390" y="180">88</text>
+  </g>
+
+  <!-- Right: Big-O Complexity Matrix Panel -->
+  <g transform="translate(620, 45)">
+    <rect x="0" y="0" width="520" height="150" rx="8" fill="#0d2417" stroke="#a3e635" stroke-width="2"/>
+    <rect x="0" y="0" width="520" height="26" rx="8" fill="#173a26"/>
+    <text x="16" y="17" fill="#a3e635" font-family="monospace" font-size="11" font-weight="900">ALGORITHMIC_COMPLEXITY_INDEX</text>
+    
+    <text x="20" y="55" fill="#f8fafc" font-family="monospace" font-size="14" font-weight="bold">QUICKSORT: O(N log N) [AVERAGE]</text>
+    <text x="20" y="80" fill="#38bdf8" font-family="monospace" font-size="13">DIJKSTRA SHORTEST PATH: O(E + V log V)</text>
+    <text x="20" y="105" fill="#eab308" font-family="monospace" font-size="13">DYNAMIC PROGRAMMING: MEMOIZED RECURSION</text>
+    <text x="20" y="130" fill="#a3e635" font-family="monospace" font-size="13" font-weight="bold">&gt; OPTIMAL EFFICIENCY :: ASYMPTOTIC TIGHT BOUND [Θ]</text>
+  </g>
+
+  <!-- Bottom Accent Line -->
+  <line x1="0" y1="382" x2="1200" y2="382" stroke="#a3e635" stroke-width="2" stroke-opacity="0.4" stroke-dasharray="16 8"/>
+</svg>

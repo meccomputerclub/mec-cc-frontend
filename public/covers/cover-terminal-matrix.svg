@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" width="1200" height="400">
+  <defs>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#050811" />
+      <stop offset="50%" stop-color="#0d1527" />
+      <stop offset="100%" stop-color="#050a14" />
+    </linearGradient>
+    <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+      <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(0, 255, 102, 0.07)" stroke-width="1"/>
+    </pattern>
+    <pattern id="dots" width="15" height="15" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="rgba(0, 255, 102, 0.15)" />
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="400" fill="url(#bg-grad)"/>
+  <rect width="1200" height="400" fill="url(#grid)"/>
+
+  <!-- Glowing Accent Lines -->
+  <line x1="0" y1="20" x2="1200" y2="20" stroke="#00ff66" stroke-width="2" stroke-opacity="0.3" stroke-dasharray="8 4"/>
+  <line x1="0" y1="380" x2="1200" y2="380" stroke="#00ff66" stroke-width="2" stroke-opacity="0.3" stroke-dasharray="12 6"/>
+  
+  <!-- Circuit & Grid Lines -->
+  <path d="M 60 400 L 60 250 L 180 130 L 400 130 L 440 90 L 800 90 L 850 40 L 1140 40" fill="none" stroke="#00ff66" stroke-width="2" stroke-opacity="0.4"/>
+  <circle cx="180" cy="130" r="4" fill="#00ff66" opacity="0.8"/>
+  <circle cx="440" cy="90" r="4" fill="#00ff66" opacity="0.8"/>
+  <circle cx="850" cy="40" r="4" fill="#00ff66" opacity="0.8"/>
+
+  <!-- Left Code Terminal Block -->
+  <rect x="40" y="50" width="380" height="200" rx="8" fill="#070c18" stroke="#00ff66" stroke-width="1.5" stroke-opacity="0.5"/>
+  <rect x="40" y="50" width="380" height="26" rx="8" fill="#0c162d"/>
+  <circle cx="56" cy="63" r="4" fill="#ef4444"/>
+  <circle cx="70" cy="63" r="4" fill="#eab308"/>
+  <circle cx="84" cy="63" r="4" fill="#22c55e"/>
+  <text x="105" y="67" fill="#64748b" font-family="monospace" font-size="11" font-weight="bold">terminal@mec-cc-core:~$</text>
+
+  <text x="56" y="96" fill="#00ff66" font-family="monospace" font-size="12" font-weight="bold">&gt; const sys = new KernelArchitecture();</text>
+  <text x="56" y="116" fill="#94a3b8" font-family="monospace" font-size="11">&gt; sys.connectCluster("MEC_NODE_ALPHA");</text>
+  <text x="56" y="136" fill="#38bdf8" font-family="monospace" font-size="11">&gt; [OK] Neural routing online: 100%</text>
+  <text x="56" y="156" fill="#facc15" font-family="monospace" font-size="11">&gt; [MEM] Allocated heap 0x7FFF5FBFF000</text>
+  <text x="56" y="176" fill="#a855f7" font-family="monospace" font-size="11">&gt; sys.compile("CYBER_BRUTALIST_V2");</text>
+  <text x="56" y="196" fill="#00ff66" font-family="monospace" font-size="12" font-weight="bold">&gt; STATUS: RUNNING :: 0 ERRORS _</text>
+
+  <!-- Right Brutalist Badges & Watermarks -->
+  <g transform="translate(820, 60)">
+    <rect x="0" y="0" width="330" height="110" rx="6" fill="#091022" stroke="#00ff66" stroke-width="2" stroke-dasharray="6 3"/>
+    <text x="20" y="35" fill="#00ff66" font-family="monospace" font-size="20" font-weight="900" letter-spacing="2">MEC_CC // SYS.01</text>
+    <text x="20" y="62" fill="#e2e8f0" font-family="monospace" font-size="13" font-weight="700">COMPUTER CLUB CORE ENGINE</text>
+    <text x="20" y="85" fill="#64748b" font-family="monospace" font-size="11">ARCH: x86_64_LINUX // LATENCY: 0.2ms</text>
+  </g>
+
+  <!-- Center Floating Binary Streams -->
+  <g opacity="0.18" fill="#00ff66" font-family="monospace" font-size="12" font-weight="bold">
+    <text x="460" y="80">01001101 01000101 01000011</text>
+    <text x="460" y="110">01000011 01001111 01001101</text>
+    <text x="460" y="140">01010000 01010101 01010100</text>
+    <text x="460" y="170">01000101 01010010 01000011</text>
+    <text x="460" y="200">01001100 01010101 01000010</text>
+  </g>
+
+  <!-- Cyber crosshair decorations -->
+  <path d="M 600 40 L 600 70 M 585 55 L 615 55" stroke="#00ff66" stroke-width="2" opacity="0.5"/>
+  <circle cx="600" cy="55" r="18" fill="none" stroke="#00ff66" stroke-width="1.5" opacity="0.4"/>
+  
+  <path d="M 740 180 L 740 210 M 725 195 L 755 195" stroke="#38bdf8" stroke-width="2" opacity="0.4"/>
+  <circle cx="740" cy="195" r="14" fill="none" stroke="#38bdf8" stroke-width="1" opacity="0.3"/>
+</svg>

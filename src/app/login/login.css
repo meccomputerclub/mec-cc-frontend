@@ -58,7 +58,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  align-items: center;
   text-align: center;
 }
 
@@ -92,6 +91,7 @@
 /* Form inputs (Brutalist style) */
 .form-group { margin-bottom: var(--space-3); width: 100%; }
 .form-group label { display: block; font-weight: var(--weight-medium); margin-bottom: 4px; color: var(--text-primary); }
+
 .form-group input[type="text"],
 .form-group input[type="email"],
 .form-group input[type="password"] {
@@ -120,4 +120,130 @@
   background: var(--surface-secondary);
 }
 
+/* Form Options & Custom Checkbox */
+.form-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--space-2);
+  margin-bottom: var(--space-4);
+}
 
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  user-select: none;
+}
+
+.checkbox-label input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.checkmark {
+  height: 18px;
+  width: 18px;
+  background-color: var(--surface-primary);
+  border: 2px solid var(--border-brutalist);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.checkbox-label:hover input ~ .checkmark {
+  background-color: var(--surface-secondary);
+}
+
+.checkbox-label input:checked ~ .checkmark {
+  background-color: var(--accent-primary);
+  border-color: var(--border-brutalist);
+}
+
+.checkmark:after {
+  content: "";
+  display: none;
+  width: 4px;
+  height: 8px;
+  border: solid var(--text-primary);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  margin-bottom: 2px;
+}
+
+.checkbox-label input:checked ~ .checkmark:after {
+  display: block;
+}
+
+/* Dynamic Submit Button Spinner */
+.login-submit-btn {
+  margin-top: var(--space-2);
+}
+
+.spinner-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 3px solid rgba(0, 0, 0, 0.2);
+  border-top-color: var(--text-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Password Toggle Icon */
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.password-wrapper input {
+  padding-right: 40px; /* Room for the small icon */
+  width: 100%;
+}
+
+.password-toggle-icon {
+  position: absolute;
+  right: 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease, transform 0.1s ease;
+  user-select: none;
+  touch-action: manipulation;
+  padding: 4px;
+}
+
+.password-toggle-icon:hover {
+  color: var(--text-primary);
+}
+
+.password-toggle-icon.active, .password-toggle-icon:active {
+  color: var(--accent-primary);
+  transform: scale(0.9);
+}

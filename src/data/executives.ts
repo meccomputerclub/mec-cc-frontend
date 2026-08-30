@@ -1,8 +1,13 @@
+import { formatDeptSession } from "@/lib/formatters";
+
 export interface Executive {
   id: string;
   name: string;
   role: string;
+  department?: string;
+  systemRole?: string;
   batch?: string;
+  session?: string;
   image: string;
   bio?: string;
   socials?: {
@@ -219,3 +224,103 @@ export const executives: Executive[] = [
     image: "",
   },
 ];
+
+export const staticExecutives = executives;
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+export async function getExecutives(): Promise<Executive[]> {
+  try {
+    // 1. Fetch active designations to build order precedence map
+    const orderMap: Record<string, number> = {};
+    try {
+      const desigRes = await fetch(`${API_URL}/api/designations?category=executive`, { cache: "no-store" });
+      if (desigRes.ok) {
+        const desigData = await desigRes.json();
+        const list = desigData.data || [];
+        list.forEach((d: any) => {
+          if (d.title) {
+            orderMap[d.title.toLowerCase().trim()] = d.order ?? 999;
+          }
+        });
+      }
+    } catch {
+      // ignore
+    }
+
+    // 2. Fetch active approved members from DB
+    const res = await fetch(`${API_URL}/api/users/profile/active`, { cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      const backendMembers: any[] = data.data || data.members || [];
+      const execs = backendMembers.filter((m: any) => {
+        // 1. Strictly exclude Advisors
+        if (
+          m.clubRole === "advisor" ||
+          (m.designation && (m.designation.toLowerCase().includes("advisor") || m.designation.toLowerCase().includes("patron"))) ||
+          (m.customRole && (m.customRole.toLowerCase().includes("advisor") || m.customRole.toLowerCase().includes("patron")))
+        ) {
+          return false;
+        }
+
+        // 2. Strictly exclude Alumni
+        if (m.clubRole === "alumni" || m.role === "alumni") {
+          return false;
+        }
+
+        // 3. Include only if clubRole === "executive", role === "executive", or has executive designation
+        if (m.clubRole === "executive") return true;
+        if (m.clubRole && m.clubRole !== "executive") return false;
+        if (m.role === "executive") return true;
+        if (
+          m.customRole &&
+          m.customRole.trim().length > 0 &&
+          m.customRole !== "Club Member" &&
+          m.customRole !== "General Member" &&
+          m.role !== "member"
+        ) {
+          return true;
+        }
+        return false;
+      });
+      if (execs.length > 0) {
+        const mapped: Executive[] = execs.map((m: any) => ({
+          id: m._id || m.id,
+          name: m.fullName,
+          role:
+            m.designation ||
+            m.customRole ||
+            (m.role === "admin"
+              ? "Administrator"
+              : m.role === "moderator"
+              ? "Moderator"
+              : "Executive Member"),
+          systemRole: m.role,
+          department: m.department,
+          session: formatDeptSession(m.department, m.session, m.batch) || "CSE (21-22)",
+          image: m.imageUrl || "",
+          socials: {
+            github: m.socialLinks?.github || undefined,
+            linkedin: m.socialLinks?.linkedin || undefined,
+            facebook: m.socialLinks?.facebook || undefined,
+            codeforces: m.socialLinks?.codeforces || undefined,
+            email: m.email || undefined,
+          },
+        }));
+
+        // Sort by precedence rank order
+        mapped.sort((a, b) => {
+          const rankA = orderMap[a.role.toLowerCase().trim()] ?? 999;
+          const rankB = orderMap[b.role.toLowerCase().trim()] ?? 999;
+          if (rankA !== rankB) return rankA - rankB;
+          return a.name.localeCompare(b.name);
+        });
+
+        return mapped;
+      }
+    }
+  } catch (err) {
+    console.warn("Could not fetch backend executives, using static fallback:", err);
+  }
+  return executives;
+}

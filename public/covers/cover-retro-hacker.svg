@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" width="1200" height="400">
+  <defs>
+    <linearGradient id="retro-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0c0702" />
+      <stop offset="50%" stop-color="#1c1103" />
+      <stop offset="100%" stop-color="#0c0702" />
+    </linearGradient>
+    <pattern id="scanlines" width="100" height="4" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="100" y2="0" stroke="rgba(245, 158, 11, 0.06)" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="400" fill="url(#retro-bg)"/>
+  <rect width="1200" height="400" fill="url(#scanlines)"/>
+
+  <!-- Top Amber Line -->
+  <line x1="0" y1="16" x2="1200" y2="16" stroke="#f59e0b" stroke-width="2" stroke-opacity="0.5" stroke-dasharray="10 5"/>
+
+  <!-- Left: x86_64 Assembly Instructions -->
+  <g transform="translate(50, 45)">
+    <rect x="0" y="0" width="460" height="150" rx="8" fill="#170f03" stroke="#f59e0b" stroke-width="2"/>
+    <rect x="0" y="0" width="460" height="24" rx="8" fill="#2b1a06"/>
+    <text x="14" y="16" fill="#f59e0b" font-family="monospace" font-size="10" font-weight="bold">DISASSEMBLER // 0x401000 &lt;_start&gt;</text>
+    
+    <text x="16" y="48" fill="#fbbf24" font-family="monospace" font-size="12" font-weight="bold">401000:  48 31 c0          xor    %rax,%rax</text>
+    <text x="16" y="68" fill="#fde68a" font-family="monospace" font-size="12">401003:  48 ff c0          inc    %rax</text>
+    <text x="16" y="88" fill="#fbbf24" font-family="monospace" font-size="12">401006:  48 89 c7          mov    %rax,%rdi</text>
+    <text x="16" y="108" fill="#fde68a" font-family="monospace" font-size="12">401009:  48 8d 35 00 00    lea    0x0(%rip),%rsi</text>
+    <text x="16" y="128" fill="#22c55e" font-family="monospace" font-size="12" font-weight="bold">401010:  0f 05             syscall /* SYS_WRITE */</text>
+  </g>
+
+  <!-- Right: Registers & MEC-CC Retro Badge -->
+  <g transform="translate(680, 45)">
+    <rect x="0" y="0" width="460" height="150" rx="8" fill="#170f03" stroke="#f59e0b" stroke-width="2"/>
+    <rect x="0" y="0" width="460" height="24" rx="8" fill="#2b1a06"/>
+    <text x="14" y="16" fill="#f59e0b" font-family="monospace" font-size="10" font-weight="bold">CPU_REGISTERS // x86_64 GENERAL PURPOSE</text>
+
+    <text x="16" y="48" fill="#fbbf24" font-family="monospace" font-size="12">RAX = 0x0000000000000001   RBX = 0x00007FFF5FBFF020</text>
+    <text x="16" y="70" fill="#fde68a" font-family="monospace" font-size="12">RCX = 0x000000000000000E   RDX = 0x000000000000000E</text>
+    <text x="16" y="92" fill="#fbbf24" font-family="monospace" font-size="12">RSI = 0x0000000000402000   RDI = 0x0000000000000001</text>
+    <text x="16" y="114" fill="#38bdf8" font-family="monospace" font-size="12">RSP = 0x00007FFF5FBFEFA0   RIP = 0x0000000000401012</text>
+    <text x="16" y="136" fill="#22c55e" font-family="monospace" font-size="12" font-weight="bold">FLAGS: [CF:0 ZF:1 SF:0 OF:0 IF:1]</text>
+  </g>
+
+  <!-- Bottom Accent Line -->
+  <line x1="0" y1="384" x2="1200" y2="384" stroke="#f59e0b" stroke-width="2" stroke-opacity="0.4" stroke-dasharray="12 4"/>
+</svg>

@@ -131,3 +131,105 @@ export interface Stat {
   value: string;
   icon?: string;
 }
+
+/* ===== User & Auth Types ===== */
+
+export interface AuthUser {
+  id?: string;
+  _id?: string;
+  email: string;
+  fullName: string;
+  studentId: string;
+  role: "guest" | "member" | "moderator" | "admin" | "alumni" | "executive";
+  clubRole?: "member" | "executive" | "alumni" | "advisor";
+  customRole?: string;
+  designation?: string;
+  imageUrl?: string;
+  imagePublicId?: string;
+  coverUrl?: string;
+  coverPublicId?: string;
+  session?: string;
+  batch?: string;
+  department?: string;
+  isGraduated?: boolean;
+  passingYear?: number;
+  contactNumber?: string;
+  address?: string;
+  bio?: string;
+  isVerified?: boolean;
+  isApproved?: boolean;
+  applicationStatus?: "pending" | "approved" | "rejected";
+  profileStatus?: "incomplete" | "active" | "deleted" | "banned";
+  socialLinks?: {
+    facebook?: string;
+    github?: string;
+    linkedin?: string;
+    codeforces?: string;
+    codechef?: string;
+    discord?: string;
+  };
+  eventsAttended?: any[];
+  certificates?: any[];
+  projectsContributed?: any[];
+}
+
+export interface DesignationItem {
+  _id: string;
+  title: string;
+  slug: string;
+  category: "executive" | "advisor" | "general" | "alumni";
+  wing?: string;
+  order: number;
+  maxSeats?: number;
+  defaultRole?: "admin" | "moderator" | "member";
+  isActive: boolean;
+  assignedCount?: number;
+  assignedMembers?: any[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ApiResponse<T = any> {
+  success: boolean;
+  message?: string;
+  data?: T;
+  user?: T;
+  token?: string;
+  count?: number;
+  errors?: Record<string, string>;
+}
+
+/* ===== Dashboard Types ===== */
+
+export interface DashboardStats {
+  membership: {
+    totalMembers: number;
+    totalActiveMembers: number;
+    totalAlumni: number;
+    pendingApplications: number;
+  };
+
+  activities: {
+    totalEvents: number;
+    upcomingEvents: number;
+    totalCertificates: number;
+    totalProjects: number;
+  };
+
+  resources: {
+    totalSponsors: number;
+    activeSponsors: number;
+    totalAssets: number;
+  };
+}
+
+export interface MembersData {
+  _id: string;
+  fullName: string;
+  imageUrl: string;
+  email: string;
+  role: string;
+  applicationStatus: string;
+  profileStatus: string;
+  activityCounts: number;
+}

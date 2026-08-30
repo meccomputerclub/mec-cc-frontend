@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { Crown, ShieldCheck } from "lucide-react";
+import { formatDeptSession } from "@/lib/formatters";
 import "./ProfileCard.css";
 
 /* ============================================================
@@ -26,19 +29,31 @@ export interface ProfileCardProps {
   name: string;
   /** e.g. "General Member" / "President" / "SWE @ Google" / "Asst. Professor, CSE" */
   role: string;
+  /** Department, e.g. "CSE", "EEE", "CE", "ME" */
+  department?: string;
   /**
    * Sublabel shown after the category separator "·"
    * e.g. "BATCH 27" / "PRESIDENT" / "BATCH 21" / "FACULTY"
    */
-  sublabel: string;
+  sublabel?: string;
   /** e.g. "CSE 5th" — shown as "Batch: CSE 5th" below the photo */
   batch?: string;
+  /** e.g. "Session: 2021-22 · CSE" or "2021-22" */
+  session?: string;
   category: ProfileCategory;
+  /** Optional custom text for the badge */
+  badgeLabel?: string;
   /** URL to the photo. Omit → show initial letter placeholder. */
   image?: string;
   socials?: ProfileSocials;
+  /** Website platform permission level ("admin" | "moderator" | "member") */
+  systemRole?: "admin" | "moderator" | "member" | string;
   /** Open a modal instead of navigating (optional callback) */
   onCardClick?: (slug: string) => void;
+  /** Optional 3-dot action menu for management */
+  actionMenu?: React.ReactNode;
+  /** Is 3-dot dropdown currently open */
+  isMenuOpen?: boolean;
 }
 
 /* Category label lookup — styling is fully token-driven via CSS */
@@ -110,9 +125,13 @@ interface SocialLink {
 }
 
 function ensureUrl(base: string, value: string): string {
-  if (value.startsWith('http://') || value.startsWith('https://')) return value;
-  if (!base && value.includes('.')) return 'https://' + value;
-  return base + value;
+  if (!value) return '';
+  const trimmed = value.trim();
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+  if (trimmed.startsWith('www.')) return 'https://' + trimmed;
+  const hostPart = base.replace(/^https?:\/\//, '').split('/')[0];
+  if (trimmed.includes(hostPart)) return 'https://' + trimmed.replace(/^\/+/, '');
+  return base + trimmed.replace(/^@/, '').replace(/^\/+/, '');
 }
 
 function buildSocialLinks(
@@ -148,63 +167,93 @@ export function ProfileCard({
   slug,
   name,
   role,
+  department,
   sublabel,
   batch,
+  session,
   category,
+  badgeLabel,
+  systemRole,
   image,
   socials,
   onCardClick,
+  actionMenu,
+  isMenuOpen,
 }: ProfileCardProps) {
+  const [imgError, setImgError] = useState(false);
+
   /* First initial for placeholder */
   const initial = name.trim().charAt(0).toUpperCase();
 
-  /* Category label row */
-  const categoryLabel = `${CATEGORY_LABEL[category]} · ${sublabel}`;
+  /* Formatted session / batch / academic post */
+  const displaySession =
+    category === "advisor"
+      ? session && session !== "Faculty"
+        ? session
+        : department
+        ? `Dept. of ${department}`
+        : "Faculty"
+      : category === "alumni"
+      ? batch || (session ? `Batch: ${session}` : "")
+      : formatDeptSession(department, session, batch);
 
   /* Social row links */
   const socialLinks = buildSocialLinks(socials, name);
 
-  /* ── Render ── */
-  const CardWrapper = onCardClick
-    ? ({ children }: { children: React.ReactNode }) => (
-        <div
-          className="profile-card"
-          id={`profile-${slug}`}
-          role="button"
-          tabIndex={0}
-          onClick={() => onCardClick(slug)}
-          onKeyDown={(e) => e.key === "Enter" && onCardClick(slug)}
-          aria-label={`View profile: ${name}`}
-        >
-          {children}
-        </div>
+  const handleCardClick = (e: React.MouseEvent) => {
+    // If click originated from the action menu, dropdown, or social links, do NOT trigger card click
+    const target = e.target as HTMLElement;
+    if (
+      target.closest(
+        ".profile-card__action-wrap, .event-more-dropdown, .event-more-btn, .event-more-item, .profile-card__social-footer, .profile-card__social-cell"
       )
-    : ({ children }: { children: React.ReactNode }) => (
-        <Link
-          href={`/profiles/${slug}`}
-          className="profile-card"
-          id={`profile-${slug}`}
-          aria-label={`View profile: ${name}`}
-        >
-          {children}
-        </Link>
-      );
+    ) {
+      return;
+    }
+    if (onCardClick) {
+      onCardClick(slug);
+    }
+  };
 
-  return (
-    <CardWrapper>
+  const hasPhoto = Boolean(image && image.trim() && !imgError);
+
+  const cardMainContent = (
+    <>
       {/* 1. Photo block */}
       <div className="profile-card__photo">
-        {image ? (
+        {hasPhoto ? (
           <Image
-            src={image}
+            src={image!}
             alt={`${name}'s photo`}
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 220px"
             style={{ objectFit: "cover" }}
+            onError={() => setImgError(true)}
+            unoptimized={image?.startsWith("data:") || image?.startsWith("blob:")}
           />
         ) : (
           <div className="profile-card__photo-placeholder" aria-hidden="true">
             {initial}
+          </div>
+        )}
+
+        {/* Neo-Brutalist Corner Bookmark Ribbon (Admin / Moderator) */}
+        {systemRole && systemRole !== "member" && (
+          <div
+            className={`profile-card__corner-ribbon profile-card__corner-ribbon--${systemRole}`}
+            title={systemRole === "admin" ? "Platform Administrator" : "Platform Moderator"}
+          >
+            {systemRole === "admin" ? (
+              <>
+                <Crown size={11} className="profile-card__ribbon-icon" />
+                <span>ADMIN</span>
+              </>
+            ) : systemRole === "moderator" ? (
+              <>
+                <ShieldCheck size={11} className="profile-card__ribbon-icon" />
+                <span>MOD</span>
+              </>
+            ) : null}
           </div>
         )}
       </div>
@@ -212,11 +261,54 @@ export function ProfileCard({
       {/* 2. Content block */}
       <div className="profile-card__content">
         <p className="profile-card__name" title={name}>{name}</p>
-        {batch && <p className="profile-card__batch">{batch}</p>}
+        {displaySession ? (
+          <p className="profile-card__batch" title={displaySession}>
+            {displaySession}
+          </p>
+        ) : null}
         <p className="profile-card__role" title={role}>{role}</p>
       </div>
+    </>
+  );
 
-      {/* 3. Social footer */}
+  return (
+    <div
+      className={`profile-card ${isMenuOpen ? "has-open-menu" : ""}`}
+      id={`profile-${slug}`}
+    >
+      {/* 3-Dot Action Menu if provided (top-right overlay on card) */}
+      {actionMenu && (
+        <div
+          className="profile-card__action-wrap"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {actionMenu}
+        </div>
+      )}
+
+      {/* Main Clickable Area -> Navigates to Profile */}
+      {onCardClick ? (
+        <div
+          className="profile-card__main-link"
+          role="button"
+          tabIndex={0}
+          onClick={handleCardClick}
+          onKeyDown={(e) => e.key === "Enter" && onCardClick(slug)}
+          aria-label={`View profile: ${name}`}
+        >
+          {cardMainContent}
+        </div>
+      ) : (
+        <Link
+          href={`/profile/${slug}`}
+          className="profile-card__main-link"
+          aria-label={`View profile: ${name}`}
+        >
+          {cardMainContent}
+        </Link>
+      )}
+
+      {/* 3. Social footer (placed outside Link to prevent invalid HTML nesting) */}
       {socialLinks.length > 0 && (
         <div className="profile-card__social-footer" role="group" aria-label="Social links">
           {socialLinks.map(({ href, label, icon }, i) => (
@@ -238,8 +330,10 @@ export function ProfileCard({
       )}
 
       {/* 4. Corner badge */}
-      <div className="profile-card__badge">{CATEGORY_LABEL[category]}</div>
-    </CardWrapper>
+      {!actionMenu && (
+        <div className="profile-card__badge">{badgeLabel || CATEGORY_LABEL[category]}</div>
+      )}
+    </div>
   );
 }
 

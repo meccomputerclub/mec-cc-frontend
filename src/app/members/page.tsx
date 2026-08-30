@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { ProfileCard, ProfileGrid } from "@/components/ui/ProfileCard";
-import { activeMembers } from "@/data/members";
-import { getDb } from "@/lib/db";
+import { getActiveMembers } from "@/data/members";
 import "./members.css";
 
 export const metadata: Metadata = {
@@ -9,11 +8,8 @@ export const metadata: Metadata = {
   description: "The passionate individuals driving the MEC Computer Club.",
 };
 
-export const dynamic = 'force-dynamic';
-
 export default async function MembersPage() {
-  const db = getDb();
-  const dbMembers = db.prepare(`SELECT * FROM requests WHERE status = 'approved' ORDER BY id DESC`).all() as any[];
+  const membersList = await getActiveMembers();
 
   return (
     <>
@@ -30,39 +26,19 @@ export default async function MembersPage() {
       <section className="section section--alt">
         <div className="container">
           <ProfileGrid className="stagger-children">
-            {/* Database Members */}
-            {dbMembers.map((member) => (
-              <ProfileCard
-                key={`db-${member.id}`}
-                slug={`app-${member.id}`}
-                name={member.name}
-                role="Club Member"
-                batch={member.batch || "N/A"}
-                sublabel={member.registration_number ? `REG: ${member.registration_number}` : "NEW"}
-                category="member"
-                image={member.photo_base64 || undefined}
-                socials={{
-                  linkedin: member.linkedin || undefined,
-                  github: member.github || undefined,
-                  facebook: member.facebook || undefined,
-                  discord: member.discord || undefined,
-                  codeforces: member.codeforces || undefined,
-                  codechef: member.codechef || undefined,
-                  email: member.email || undefined,
-                }}
-              />
-            ))}
-
-            {/* Static Dummy Members */}
-            {activeMembers.map((member) => (
+            {membersList.map((member) => (
               <ProfileCard
                 key={member.id}
                 slug={member.id}
                 name={member.name}
                 role={member.role}
+                systemRole={member.systemRole}
+                department={member.department}
+                session={member.session}
                 batch={member.batch}
-                sublabel="STATIC"
+                sublabel={member.session || member.batch || "MEMBER"}
                 category="member"
+                image={member.image}
                 socials={member.socials}
               />
             ))}

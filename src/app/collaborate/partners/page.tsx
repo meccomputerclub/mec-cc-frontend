@@ -5,9 +5,11 @@ export const metadata: Metadata = {
   description: "Meet the organizations and companies that support MEC Computer Club.",
 };
 
-import { partners } from "@/data/partners";
+import { getPartners } from "@/data/partners";
 
-export default function PartnersPage() {
+export default async function PartnersPage() {
+  const partnerList = await getPartners();
+
   return (
     <main className="section container">
       <div className="section-header text-center">
@@ -17,7 +19,7 @@ export default function PartnersPage() {
       </div>
 
       <div className="grid grid--3 stagger-children" style={{ maxWidth: '1000px', margin: '0 auto' }}>
-        {partners.map((partner, i) => (
+        {partnerList.map((partner, i) => (
           <div key={i} className="card card--hoverable" style={{ padding: 'var(--space-5)', background: 'var(--surface-elevated)', border: '2px solid var(--text-primary)', borderRadius: 'var(--radius-xl)' }}>
             <div style={{ padding: '4px 12px', background: 'var(--accent-secondary)', color: 'var(--surface-primary)', display: 'inline-block', borderRadius: '99px', fontSize: 'var(--text-xs)', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 'var(--space-3)' }}>
               {partner.type}

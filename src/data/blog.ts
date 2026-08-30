@@ -99,6 +99,41 @@ We're entering another competition next month — this time with a proper workfl
   },
 ];
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+function mapBackendBlog(b: any): BlogPost {
+  return {
+    id: b._id || b.id,
+    slug: b.slug || b._id || b.id,
+    title: b.title,
+    excerpt: b.excerpt || b.summary || (b.content ? b.content.slice(0, 140) + "..." : ""),
+    content: b.content || "",
+    author: b.author?.fullName || b.authorName || "Club Member",
+    authorImage: b.author?.imageUrl || "/images/team/mehedi.jpg",
+    date: b.createdAt ? new Date(b.createdAt).toISOString().split("T")[0] : "2025-08-01",
+    readTime: b.readTime || 4,
+    tags: b.tags || [],
+    image: b.coverImageUrl || b.image || "/images/blog/default.jpg",
+    featured: !!b.featured,
+  };
+}
+
+export async function getBlogs(): Promise<BlogPost[]> {
+  try {
+    const res = await fetch(`${API_URL}/api/blogs`, { next: { revalidate: 30 } });
+    if (res.ok) {
+      const data = await res.json();
+      const backendBlogs: any[] = data.data || data.blogs || [];
+      if (backendBlogs && backendBlogs.length > 0) {
+        return [...backendBlogs.map(mapBackendBlog), ...blogPosts];
+      }
+    }
+  } catch (err) {
+    console.warn("Could not fetch backend blogs, using static blog posts:", err);
+  }
+  return blogPosts;
+}
+
 export function getBlogBySlug(slug: string): BlogPost | undefined {
   return blogPosts.find((p) => p.slug === slug);
 }

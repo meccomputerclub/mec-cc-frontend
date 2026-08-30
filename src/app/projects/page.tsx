@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ProjectCard } from "@/components/ui/Card";
-import { projects } from "@/data/projects";
+import { getProjects } from "@/data/projects";
 import "./projects.css";
 
 export const metadata: Metadata = {
@@ -8,7 +8,9 @@ export const metadata: Metadata = {
   description: "Real projects built by MEC Computer Club members — online judges, dashboards, chatbots, and more.",
 };
 
-export default function ProjectsPage() {
+export default async function ProjectsPage() {
+  const allProjects = await getProjects();
+
   return (
     <>
       <section className="section projects-hero">
@@ -24,7 +26,7 @@ export default function ProjectsPage() {
       <section className="section">
         <div className="container">
           <div className="grid grid--3">
-            {projects.map((project) => (
+            {allProjects.map((project) => (
               <ProjectCard key={project.id} {...project} team={project.team || []} />
             ))}
           </div>

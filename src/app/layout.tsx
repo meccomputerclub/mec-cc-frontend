@@ -7,8 +7,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { AccentIndicator } from "@/components/AccentIndicator";
 import { ScaleWrapper } from "@/components/ScaleWrapper";
 import { Toaster } from "react-hot-toast";
-import { cookies } from "next/headers";
-import { verifySessionToken } from "@/lib/auth";
+import { AuthProvider } from "@/context/AuthContext";
 import "./globals.css";
 
 const jetbrainsMono = JetBrains_Mono({
@@ -35,21 +34,19 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const cookieStore = await cookies();
-  const sessionToken = cookieStore.get("session")?.value;
-  const user = sessionToken ? await verifySessionToken(sessionToken) : null;
-
   return (
     <html lang="en" className={`${GeistSans.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
-      <body>
+      <body suppressHydrationWarning>
         <ThemeProvider>
-          <ScaleWrapper>
-            <Toaster position="bottom-right" />
-            <Navbar user={user} />
-            <main id="main-content">{children}</main>
-            <Footer />
-            <AccentIndicator />
-          </ScaleWrapper>
+          <AuthProvider>
+            <ScaleWrapper>
+              <Toaster position="bottom-right" />
+              <Navbar />
+              <main id="main-content">{children}</main>
+              <Footer />
+              <AccentIndicator />
+            </ScaleWrapper>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

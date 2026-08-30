@@ -88,6 +88,42 @@ export const projects: Project[] = [
   },
 ];
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+function mapBackendProject(p: any): Project {
+  return {
+    id: p._id || p.id,
+    slug: p.slug || p._id || p.id,
+    title: p.title,
+    description: p.description || "",
+    longDescription: p.description || "",
+    department: p.department || "General",
+    techStack: p.techStack || p.technologies || ["TypeScript", "React"],
+    image: p.coverImageUrl || p.imageUrl || "/images/projects/cp-tracker.jpg",
+    team: p.contributors ? p.contributors.map((c: any) => c.fullName || c.name || "Member") : ["Club Member"],
+    liveUrl: p.liveUrl || p.projectUrl || undefined,
+    repoUrl: p.githubUrl || p.repoUrl || undefined,
+    status: p.status === "completed" ? "completed" : "in-progress",
+    featured: !!p.featured,
+  };
+}
+
+export async function getProjects(): Promise<Project[]> {
+  try {
+    const res = await fetch(`${API_URL}/api/projects`, { next: { revalidate: 30 } });
+    if (res.ok) {
+      const data = await res.json();
+      const backendProjects: any[] = data.data || data.projects || [];
+      if (backendProjects && backendProjects.length > 0) {
+        return [...backendProjects.map(mapBackendProject), ...projects];
+      }
+    }
+  } catch (err) {
+    console.warn("Could not fetch backend projects, using static projects:", err);
+  }
+  return projects;
+}
+
 export function getFeaturedProjects(): Project[] {
   return projects.filter((p) => p.featured);
 }
@@ -99,3 +135,4 @@ export function getProjectBySlug(slug: string): Project | undefined {
 export function getProjectsByDepartment(dept: string): Project[] {
   return projects.filter((p) => p.department === dept);
 }
+

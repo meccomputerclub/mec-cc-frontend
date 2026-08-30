@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ProfileCard, ProfileGrid } from "@/components/ui/ProfileCard";
-import { executives } from "@/data/executives";
+import { getExecutives } from "@/data/executives";
 import "./executives.css";
 
 export const metadata: Metadata = {
@@ -8,7 +8,9 @@ export const metadata: Metadata = {
   description: "Meet the student leaders driving the MEC Computer Club forward.",
 };
 
-export default function ExecutivesPage() {
+export default async function ExecutivesPage() {
+  const executivesList = await getExecutives();
+
   return (
     <>
       <section className="section executives-hero">
@@ -24,15 +26,19 @@ export default function ExecutivesPage() {
       <section className="section section--alt">
         <div className="container">
           <ProfileGrid className="stagger-children">
-            {executives.map((exec) => (
+            {executivesList.map((exec) => (
               <ProfileCard
                 key={exec.id}
                 slug={exec.id}
                 name={exec.name}
                 role={exec.role}
+                systemRole={exec.systemRole}
+                department={exec.department}
+                session={exec.session}
                 batch={exec.batch}
                 sublabel="PANEL"
                 category="executive"
+                image={exec.image}
                 socials={exec.socials}
               />
             ))}
@@ -42,3 +48,4 @@ export default function ExecutivesPage() {
     </>
   );
 }
+

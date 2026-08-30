@@ -3,13 +3,12 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useAccent } from "@/components/AccentProvider";
 import { Button } from "@/components/ui/Button";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import type { SessionPayload } from "@/lib/auth";
-import { logoutAction } from "@/app/logout/actions";
+import { User, Shield, LayoutDashboard, LogOut } from "lucide-react";
 import "./Navbar.css";
 
 const navItems = [
@@ -96,13 +95,20 @@ function LogoPreloader() {
   );
 }
 
-export function Navbar({ user }: { user?: SessionPayload | null }) {
+import { useAuth } from "@/context/AuthContext";
+import { NotificationCenter } from "@/components/layout/NotificationCenter";
+import toast from "react-hot-toast";
+
+export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
   const { currentVibe } = useAccent();
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const { user, logout, isAdmin } = useAuth();
 
   useEffect(() => {
     setMounted(true);
@@ -123,7 +129,22 @@ export function Navbar({ user }: { user?: SessionPayload | null }) {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Close dropdown on route change
+  useEffect(() => {
+    setUserDropdownOpen(false);
+    setActiveDropdown(null);
+  }, [pathname]);
 
+  const handleLogout = async () => {
+    await logout();
+    setUserDropdownOpen(false);
+    toast.success("Logged out successfully");
+    router.push("/login");
+  };
+
+  if (pathname?.startsWith("/dashboard")) {
+    return null;
+  }
 
   return (
     <header className={`navbar ${isScrolled ? "navbar--scrolled" : ""}`} role="banner">
@@ -193,24 +214,111 @@ export function Navbar({ user }: { user?: SessionPayload | null }) {
           ))}
         </ul>
 
-        {/* Right side — CTA + Login */}
+        {/* Right side — CTA & Auth */}
         <div className="navbar__actions">
           <ThemeToggle />
           {user ? (
             <>
-              <Link href={user.role === 'admin' ? '/admin' : '/dashboard'} className="navbar__login">
-                {user.role === 'admin' ? 'Admin Panel' : 'Dashboard'}
-              </Link>
-              <form action={logoutAction} style={{ display: 'inline' }}>
-                <Button type="submit" size="sm" variant="outline">
-                  Logout
-                </Button>
-              </form>
+              <NotificationCenter />
+              <div className="navbar__user-menu-wrap" onMouseLeave={() => setUserDropdownOpen(false)}>
+                <button
+                type="button"
+                className="navbar__user-btn"
+                onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                onMouseEnter={() => setUserDropdownOpen(true)}
+                aria-label="User menu"
+              >
+                {user.imageUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img 
+                    key={user.imageUrl}
+                    src={user.imageUrl} 
+                    alt={user.fullName} 
+                    className="navbar__user-avatar" 
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      const fallback = e.currentTarget.parentElement?.querySelector('.navbar__user-initials');
+                      if (fallback) (fallback as HTMLElement).style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <span 
+                  className="navbar__user-initials"
+                  style={{ display: user.imageUrl ? 'none' : 'flex' }}
+                >
+                  {user.fullName ? user.fullName.charAt(0).toUpperCase() : "U"}
+                </span>
+                <span className="navbar__user-name">{user.fullName?.split(" ")[0] || "Member"}</span>
+                <svg className="navbar__chevron" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                  <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+
+              {userDropdownOpen && (
+                <div className="navbar__dropdown-wrapper navbar__user-dropdown-wrapper">
+                  <ul className="navbar__dropdown navbar__user-dropdown" role="menu">
+                    <li className="navbar__user-dropdown-header">
+                      <div className="navbar__user-dropdown-name">{user.fullName}</div>
+                      <span className="navbar__user-role-badge">{user.role}</span>
+                    </li>
+                    <li role="none">
+                      <Link
+                        href="/dashboard?mode=personal"
+                        className="navbar__dropdown-link"
+                        role="menuitem"
+                        onClick={() => setUserDropdownOpen(false)}
+                      >
+                        <User size={14} style={{ marginRight: "6px" }} />
+                        Profile
+                      </Link>
+                    </li>
+                    <li role="none">
+                      <Link
+                        href="/dashboard?mode=personal&tab=security"
+                        className="navbar__dropdown-link"
+                        role="menuitem"
+                        onClick={() => setUserDropdownOpen(false)}
+                      >
+                        <Shield size={14} style={{ marginRight: "6px" }} />
+                        Security
+                      </Link>
+                    </li>
+                    {(isAdmin || user.role === "moderator") && (
+                      <li role="none">
+                        <Link
+                          href="/dashboard?mode=executive&tab=members-management"
+                          className="navbar__dropdown-link"
+                          role="menuitem"
+                          onClick={() => setUserDropdownOpen(false)}
+                        >
+                          <LayoutDashboard size={14} style={{ marginRight: "6px" }} />
+                          Executive Command
+                        </Link>
+                      </li>
+                    )}
+                    <li role="none">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          handleLogout();
+                        }}
+                        className="navbar__dropdown-link navbar__dropdown-link--danger"
+                        role="menuitem"
+                      >
+                        <LogOut size={14} style={{ marginRight: "6px" }} />
+                        Sign Out
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              )}
+            </div>
             </>
           ) : (
             <>
               <Link href="/login" className="navbar__login" id="nav-member-login">
-                Member Login
+                Login
               </Link>
               <Button href="/join" size="sm" id="nav-join-cta">
                 Join Club

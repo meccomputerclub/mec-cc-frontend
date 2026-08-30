@@ -11,9 +11,12 @@ interface ButtonProps {
   disabled?: boolean;
   className?: string;
   id?: string;
+  title?: string;
   fullWidth?: boolean;
   icon?: React.ReactNode;
   style?: React.CSSProperties;
+  target?: string;
+  rel?: string;
 }
 
 export function Button({
@@ -26,9 +29,12 @@ export function Button({
   disabled = false,
   className = "",
   id,
+  title,
   fullWidth = false,
   icon,
   style,
+  target,
+  rel,
 }: ButtonProps) {
   const classes = [
     "btn",
@@ -42,7 +48,7 @@ export function Button({
 
   if (href) {
     return (
-      <Link href={href} className={classes} id={id} style={style}>
+      <Link href={href} className={classes} id={id} title={title} style={style} target={target} rel={rel}>
         {icon && <span className="btn__icon">{icon}</span>}
         {children}
       </Link>
@@ -56,6 +62,7 @@ export function Button({
       onClick={onClick}
       disabled={disabled}
       id={id}
+      title={title}
       style={style}
     >
       {icon && <span className="btn__icon">{icon}</span>}

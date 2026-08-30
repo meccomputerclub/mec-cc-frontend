@@ -72,17 +72,71 @@ export default async function HomePage() {
           </div>
           
           {upcomingEvents.length > 0 && (
-            <div className="hero__floating-event-border" style={{ position: 'absolute', top: '32px', right: '32px', zIndex: 30, width: '100%', maxWidth: '320px', borderRadius: 'var(--radius-sm)' }}>
+            <div className="hero__floating-event-border" style={{ position: 'absolute', top: '32px', right: '32px', zIndex: 30, width: '100%', maxWidth: '340px', borderRadius: 'var(--radius-sm)' }}>
               <div className="hero__floating-event-inner">
-                <span className="hero__floating-event-label" style={{ borderBottom: '1px solid var(--border-brutalist)', paddingBottom: '4px' }}>
-                  Next in queue.
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-brutalist)', paddingBottom: '6px' }}>
+                  <span className="hero__floating-event-label">
+                    Next in queue.
+                  </span>
+                  <Link href="/events#upcoming" style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-secondary)', textDecoration: 'none' }}>
+                    VIEW ALL →
+                  </Link>
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {upcomingEvents.map((evt, index) => (
-                    <Link key={evt.slug} href={`/events/${evt.slug}`} style={{ textDecoration: 'none', padding: '6px 0', borderBottom: index !== upcomingEvents.length - 1 ? '1px solid var(--border-brutalist)' : 'none' }}>
-                      <p className="hero__floating-event-title">{evt.title}</p>
-                    </Link>
-                  ))}
+                  {upcomingEvents.slice(0, 2).map((evt, index) => {
+                    const eventDate = evt.date ? new Date(evt.date) : null;
+                    const isValidDate = eventDate && !isNaN(eventDate.getTime());
+                    const month = isValidDate ? eventDate.toLocaleDateString("en-US", { month: "short" }).toUpperCase() : "TBA";
+                    const day = isValidDate ? eventDate.getDate() : "--";
+
+                    return (
+                      <Link
+                        key={evt.slug || evt.id}
+                        href={`/events/${evt.slug}`}
+                        style={{
+                          textDecoration: 'none',
+                          padding: '8px 0',
+                          borderBottom: index !== Math.min(upcomingEvents.length, 2) - 1 ? '1px solid var(--border-default)' : 'none',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '10px',
+                        }}
+                      >
+                        <div style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          minWidth: '42px',
+                          padding: '3px 4px',
+                          background: 'var(--surface-secondary)',
+                          border: '1px solid var(--border-brutalist)',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '9px',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 'bold',
+                          color: 'var(--text-primary)',
+                          lineHeight: '1.1',
+                          flexShrink: 0,
+                        }}>
+                          <span style={{ fontSize: '8px', opacity: 0.8 }}>{month}</span>
+                          <span style={{ fontSize: '13px', fontWeight: 800 }}>{day}</span>
+                        </div>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <p className="hero__floating-event-title" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {evt.title}
+                          </p>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px', fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
+                            <span style={{ textTransform: 'uppercase', color: 'var(--accent-primary-hover)', fontWeight: 700, fontSize: '10px' }}>
+                              {evt.type?.toUpperCase() || "WORKSHOP"}
+                            </span>
+                            <span>&bull;</span>
+                            <span style={{ fontSize: '10px' }}>{evt.time || "15:00"}</span>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
                 </div>
               </div>
             </div>

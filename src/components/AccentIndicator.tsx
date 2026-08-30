@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import { useAccent } from "./AccentProvider";
 import "./AccentIndicator.css";
 
 export function AccentIndicator() {
+  const pathname = usePathname();
   const { currentVibe, cycleManualVibe, isManual } = useAccent();
   const barRef = useRef<HTMLDivElement>(null);
 
   // Restart the progress bar animation each time the vibe changes
+  // Must be called before any conditional return (Rules of Hooks)
   useEffect(() => {
     const bar = barRef.current;
     if (!bar) return;
@@ -18,6 +21,11 @@ export function AccentIndicator() {
     void bar.offsetWidth; // trigger reflow
     bar.classList.add("accent-indicator__bar--animating");
   }, [currentVibe]);
+
+  // Early return AFTER all hooks
+  if (pathname?.startsWith("/dashboard")) {
+    return null;
+  }
 
   return (
     <div 

@@ -94,16 +94,17 @@ interface ProjectCardProps {
 export function ProjectCard({
   title,
   description,
-  department,
-  techStack,
-  team,
-  status,
+  department = "webdev",
+  techStack = [],
+  team = [],
+  status = "in-progress",
   slug,
   liveUrl,
 }: ProjectCardProps) {
-  // Logic for displaying team avatars
-  const displayTeam = team.slice(0, 3);
-  const remainingCount = team.length > 3 ? team.length - 3 : 0;
+  const safeTeam = Array.isArray(team) ? team : [];
+  const safeTechStack = Array.isArray(techStack) ? techStack : [];
+  const displayTeam = safeTeam.slice(0, 3);
+  const remainingCount = safeTeam.length > 3 ? safeTeam.length - 3 : 0;
 
   return (
     <Link href={`/projects/${slug}`} className="card card--project" id={`project-${slug}`}>
@@ -121,13 +122,13 @@ export function ProjectCard({
         <p className="card__description">{description}</p>
         
         <div className="card__tags">
-          {techStack.slice(0, 4).map((tech) => (
+          {safeTechStack.slice(0, 4).map((tech) => (
             <span key={tech} className="card__tag">
               {tech}
             </span>
           ))}
-          {techStack.length > 4 && (
-            <span className="card__tag card__tag--more">+{techStack.length - 4}</span>
+          {safeTechStack.length > 4 && (
+            <span className="card__tag card__tag--more">+{safeTechStack.length - 4}</span>
           )}
         </div>
 
@@ -135,7 +136,7 @@ export function ProjectCard({
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
             {liveUrl ? "View Project ↗" : "Built By →"}
           </div>
-          <div className="avatar-group" title={`Built by ${team.join(', ')}`}>
+          <div className="avatar-group" title={`Built by ${safeTeam.join(', ')}`}>
             {displayTeam.map((member, i) => {
               const initials = member.split(" ").map(n => n[0]).join("").slice(0, 2);
               return (
@@ -212,7 +213,7 @@ export function BlogCard({
           <div className="avatar-group" title={`Written by ${author}`}>
             <div className="avatar">
               {authorImage ? (
-                <Image src={authorImage} alt={author} fill style={{ objectFit: "cover", borderRadius: "50%" }} />
+                <Image src={authorImage} alt={author} fill style={{ objectFit: "cover", borderRadius: "8px" }} />
               ) : (
                 author.split(" ").map(n => n[0]).join("").slice(0, 2)
               )}

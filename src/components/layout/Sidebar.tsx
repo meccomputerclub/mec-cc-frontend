@@ -2,31 +2,52 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import toast from "react-hot-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import {
+  LayoutDashboard,
+  Trophy,
+  Calendar,
+  Settings,
+  Users,
+  Inbox,
+  Ticket,
+  Menu,
+} from "lucide-react";
 import "./Sidebar.css";
 
 interface SidebarProps {
   type: "user" | "admin";
 }
 
-const userLinks = [
-  { href: "/dashboard", label: "Overview", icon: "📊" },
-  { href: "/dashboard/cp-profile", label: "CP Profile", icon: "🏆" },
-  { href: "/dashboard/events", label: "My Events", icon: "📅" },
-  { href: "/dashboard/settings", label: "Settings", icon: "⚙️" },
-];
-
-const adminLinks = [
-  { href: "/admin", label: "Overview", icon: "📈" },
-  { href: "/admin/applications", label: "Applications", icon: "📥" },
-  { href: "/admin/members", label: "Members", icon: "👥" },
-  { href: "/admin/events", label: "Manage Events", icon: "🎫" },
-];
-
 export function Sidebar({ type }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { logout, user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+
+  const handleLogout = async () => {
+    await logout();
+    toast.success("Logged out successfully");
+    router.push("/login");
+  };
+
+  const userLinks = [
+    { href: "/dashboard", label: "Profile", icon: <LayoutDashboard size={16} /> },
+    { href: "/dashboard/cp-profile", label: "CP Profile", icon: <Trophy size={16} /> },
+    { href: "/dashboard/events", label: "My Events", icon: <Calendar size={16} /> },
+    { href: "/dashboard/settings", label: "Settings", icon: <Settings size={16} /> },
+  ];
+
+  const adminLinks = [
+    { href: "/admin", label: "Overview", icon: <LayoutDashboard size={16} /> },
+    { href: "/admin/applications", label: "Applications", icon: <Inbox size={16} /> },
+    { href: "/admin/members", label: "Members", icon: <Users size={16} /> },
+    { href: "/admin/events", label: "Manage Events", icon: <Ticket size={16} /> },
+  ];
+
   const links = type === "admin" ? adminLinks : userLinks;
 
   // Close sidebar on navigation on mobile
@@ -36,19 +57,19 @@ export function Sidebar({ type }: SidebarProps) {
 
   return (
     <>
-      <button 
-        className="sidebar-toggle" 
+      <button
+        className="sidebar-toggle"
         onClick={() => setIsOpen(true)}
         aria-label="Open sidebar"
-        style={{ position: 'fixed', top: '16px', left: '16px', zIndex: 999 }}
+        style={{ position: "fixed", top: "16px", left: "16px", zIndex: 999 }}
       >
-        ☰
+        <Menu size={18} />
       </button>
 
       {isOpen && (
-        <div 
-          className="sidebar-overlay sidebar-overlay--open" 
-          onClick={() => setIsOpen(false)} 
+        <div
+          className="sidebar-overlay sidebar-overlay--open"
+          onClick={() => setIsOpen(false)}
         />
       )}
 
@@ -75,22 +96,27 @@ export function Sidebar({ type }: SidebarProps) {
         <div className="sidebar__footer">
           <div className="sidebar__user">
             <div className="sidebar__avatar">
-              {type === "admin" ? "AD" : "US"}
+              {user?.fullName ? user.fullName.charAt(0).toUpperCase() : type === "admin" ? "AD" : "US"}
             </div>
             <div className="sidebar__user-info">
               <span className="sidebar__user-name">
-                {type === "admin" ? "Admin User" : "Farhan Ahmed"}
+                {user?.fullName || (type === "admin" ? "Admin User" : "Member")}
               </span>
               <span className="sidebar__user-role">
-                {type === "admin" ? "Executive" : "Member"}
+                {user?.role ? user.role.toUpperCase() : type === "admin" ? "Executive" : "Member"}
               </span>
             </div>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <ThemeToggle />
-            <Link href="/" className="sidebar__link" style={{ padding: '4px 8px', fontSize: '12px' }}>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="sidebar__link"
+              style={{ padding: "4px 8px", fontSize: "12px", background: "none", border: "none", cursor: "pointer" }}
+            >
               Logout
-            </Link>
+            </button>
           </div>
         </div>
       </aside>

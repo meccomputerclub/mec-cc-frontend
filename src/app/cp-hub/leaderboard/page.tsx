@@ -26,7 +26,7 @@ export default function LeaderboardPage() {
         {leaderboard.map((entry) => (
           <div key={entry.rank} className={`cp-leaderboard__row ${entry.rank <= 3 ? `cp-leaderboard__row--top-${entry.rank}` : ""}`}>
             <span className="cp-leaderboard__rank">
-              {entry.rank === 1 ? "🥇" : entry.rank === 2 ? "🥈" : entry.rank === 3 ? "🥉" : entry.rank}
+              #{entry.rank}
             </span>
             <span className="cp-leaderboard__name">{entry.name}</span>
             <span className="cp-leaderboard__handle">@{entry.handle}</span>

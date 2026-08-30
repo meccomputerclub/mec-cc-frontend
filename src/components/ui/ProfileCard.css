@@ -46,6 +46,15 @@
   box-shadow: none;
 }
 
+.profile-card__main-link {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
 /* Reduced motion — matches Card.css @media block */
 @media (prefers-reduced-motion: reduce) {
   .profile-card:hover {
@@ -172,6 +181,7 @@
   border-top: 1px solid var(--border-brutalist);
   background: var(--surface-primary);
 }
+
 .dark .profile-card__social-footer {
   border-top-color: var(--border-default);
   background: transparent;
@@ -188,6 +198,7 @@
   position: relative;
   transition: color var(--transition-fast), background var(--transition-fast);
 }
+
 .profile-card__social-cell:hover {
   color: var(--accent-primary-hover);
   background: var(--accent-primary-light);
@@ -210,6 +221,7 @@
   opacity: 0.15;
   pointer-events: none;
 }
+
 .dark .profile-card__social-sep {
   background: var(--border-default);
   opacity: 1;
@@ -220,15 +232,98 @@
   position: absolute;
   top: var(--space-2);
   right: var(--space-2);
-  font-family: var(--font-mono);
-  font-feature-settings: "liga" 0, "calt" 0;
+  font-family: var(--font-body);
   font-size: 9px;
-  font-weight: var(--weight-bold);
-  letter-spacing: 0.06em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   background: var(--accent-primary);
   color: var(--accent-primary-text);
   padding: 2px 6px;
   border-radius: 4px;
   pointer-events: none;
   user-select: none;
+  z-index: 5;
+  box-shadow: 1px 1px 0 var(--border-brutalist);
+}
+
+.profile-card__badge--left {
+  left: var(--space-2) !important;
+  right: auto !important;
+}
+
+/* ── Neo-Brutalist Corner Bookmark Ribbon (Admin / Moderator) ── */
+.profile-card__corner-ribbon {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px 3px 7px;
+  font-family: var(--font-body);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1;
+  border-bottom: 2px solid #000000;
+  border-right: 2px solid #000000;
+  border-bottom-right-radius: 6px;
+  box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.4);
+  user-select: none;
+  cursor: help;
+  transition: transform var(--transition-fast);
+}
+
+.profile-card:hover .profile-card__corner-ribbon {
+  transform: translate(0px, 0px);
+}
+
+.profile-card__ribbon-icon {
+  flex-shrink: 0;
+}
+
+/* Gold Admin Ribbon */
+.profile-card__corner-ribbon--admin {
+  background: linear-gradient(135deg, #FDE047 0%, #F59E0B 100%);
+  color: #000000;
+  border-color: #000000;
+}
+
+.dark .profile-card__corner-ribbon--admin {
+  background: linear-gradient(135deg, #FBBF24 0%, #D97706 100%);
+  color: #000000;
+  border-color: #000000;
+  box-shadow: 2px 2px 0px #000000;
+}
+
+/* Bronze Moderator Ribbon */
+.profile-card__corner-ribbon--moderator {
+  background: linear-gradient(135deg, #FED7AA 0%, #EA580C 100%);
+  color: #000000;
+  border-color: #000000;
+}
+
+.dark .profile-card__corner-ribbon--moderator {
+  background: linear-gradient(135deg, #FB923C 0%, #C2410C 100%);
+  color: #000000;
+  border-color: #000000;
+  box-shadow: 2px 2px 0px #000000;
+}
+
+.profile-card.has-open-menu {
+  overflow: visible !important;
+  z-index: 200 !important;
+}
+
+.profile-card.has-open-menu .profile-card__photo {
+  overflow: visible !important;
+}
+
+.profile-card__action-wrap {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 60;
 }

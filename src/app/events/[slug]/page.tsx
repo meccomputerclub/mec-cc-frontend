@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { events, getEventBySlug } from "@/data/events";
+import { EventRegisterButton } from "./EventRegisterButton";
 import "./event-detail.css";
 
 export async function generateStaticParams() {
@@ -45,7 +46,7 @@ export default async function EventDetailPage({
         <div className="event-detail__header">
           {success === "true" && (
             <div style={{ marginBottom: "var(--space-4)", padding: "16px", background: "rgba(0, 255, 0, 0.1)", border: "1px solid #10B981", borderRadius: "8px", color: "#065F46", textAlign: "center" }}>
-              <strong>🎉 Registration Successful!</strong> We've received your registration for this event.
+              <strong>Registration Successful!</strong> We&apos;ve received your registration for this event.
             </div>
           )}
           <Badge variant={event.status === "upcoming" ? "upcoming" : "past"} size="md">
@@ -72,10 +73,8 @@ export default async function EventDetailPage({
               </div>
             )}
           </div>
-          {event.status === "upcoming" && event.registrationUrl && (
-            <Button href={event.registrationUrl} size="lg" id="event-register-cta">
-              Register for this event
-            </Button>
+          {event.status === "upcoming" && (
+            <EventRegisterButton eventId={event.id} externalUrl={event.registrationUrl} />
           )}
         </div>
 

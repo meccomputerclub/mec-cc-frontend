@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ProfileCard, ProfileGrid } from "@/components/ui/ProfileCard";
-import { advisors } from "@/data/advisors";
+import { getAdvisors } from "@/data/advisors";
 import "./advisors.css";
 
 export const metadata: Metadata = {
@@ -8,7 +8,9 @@ export const metadata: Metadata = {
   description: "The guiding forces behind MEC Computer Club.",
 };
 
-export default function AdvisorsPage() {
+export default async function AdvisorsPage() {
+  const advisorsList = await getAdvisors();
+
   return (
     <>
       <section className="section advisors-hero">
@@ -24,12 +26,15 @@ export default function AdvisorsPage() {
       <section className="section section--alt">
         <div className="container">
           <ProfileGrid className="stagger-children">
-            {advisors.map((advisor) => (
+            {advisorsList.map((advisor) => (
               <ProfileCard
                 key={advisor.id}
                 slug={advisor.id}
                 name={advisor.name}
                 role={advisor.role}
+                department={advisor.department}
+                session={advisor.academicPost || (advisor.department ? `Dept. of ${advisor.department}` : "Faculty")}
+                image={advisor.image}
                 sublabel="FACULTY"
                 category="advisor"
                 socials={advisor.socials}

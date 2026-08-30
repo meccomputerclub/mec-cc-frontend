@@ -3,21 +3,23 @@
 import { useState, useRef, useEffect } from "react";
 import "./Select.css";
 
-interface SelectOption {
+export interface SelectOption {
   value: string;
   label: string;
 }
 
-interface SelectProps {
+export interface SelectProps {
   id?: string;
+  name?: string;
   value: string;
   onChange: (value: string) => void;
   options: SelectOption[];
   placeholder?: string;
   required?: boolean;
+  disabled?: boolean;
 }
 
-export function Select({ id, value, onChange, options, placeholder = "Select...", required }: SelectProps) {
+export function Select({ id, name, value, onChange, options, placeholder = "Select...", required, disabled }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -34,11 +36,17 @@ export function Select({ id, value, onChange, options, placeholder = "Select..."
   }, []);
 
   return (
-    <div className="custom-select-container" ref={containerRef} id={id}>
+    <div
+      className={`custom-select-container ${isOpen ? "open is-open" : ""} ${disabled ? "disabled" : ""}`.trim()}
+      ref={containerRef}
+      id={id}
+      data-open={isOpen}
+    >
       <button
         type="button"
         className={`custom-select-trigger ${isOpen ? "open" : ""}`}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        disabled={disabled}
       >
         <span>{selectedOption ? selectedOption.label : placeholder}</span>
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" className="custom-select-icon">
@@ -46,7 +54,7 @@ export function Select({ id, value, onChange, options, placeholder = "Select..."
         </svg>
       </button>
 
-      {isOpen && (
+      {isOpen && !disabled && (
         <div className="custom-select-dropdown">
           {options.map((opt) => (
             <div
@@ -57,17 +65,24 @@ export function Select({ id, value, onChange, options, placeholder = "Select..."
                 setIsOpen(false);
               }}
             >
-              {opt.label}
+              <span>{opt.label}</span>
+              {value === opt.value && (
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "currentColor", flexShrink: 0, marginLeft: "8px" }}>
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              )}
             </div>
           ))}
         </div>
       )}
 
-      {/* Hidden input to support native HTML5 form validation */}
+      {/* Hidden input to support native HTML5 form validation & form name */}
       <input 
         type="text" 
+        name={name}
         value={value} 
         required={required} 
+        disabled={disabled}
         onChange={() => {}} // Dummy handler to prevent react warnings
         style={{ opacity: 0, position: 'absolute', pointerEvents: 'none', height: 0, width: 0 }} 
       />

@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" width="1200" height="400">
+  <defs>
+    <linearGradient id="circ-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0815" />
+      <stop offset="50%" stop-color="#141126" />
+      <stop offset="100%" stop-color="#0a0914" />
+    </linearGradient>
+    <pattern id="circ-grid" width="25" height="25" patternUnits="userSpaceOnUse">
+      <path d="M 25 0 L 0 0 0 25" fill="none" stroke="rgba(245, 158, 11, 0.08)" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="400" fill="url(#circ-grad)"/>
+  <rect width="1200" height="400" fill="url(#circ-grid)"/>
+
+  <!-- Golden Top/Bottom Lines -->
+  <line x1="0" y1="15" x2="1200" y2="15" stroke="#f59e0b" stroke-width="2" stroke-opacity="0.4" stroke-dasharray="10 5"/>
+  <line x1="0" y1="385" x2="1200" y2="385" stroke="#f59e0b" stroke-width="2" stroke-opacity="0.4" stroke-dasharray="10 5"/>
+
+  <!-- Left CPU Chip Package -->
+  <g transform="translate(60, 45)">
+    <rect x="0" y="0" width="180" height="180" rx="10" fill="#1c1630" stroke="#f59e0b" stroke-width="3"/>
+    <rect x="25" y="25" width="130" height="130" rx="6" fill="#0f0c1c" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="90" y="85" fill="#f59e0b" font-family="monospace" font-size="16" font-weight="900" text-anchor="middle">MEC_CPU</text>
+    <text x="90" y="105" fill="#e2e8f0" font-family="monospace" font-size="11" font-weight="bold" text-anchor="middle">64-BIT CORE</text>
+    <text x="90" y="125" fill="#94a3b8" font-family="monospace" font-size="9" text-anchor="middle">4.20 GHz // RISC-V</text>
+
+    <!-- Pins -->
+    <path d="M -15 35 L 0 35 M -15 65 L 0 65 M -15 95 L 0 95 M -15 125 L 0 125 M -15 155 L 0 155" stroke="#f59e0b" stroke-width="3"/>
+    <path d="M 180 35 L 195 35 M 180 65 L 195 65 M 180 95 L 195 95 M 180 125 L 195 125 M 180 155 L 195 155" stroke="#f59e0b" stroke-width="3"/>
+  </g>
+
+  <!-- Circuit Traces spreading from CPU -->
+  <path d="M 255 80 L 380 80 L 420 120 L 600 120 L 640 70 L 850 70 L 900 120 L 1150 120" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-opacity="0.6"/>
+  <circle cx="380" cy="80" r="5" fill="#f59e0b"/>
+  <circle cx="420" cy="120" r="5" fill="#f59e0b"/>
+  <circle cx="640" cy="70" r="5" fill="#f59e0b"/>
+  <circle cx="900" cy="120" r="5" fill="#f59e0b"/>
+
+  <path d="M 255 140 L 320 140 L 370 190 L 520 190 L 560 230 L 780 230" fill="none" stroke="#38bdf8" stroke-width="2" stroke-opacity="0.5"/>
+  <circle cx="320" cy="140" r="4" fill="#38bdf8"/>
+  <circle cx="560" cy="230" r="4" fill="#38bdf8"/>
+
+  <!-- Right Logic Gates & Info Panel -->
+  <g transform="translate(850, 45)">
+    <rect x="0" y="0" width="290" height="140" rx="8" fill="#131024" stroke="#f59e0b" stroke-width="2"/>
+    <rect x="0" y="0" width="290" height="24" rx="8" fill="#201a3b"/>
+    <text x="14" y="16" fill="#f59e0b" font-family="monospace" font-size="10" font-weight="900">HARDWARE_TELEMETRY // LIVE</text>
+    
+    <text x="16" y="48" fill="#e2e8f0" font-family="monospace" font-size="12" font-weight="bold">CLOCK: 100.00 MHz [LOCKED]</text>
+    <text x="16" y="70" fill="#38bdf8" font-family="monospace" font-size="11">BUS WIDTH: 256-BIT DDR5</text>
+    <text x="16" y="92" fill="#22c55e" font-family="monospace" font-size="11">POWER STATUS: NOMINAL (1.2V)</text>
+    <text x="16" y="114" fill="#94a3b8" font-family="monospace" font-size="10">PIPELINE: FETCH -> DECODE -> EXEC</text>
+  </g>
+
+  <!-- Big Watermark Center -->
+  <text x="560" y="90" fill="#f59e0b" fill-opacity="0.08" font-family="monospace" font-size="70" font-weight="900" letter-spacing="4">CIRCUIT.02</text>
+</svg>

@@ -91,83 +91,108 @@ export const events: Event[] = [
   },
 ];
 
-import { getDb } from "@/lib/db";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-export async function getUpcomingEvents(): Promise<Event[]> {
-  const db = getDb();
-  const now = new Date().toISOString();
-  
-  const dbEvents = db.prepare(`
-    SELECT * FROM events WHERE event_date >= ? ORDER BY event_date ASC
-  `).all(now) as any[];
+export function isEventUpcoming(e: any): boolean {
+  if (!e) return false;
+  const status = (e.status || "").toLowerCase();
+  if (status === "completed" || status === "past" || status === "cancelled") {
+    return false;
+  }
+  if (status === "upcoming" || status === "scheduled" || status === "ongoing") {
+    return true;
+  }
+  if (!e.date || e.date === "TBA") return true;
+  const d = new Date(e.date);
+  if (isNaN(d.getTime())) return true;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return d >= today;
+}
 
-  const mappedDbEvents: Event[] = dbEvents.map(e => ({
-    id: e.id.toString(),
-    slug: e.id.toString(),
+export function isEventPast(e: any): boolean {
+  return !isEventUpcoming(e);
+}
+
+function mapBackendEvent(e: any): Event {
+  const eventDate = e.date ? new Date(e.date) : null;
+  const isDateValid = eventDate && !isNaN(eventDate.getTime());
+  const isUpcoming = isEventUpcoming(e);
+
+  return {
+    id: e._id ? String(e._id) : String(e.id),
+    slug: e.slug || (e._id ? String(e._id) : String(e.id)),
     title: e.title,
     description: e.description || "",
-    date: new Date(e.event_date).toISOString(),
-    time: new Date(e.event_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-    location: e.location || "TBA",
-    type: "workshop",
-    status: "upcoming",
-    registrationUrl: "/events/" + e.id.toString() + "/register",
-    image: "",
-  }));
+    longDescription: e.longDescription || e.description || "",
+    date: isDateValid ? eventDate.toISOString().split("T")[0] : (e.date || "TBA"),
+    endDate: e.endDate ? new Date(e.endDate).toISOString().split("T")[0] : undefined,
+    time: e.eventTime || e.time || "15:00 - 17:00",
+    location: e.location || "MEC Campus",
+    type: e.category || e.type || "workshop",
+    department: e.department || "General",
+    image: e.coverImageUrl || e.bannerImageUrl || "/images/events/web-hacking-ctf.jpg",
+    speakers: e.organizer ? [e.organizer] : (e.speakers || []),
+    status: isUpcoming ? "upcoming" : "past",
+    registrationUrl: e.registrationLink || e.registrationUrl || undefined,
+    attendeeCount: e.participants?.length ?? (Array.isArray(e.attendees) ? e.attendees.length : (typeof e.attendeeCount === "number" ? e.attendeeCount : 0)),
+    tags: e.tags || [],
+  };
+}
 
-  const staticUpcoming = events.filter((e) => e.status === "upcoming");
-  
-  return [...mappedDbEvents, ...staticUpcoming];
+export async function getUpcomingEvents(): Promise<Event[]> {
+  try {
+    const res = await fetch(`${API_URL}/api/events`, { cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      const backendEvents: any[] = data.data || data.events || [];
+      if (backendEvents && backendEvents.length > 0) {
+        const mapped = backendEvents.map(mapBackendEvent);
+        const upcoming = mapped.filter(isEventUpcoming);
+        if (upcoming.length > 0) return upcoming;
+      }
+    }
+  } catch (err) {
+    console.warn("Could not fetch backend events, using static fallback:", err);
+  }
+  return events.filter(isEventUpcoming);
 }
 
 export async function getPastEvents(): Promise<Event[]> {
-  const db = getDb();
-  const now = new Date().toISOString();
-  
-  const dbEvents = db.prepare(`
-    SELECT * FROM events WHERE event_date < ? ORDER BY event_date DESC
-  `).all(now) as any[];
-
-  const mappedDbEvents: Event[] = dbEvents.map(e => ({
-    id: e.id.toString(),
-    slug: e.id.toString(),
-    title: e.title,
-    description: e.description || "",
-    date: new Date(e.event_date).toISOString(),
-    time: new Date(e.event_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-    location: e.location || "TBA",
-    type: "workshop",
-    status: "past",
-    registrationUrl: "/events/" + e.id.toString() + "/register",
-    image: "",
-  }));
-
-  const staticPast = events.filter((e) => e.status === "past");
-  
-  return [...mappedDbEvents, ...staticPast];
+  try {
+    const res = await fetch(`${API_URL}/api/events`, { cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      const backendEvents: any[] = data.data || data.events || [];
+      if (backendEvents && backendEvents.length > 0) {
+        const mapped = backendEvents.map(mapBackendEvent);
+        const past = mapped.filter(isEventPast);
+        if (past.length > 0) return past;
+      }
+    }
+  } catch (err) {
+    console.warn("Could not fetch backend events, using static fallback:", err);
+  }
+  return events.filter(isEventPast);
 }
 
 export async function getEventBySlug(slug: string): Promise<Event | undefined> {
-  // First check if it's an ID from the database
-  if (!isNaN(Number(slug))) {
-    const db = getDb();
-    const e = db.prepare(`SELECT * FROM events WHERE id = ?`).get(Number(slug)) as any;
-    if (e) {
-      const isUpcoming = new Date(e.event_date) >= new Date();
-      return {
-        id: e.id.toString(),
-        slug: e.id.toString(),
-        title: e.title,
-        description: e.description || "",
-        date: new Date(e.event_date).toISOString(),
-        time: new Date(e.event_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-        location: e.location || "TBA",
-        type: "workshop",
-        status: isUpcoming ? "upcoming" : "past",
-        registrationUrl: "/events/" + e.id.toString() + "/register",
-        image: "",
-      };
+  // 1. Try backend lookup first
+  try {
+    const res = await fetch(`${API_URL}/api/events/${slug}`, { cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.data) {
+        return mapBackendEvent(data.data);
+      }
     }
+  } catch {
+    // Ignore and fallback to static
   }
-  return events.find((e) => e.slug === slug);
+
+  // 2. Static list fallback
+  const staticFound = events.find((e) => e.slug === slug || e.id === slug);
+  if (staticFound) return staticFound;
+
+  return undefined;
 }

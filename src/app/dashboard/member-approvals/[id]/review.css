@@ -1,0 +1,65 @@
+/* ════════════════════════════════════════════════════════════════
+   WYSIWYG Member Application Review Page Styles
+   ════════════════════════════════════════════════════════════════ */
+
+/* Modal overlay & container matching dashboard */
+.db-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: var(--space-4);
+  animation: fadeIn 150ms ease;
+}
+
+.db-modal {
+  background: var(--surface-elevated);
+  border: 2px solid var(--border-brutalist);
+  border-radius: var(--radius-lg);
+  box-shadow: 6px 6px 0 var(--border-brutalist);
+  padding: var(--space-6);
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.dark .db-modal {
+  border-color: var(--border-default);
+  box-shadow: 6px 6px 0 var(--border-default);
+}
+
+.db-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.db-modal-header h2 {
+  font-size: var(--text-lg);
+  font-weight: 800;
+  margin: 0;
+}
+
+.db-modal-close-btn {
+  background: none;
+  border: none;
+  font-size: var(--text-lg);
+  cursor: pointer;
+  color: var(--text-tertiary);
+  padding: 4px;
+}
+
+.db-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}

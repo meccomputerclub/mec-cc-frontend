@@ -1,19 +1,39 @@
-import { Button } from "@/components/ui/Button";
-import { logoutAction } from "../logout/actions";
+"use client";
+
+import ActivityOverview from "@/components/dashboard/ActivityOverview";
+import AdminOverview from "@/components/dashboard/AdminOverview";
+import { useAuth } from "@/context/AuthContext";
+import React, { useMemo } from "react";
+import { FaSpinner } from "react-icons/fa"; // Added spinner for loading
+// ----------------------------------------------------------------
 
 export default function DashboardPage() {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", gap: "var(--space-4)" }}>
-      <h1 style={{ fontSize: "var(--text-4xl)" }}>Welcome, logged in member</h1>
-      <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-lg)" }}>
-        This is a placeholder for the member dashboard.
-      </p>
-      <div style={{ marginTop: "var(--space-4)", display: "flex", gap: "var(--space-4)" }}>
-        <Button href="/">Return Home</Button>
-        <form action={logoutAction}>
-          <Button type="submit" variant="outline">Logout</Button>
-        </form>
-      </div>
-    </div>
-  );
+  const { user, isLoading, customRole } = useAuth(); // Simplified check: user is authenticated if not loading AND user object exists
+  const userRole = customRole || user?.role; // Use useMemo to decide which component to render based on the role and status
+
+  const DashboardComponent = useMemo(() => {
+    console.log("entered on usememo"); // 1. Loading State
+    if (isLoading) {
+      return (
+        <div className="text-center py-20">
+          <FaSpinner className="animate-spin w-8 h-8 text-indigo-500 mx-auto" />
+          <p className="mt-4 text-gray-500 dark:text-gray-400">Loading user data...</p>
+        </div>
+      );
+    }
+
+    switch (userRole) {
+      case "admin":
+      case "moderator":
+        return <AdminOverview />;
+
+      case "member":
+      case "alumni":
+      case "guest":
+      default:
+        return <ActivityOverview />;
+    }
+  }, [isLoading, userRole]);
+
+  return <div className="space-y-8">{DashboardComponent}</div>;
 }

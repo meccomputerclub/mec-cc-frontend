@@ -1,40 +1,50 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { verifySessionToken } from "./lib/auth";
+import { verifyAuthToken, CustomJWTPayload } from "./lib/jwt";
 
-export async function middleware(request: NextRequest) {
-  const isAdminRoute = request.nextUrl.pathname.startsWith("/admin");
-  const isDashboardRoute = request.nextUrl.pathname.startsWith("/dashboard");
+export async function middleware(req: NextRequest) {
+  const invitationCookie = req.cookies.get("invitation_validated")?.value;
+  const token = req.cookies.get("auth_token")?.value;
+  const { pathname } = req.nextUrl;
 
-  // Only protect routes under /admin or /dashboard
-  if (!isAdminRoute && !isDashboardRoute) {
-    return NextResponse.next();
+  let payload: CustomJWTPayload | null = null;
+
+  // --- Core JWT Validation ---
+  if (token) {
+    try {
+      payload = await verifyAuthToken(token);
+    } catch {
+      // Treat any verification error as invalid token
+      payload = null;
+    }
   }
 
-  const sessionToken = request.cookies.get("session")?.value;
-
-  if (!sessionToken) {
-    return NextResponse.redirect(new URL("/login", request.url));
+  // --- 1. Invitation-protected pages ---
+  if (pathname.startsWith("/register/form")) {
+    if (!invitationCookie) {
+      return NextResponse.redirect(new URL("/register", req.url));
+    }
   }
 
-  try {
-    const payload = await verifySessionToken(sessionToken);
-
+  // --- 2. Dashboard-protected pages ---
+  if (pathname.startsWith("/dashboard")) {
     if (!payload) {
-      return NextResponse.redirect(new URL("/login", request.url));
+      const response = NextResponse.redirect(new URL("/login", req.url));
+      // Clear stale/invalid cookies
+      if (token) {
+        response.cookies.delete("auth_token");
+        response.cookies.delete("role");
+      }
+      return response;
     }
-
-    if (isAdminRoute && payload.role !== "admin") {
-      return NextResponse.redirect(new URL("/login", request.url));
-    }
-
-    // Token is valid
-    return NextResponse.next();
-  } catch (error) {
-    return NextResponse.redirect(new URL("/login", request.url));
   }
+
+  return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/dashboard/:path*"],
+  matcher: [
+    "/register/form/:path*",
+    "/dashboard/:path*",
+  ],
 };
