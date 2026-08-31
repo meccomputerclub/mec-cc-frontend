@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { ProfileCard, ProfileGrid } from "@/components/ui/ProfileCard";
 import { getAdvisors } from "@/data/advisors";
-import "./advisors.css";
 
 export const metadata: Metadata = {
   title: "Advisor Panel | sudoers",
@@ -13,18 +12,20 @@ export default async function AdvisorsPage() {
 
   return (
     <>
-      <section className="section advisors-hero">
-        <div className="container">
+      <section className="pt-8 pb-4">
+        <div className="container mx-auto px-4 md:px-8">
           <span className="kicker">Guidance &amp; Vision</span>
-          <h1>sudoers (Our Honorable Advisors)</h1>
-          <p className="advisors-hero__subtitle">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-text-primary mb-2">
+            sudoers (Our Honorable Advisors)
+          </h1>
+          <p className="text-xl text-text-secondary max-w-[600px] mt-3">
             Meet the experienced mentors who guide our club towards excellence and innovation.
           </p>
         </div>
       </section>
 
-      <section className="section section--alt">
-        <div className="container">
+      <section className="py-8 md:py-12 bg-surface-secondary">
+        <div className="container mx-auto px-4 md:px-8">
           <ProfileGrid className="stagger-children">
             {advisorsList.map((advisor) => (
               <ProfileCard

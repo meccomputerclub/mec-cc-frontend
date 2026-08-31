@@ -22,9 +22,6 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { formatDeptSession } from "@/lib/formatters";
-import "@/app/register/register.css";
-import "./review.css";
-
 import { toSocialUrl } from "@/app/register/page";
 
 /* ── Social auto-link builders matching Join Form ── */
@@ -76,6 +73,7 @@ interface CardPreviewProps {
   email: string;
 }
 
+
 function CardPreview({
   name,
   batch,
@@ -100,48 +98,40 @@ function CardPreview({
   ].filter(Boolean) as { icon: React.ReactNode; label: string; url: string }[];
 
   return (
-    <div className="jc-preview-card">
-      <div className="jc-preview-card__photo">
+    <div className="bg-surface-primary border-2 border-border-brutalist dark:border-border-default rounded-xl shadow-[4px_4px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_var(--border-default)] overflow-hidden flex flex-col">
+      <div className="w-full aspect-square bg-surface-secondary relative overflow-hidden border-b border-border-default">
         {photoUrl ? (
-          <div style={{ width: "100%", height: "100%", overflow: "hidden", position: "relative" }}>
+          <div className="w-full h-full overflow-hidden relative">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={photoUrl}
               alt="preview"
               draggable={false}
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                position: "absolute",
-                top: 0,
-                left: 0,
-              }}
+              className="w-full h-full object-cover absolute top-0 left-0"
             />
           </div>
         ) : (
-          <div className="jc-preview-card__placeholder">{initial || "?"}</div>
+          <div className="w-full h-full flex items-center justify-center font-bold text-4xl text-text-primary bg-surface-secondary">{initial || "?"}</div>
         )}
       </div>
 
-      <div className="jc-preview-card__content">
-        <p className="jc-preview-card__name">{name || "Your Name"}</p>
-        <p className="jc-preview-card__batch">{batch || "Your Batch"}</p>
-        <p className="jc-preview-card__role">Club Member</p>
+      <div className="p-4 flex flex-col items-center text-center">
+        <p className="font-bold text-lg text-text-primary mb-0.5">{name || "Your Name"}</p>
+        <p className="text-xs font-mono text-text-secondary">{batch || "Your Batch"}</p>
+        <p className="mt-2 text-[11px] font-mono font-bold uppercase py-0.5 px-2 bg-surface-secondary border border-border-default rounded text-accent-primary-hover">Club Member</p>
       </div>
 
       {socials.length > 0 && (
-        <div className="jc-preview-card__social-footer">
-          {socials.map((s, i) => (
+        <div className="flex border-t border-border-default bg-surface-secondary divide-x divide-border-default">
+          {socials.map((s) => (
             <a
               key={s.label}
               href={s.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="jc-preview-card__social-cell"
+              className="flex-1 py-2.5 flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-surface-elevated transition-colors"
               title={s.label}
             >
-              {i > 0 && <span className="jc-preview-card__social-sep" aria-hidden="true" />}
               {s.icon}
             </a>
           ))}

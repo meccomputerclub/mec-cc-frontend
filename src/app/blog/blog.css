@@ -1,5 +1,0 @@
-.blog-hero { padding-top: var(--space-8); }
-.blog-hero h1 { font-size: clamp(2.25rem, 4vw, 3.5rem); margin-bottom: var(--space-3); }
-.blog-hero__subtitle { font-size: var(--text-xl); color: var(--text-secondary); max-width: 600px; }
-
-.blog-grid { display: flex; flex-direction: column; gap: var(--space-5); max-width: 800px; margin: 0 auto; }

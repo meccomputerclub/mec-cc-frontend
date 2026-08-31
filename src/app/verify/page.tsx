@@ -2,12 +2,10 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { api, ApiError } from "@/lib/api";
 import toast from "react-hot-toast";
 import { CheckCircle2, AlertCircle, ShieldCheck, Mail, Award, Search } from "lucide-react";
-import "@/app/login/login.css";
 
 function VerifyContent() {
   const searchParams = useSearchParams();
@@ -102,62 +100,38 @@ function VerifyContent() {
   };
 
   return (
-    <div className="login-page">
-      <div className="login-card" style={{ maxWidth: "520px" }}>
-        <div className="login-header">
-          <span className="login-badge">
-            <ShieldCheck size={14} style={{ display: "inline", verticalAlign: "middle", marginRight: "4px" }} />
+    <div className="min-h-[calc(100vh-var(--nav-height))] flex items-center justify-center py-8 px-4 sm:px-6">
+      <div className="max-w-[540px] w-full bg-surface-elevated p-6 sm:p-8 rounded-xl border border-border-brutalist dark:border-border-default shadow-[4px_4px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_var(--accent-primary)] transition-all duration-200">
+        <div className="text-center mb-6">
+          <span className="kicker">
+            <ShieldCheck size={14} className="inline align-middle mr-1" />
             Trust &amp; Verification
           </span>
-          <h1>Verification Portal</h1>
-          <p>Verify institutional email activation or validate authentic club certificates.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-text-primary mb-2">Verification Portal</h1>
+          <p className="text-sm text-text-secondary">Verify institutional email activation or validate authentic club certificates.</p>
         </div>
 
         {/* Tab switch */}
-        <div style={{ display: "flex", gap: "var(--space-2)", marginBottom: "var(--space-6)", padding: "4px", background: "var(--surface-secondary)", borderRadius: "var(--radius-lg)" }}>
+        <div className="flex gap-2 mb-6 p-1 bg-surface-secondary rounded-lg border border-border-default">
           <button
             type="button"
             onClick={() => setActiveTab("email")}
-            style={{
-              flex: 1,
-              padding: "var(--space-2)",
-              borderRadius: "var(--radius-md)",
-              border: "none",
-              background: activeTab === "email" ? "var(--surface-elevated)" : "transparent",
-              color: activeTab === "email" ? "var(--text-primary)" : "var(--text-secondary)",
-              fontWeight: activeTab === "email" ? "var(--weight-semibold)" : "var(--weight-normal)",
-              boxShadow: activeTab === "email" ? "var(--shadow-xs)" : "none",
-              cursor: "pointer",
-              transition: "all var(--transition-fast)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "6px",
-              fontSize: "var(--text-sm)"
-            }}
+            className={`flex-1 py-2 px-3 rounded-md border-none flex items-center justify-center gap-1.5 text-sm font-semibold transition-all cursor-pointer ${
+              activeTab === "email"
+                ? "bg-surface-elevated text-text-primary shadow-sm"
+                : "bg-transparent text-text-secondary hover:text-text-primary"
+            }`}
           >
             <Mail size={15} /> Email Verification
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("certificate")}
-            style={{
-              flex: 1,
-              padding: "var(--space-2)",
-              borderRadius: "var(--radius-md)",
-              border: "none",
-              background: activeTab === "certificate" ? "var(--surface-elevated)" : "transparent",
-              color: activeTab === "certificate" ? "var(--text-primary)" : "var(--text-secondary)",
-              fontWeight: activeTab === "certificate" ? "var(--weight-semibold)" : "var(--weight-normal)",
-              boxShadow: activeTab === "certificate" ? "var(--shadow-xs)" : "none",
-              cursor: "pointer",
-              transition: "all var(--transition-fast)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "6px",
-              fontSize: "var(--text-sm)"
-            }}
+            className={`flex-1 py-2 px-3 rounded-md border-none flex items-center justify-center gap-1.5 text-sm font-semibold transition-all cursor-pointer ${
+              activeTab === "certificate"
+                ? "bg-surface-elevated text-text-primary shadow-sm"
+                : "bg-transparent text-text-secondary hover:text-text-primary"
+            }`}
           >
             <Award size={15} /> Certificate Check
           </button>
@@ -166,44 +140,44 @@ function VerifyContent() {
         {activeTab === "email" ? (
           <div>
             {emailVerified ? (
-              <div style={{ textAlign: "center", padding: "var(--space-4) 0" }}>
-                <div style={{ width: "50px", height: "50px", borderRadius: "50%", background: "rgba(16, 185, 129, 0.1)", color: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto var(--space-4)" }}>
+              <div className="text-center py-4">
+                <div className="w-[50px] h-[50px] rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto mb-4">
                   <CheckCircle2 size={28} />
                 </div>
-                <h2 style={{ fontSize: "var(--text-lg)", marginBottom: "var(--space-2)" }}>Email Verified!</h2>
-                <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", marginBottom: "var(--space-6)" }}>
+                <h2 className="text-lg font-bold text-text-primary mb-2">Email Verified!</h2>
+                <p className="text-text-secondary text-sm mb-6">
                   Your email address has been confirmed. Our club administrators will review and approve your membership application shortly.
                 </p>
-                <Button href="/login" size="md" className="login-submit-btn">
+                <Button href="/login" size="md" className="w-full">
                   Go to Login
                 </Button>
               </div>
             ) : (
-              <form className="login-form" onSubmit={handleCodeVerification}>
+              <form className="flex flex-col gap-4 w-full" onSubmit={handleCodeVerification}>
                 {emailError && (
-                  <div className="login-alert login-alert--error">
-                    <AlertCircle size={16} />
+                  <div className="flex items-center gap-2 bg-red-500/10 border border-accent-error/30 rounded-lg p-3 text-sm text-accent-error">
+                    <AlertCircle size={16} className="shrink-0" />
                     <span>{emailError}</span>
                   </div>
                 )}
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="verify-email">
+                <div className="w-full flex flex-col gap-1.5">
+                  <label className="block font-medium text-sm text-text-primary" htmlFor="verify-email">
                     Institutional Email
                   </label>
                   <input
                     id="verify-email"
                     type="email"
                     required
-                    className="form-input"
+                    className="w-full px-3.5 py-2.5 border border-border-brutalist dark:border-border-default rounded-md bg-surface-primary text-base text-text-primary shadow-[2px_2px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_var(--border-default)] transition-all duration-200 focus:outline-none focus:border-accent-primary focus:shadow-[4px_4px_0px_var(--accent-primary)] focus:-translate-x-0.5 focus:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:bg-surface-secondary"
                     placeholder="name@std.mec.edu.bd"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="verify-code">
+                <div className="w-full flex flex-col gap-1.5">
+                  <label className="block font-medium text-sm text-text-primary" htmlFor="verify-code">
                     6-Digit Verification Code
                   </label>
                   <input
@@ -211,18 +185,17 @@ function VerifyContent() {
                     type="text"
                     required
                     maxLength={6}
-                    className="form-input"
+                    className="w-full px-3.5 py-2.5 border border-border-brutalist dark:border-border-default rounded-md bg-surface-primary text-lg text-center font-mono [font-feature-settings:'liga'_0,'calt'_0] tracking-[0.2em] text-text-primary shadow-[2px_2px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_var(--border-default)] transition-all duration-200 focus:outline-none focus:border-accent-primary focus:shadow-[4px_4px_0px_var(--accent-primary)] focus:-translate-x-0.5 focus:-translate-y-0.5"
                     placeholder="e.g. 849201"
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
-                    style={{ letterSpacing: "4px", fontSize: "1.1rem", fontFamily: "var(--font-mono)" }}
                   />
                 </div>
 
                 <Button
                   type="submit"
                   size="lg"
-                  className="login-submit-btn"
+                  className="w-full mt-1"
                   disabled={emailVerifying}
                 >
                   {emailVerifying ? "Verifying..." : "Verify Code"}
@@ -232,21 +205,20 @@ function VerifyContent() {
           </div>
         ) : (
           <div>
-            <form onSubmit={(e) => { e.preventDefault(); verifyCert(certificateId); }} className="login-form">
-              <div className="form-group">
-                <label className="form-label" htmlFor="cert-id">
+            <form onSubmit={(e) => { e.preventDefault(); verifyCert(certificateId); }} className="flex flex-col gap-4 w-full">
+              <div className="w-full flex flex-col gap-1.5">
+                <label className="block font-medium text-sm text-text-primary" htmlFor="cert-id">
                   Certificate ID or Verification Code
                 </label>
-                <div style={{ display: "flex", gap: "var(--space-2)" }}>
+                <div className="flex gap-2">
                   <input
                     id="cert-id"
                     type="text"
                     required
-                    className="form-input"
+                    className="flex-1 px-3.5 py-2.5 border border-border-brutalist dark:border-border-default rounded-md bg-surface-primary text-base text-text-primary shadow-[2px_2px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_var(--border-default)] transition-all duration-200 focus:outline-none focus:border-accent-primary focus:shadow-[4px_4px_0px_var(--accent-primary)] focus:-translate-x-0.5 focus:-translate-y-0.5"
                     placeholder="e.g. CERT-2026-XXXXX"
                     value={certificateId}
                     onChange={(e) => setCertificateId(e.target.value)}
-                    style={{ flex: 1 }}
                   />
                   <Button type="submit" size="md" disabled={certVerifying}>
                     <Search size={16} />
@@ -256,18 +228,18 @@ function VerifyContent() {
             </form>
 
             {certError && (
-              <div className="login-alert login-alert--error" style={{ marginTop: "var(--space-4)" }}>
-                <AlertCircle size={16} />
+              <div className="flex items-center gap-2 bg-red-500/10 border border-accent-error/30 rounded-lg p-3 text-sm text-accent-error mt-4">
+                <AlertCircle size={16} className="shrink-0" />
                 <span>{certError}</span>
               </div>
             )}
 
             {certificateData && (
-              <div style={{ marginTop: "var(--space-4)", padding: "var(--space-4)", borderRadius: "var(--radius-lg)", background: "var(--surface-secondary)", border: "1px solid var(--border-default)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#10b981", fontWeight: "bold", marginBottom: "var(--space-2)" }}>
+              <div className="mt-4 p-4 rounded-xl bg-surface-secondary border border-border-default">
+                <div className="flex items-center gap-2 text-emerald-500 font-bold mb-2 text-sm">
                   <CheckCircle2 size={18} /> Official Certificate Verified
                 </div>
-                <div style={{ fontSize: "var(--text-sm)", color: "var(--text-primary)" }}>
+                <div className="text-sm text-text-primary flex flex-col gap-1">
                   <p><strong>Title:</strong> {certificateData.title || certificateData.eventName || "Certificate of Excellence"}</p>
                   {certificateData.recipientName && <p><strong>Issued to:</strong> {certificateData.recipientName}</p>}
                   {certificateData.issueDate && <p><strong>Issue Date:</strong> {new Date(certificateData.issueDate).toLocaleDateString()}</p>}
@@ -284,7 +256,7 @@ function VerifyContent() {
 
 export default function VerifyPage() {
   return (
-    <Suspense fallback={<div className="login-page"><div className="login-card text-center"><p style={{ color: "var(--text-secondary)" }}>Loading verification portal...</p></div></div>}>
+    <Suspense fallback={<div className="min-h-[calc(100vh-var(--nav-height))] flex items-center justify-center"><div className="text-center text-text-secondary"><p>Loading verification portal...</p></div></div>}>
       <VerifyContent />
     </Suspense>
   );

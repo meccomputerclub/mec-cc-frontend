@@ -5,10 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
-import { api, ApiError } from "@/lib/api";
 import toast from "react-hot-toast";
 import {
-  Lock,
   Mail,
   Eye,
   EyeOff,
@@ -16,10 +14,7 @@ import {
   Clock,
   ShieldAlert,
   ArrowRight,
-  HelpCircle,
-  CheckCircle2,
 } from "lucide-react";
-import "./login.css";
 
 interface ExtendedLoginState {
   type: "error" | "pending" | "unverified" | "rejected";
@@ -96,37 +91,33 @@ function LoginForm() {
   };
 
   return (
-    <div className="login-page">
-      <div className="login-container">
-        <div className="login-header">
-          <h1>Hello, World.</h1>
-          <p>Initialize your session to access member resources and track your progress.</p>
+    <div className="min-h-[calc(100vh-var(--nav-height))] flex items-stretch py-8 px-4 sm:px-6">
+      <div className="flex flex-col justify-center items-center max-w-[540px] mx-auto w-full">
+        <div className="mb-4 text-center w-full">
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-text-primary mb-1">
+            Hello, World.
+          </h1>
+          <p className="text-text-secondary text-base sm:text-lg">
+            Initialize your session to access member resources and track your progress.
+          </p>
         </div>
 
-        <div className="login-form">
+        <div className="bg-surface-elevated p-6 sm:p-8 rounded-xl border border-border-brutalist dark:border-border-default shadow-[4px_4px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_var(--accent-primary)] flex flex-col gap-4 w-full transition-all duration-200 hover:shadow-[6px_6px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5">
           {/* Custom Status Alerts */}
           {statusAlert && (
-            <div style={{ marginBottom: "var(--space-4)" }}>
+            <div className="mb-2">
               {statusAlert.type === "pending" && (
-                <div
-                  style={{
-                    background: "rgba(245, 158, 11, 0.1)",
-                    border: "1px solid rgba(245, 158, 11, 0.3)",
-                    borderRadius: "var(--radius-lg)",
-                    padding: "var(--space-4)",
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--accent-warning)", fontWeight: 700, marginBottom: "4px" }}>
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-text-primary">
+                  <div className="flex items-center gap-2 text-accent-warning font-bold mb-1 text-sm sm:text-base">
                     <Clock size={18} /> Application Pending Admin Approval
                   </div>
-                  <p style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", margin: "0 0 10px", lineHeight: 1.5 }}>
+                  <p className="text-xs text-text-secondary mb-2.5 leading-relaxed">
                     {statusAlert.message} Once club executives cross-check offline billing and activate your node, you will receive an approval email.
                   </p>
-                  <div style={{ display: "flex", gap: "8px" }}>
+                  <div className="flex gap-2">
                     <Link
                       href={`/contact?subject=membership&reason=approval-status&email=${encodeURIComponent(statusAlert.email || "")}`}
-                      style={{ fontSize: "11px", color: "var(--accent-primary)", textDecoration: "underline", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                      className="text-[11px] text-accent-primary hover:underline inline-flex items-center gap-1 font-semibold"
                     >
                       Inquire with Admins <ArrowRight size={12} />
                     </Link>
@@ -135,19 +126,11 @@ function LoginForm() {
               )}
 
               {statusAlert.type === "unverified" && (
-                <div
-                  style={{
-                    background: "rgba(59, 130, 246, 0.1)",
-                    border: "1px solid rgba(59, 130, 246, 0.3)",
-                    borderRadius: "var(--radius-lg)",
-                    padding: "var(--space-4)",
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#3b82f6", fontWeight: 700, marginBottom: "4px" }}>
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 text-text-primary">
+                  <div className="flex items-center gap-2 text-blue-500 font-bold mb-1 text-sm sm:text-base">
                     <Mail size={18} /> Email Verification Required
                   </div>
-                  <p style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", margin: "0 0 10px", lineHeight: 1.5 }}>
+                  <p className="text-xs text-text-secondary mb-2.5 leading-relaxed">
                     {statusAlert.message} Please enter the 6-digit code or click the verification link sent to your inbox.
                   </p>
                   <Button
@@ -161,11 +144,11 @@ function LoginForm() {
               )}
 
               {statusAlert.type === "rejected" && (
-                <div className="login-alert login-alert--error">
-                  <ShieldAlert size={18} style={{ flexShrink: 0, marginTop: "2px" }} />
+                <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-accent-error text-sm">
+                  <ShieldAlert size={18} className="shrink-0 mt-0.5" />
                   <div>
-                    <strong>Application Rejected</strong>
-                    <div style={{ fontSize: "var(--text-xs)", marginTop: "2px" }}>
+                    <strong className="block font-bold">Application Rejected</strong>
+                    <div className="text-xs mt-0.5 text-text-secondary">
                       Please contact club executives at Room 402 or via the contact page for further clarification.
                     </div>
                   </div>
@@ -173,9 +156,9 @@ function LoginForm() {
               )}
 
               {statusAlert.type === "error" && (
-                <div style={{ color: "var(--accent-primary)", padding: "10px", background: "rgba(255,0,0,0.1)", borderRadius: "4px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                <div className="text-accent-error p-3 bg-red-500/10 border border-accent-error/30 rounded-lg text-sm">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle size={18} className="shrink-0" />
                     <div>{statusAlert.message}</div>
                   </div>
                 </div>
@@ -183,9 +166,11 @@ function LoginForm() {
             </div>
           )}
 
-          <form className="login-form-inner" onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label htmlFor="login-identifier">Student ID or Email</label>
+          <form className="flex flex-col gap-4 w-full" onSubmit={handleSubmit}>
+            <div className="w-full flex flex-col gap-1.5">
+              <label htmlFor="login-identifier" className="block font-medium text-sm text-text-primary">
+                Student ID or Email
+              </label>
               <input
                 id="login-identifier"
                 type="text"
@@ -195,12 +180,15 @@ function LoginForm() {
                 onChange={(e) => setIdentifier(e.target.value)}
                 autoComplete="username"
                 disabled={loading}
+                className="w-full px-3.5 py-2.5 border border-border-brutalist dark:border-border-default rounded-md bg-surface-primary text-base text-text-primary shadow-[2px_2px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_var(--border-default)] transition-all duration-200 focus:outline-none focus:border-accent-primary focus:shadow-[4px_4px_0px_var(--accent-primary)] focus:-translate-x-0.5 focus:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:bg-surface-secondary"
               />
             </div>
 
-            <div className="form-group">
-              <label htmlFor="login-password">Password</label>
-              <div className="password-wrapper">
+            <div className="w-full flex flex-col gap-1.5">
+              <label htmlFor="login-password" className="block font-medium text-sm text-text-primary">
+                Password
+              </label>
+              <div className="relative flex items-center w-full">
                 <input
                   id="login-password"
                   type={showPassword ? "text" : "password"}
@@ -210,10 +198,11 @@ function LoginForm() {
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
                   disabled={loading}
+                  className="w-full px-3.5 py-2.5 pr-11 border border-border-brutalist dark:border-border-default rounded-md bg-surface-primary text-base text-text-primary shadow-[2px_2px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_var(--border-default)] transition-all duration-200 focus:outline-none focus:border-accent-primary focus:shadow-[4px_4px_0px_var(--accent-primary)] focus:-translate-x-0.5 focus:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:bg-surface-secondary"
                 />
                 <button
                   type="button"
-                  className={`password-toggle-icon ${showPassword ? 'active' : ''}`}
+                  className={`absolute right-3 p-1 text-text-tertiary hover:text-text-primary transition-colors flex items-center justify-center select-none touch-manipulation ${showPassword ? 'text-accent-primary' : ''}`}
                   onMouseDown={() => setShowPassword(true)}
                   onMouseUp={() => setShowPassword(false)}
                   onMouseLeave={() => setShowPassword(false)}
@@ -230,13 +219,16 @@ function LoginForm() {
               </div>
             </div>
 
-            <div className="form-options">
-              <label className="checkbox-label">
-                <input type="checkbox" name="remember" />
-                <span className="checkmark"></span>
+            <div className="flex justify-between items-center mt-1 mb-2 text-sm">
+              <label className="flex items-center gap-2 cursor-pointer text-sm text-text-secondary select-none">
+                <input
+                  type="checkbox"
+                  name="remember"
+                  className="w-4 h-4 rounded border-border-brutalist dark:border-border-default text-accent-primary focus:ring-accent-primary cursor-pointer accent-[var(--accent-primary)]"
+                />
                 Remember me
               </label>
-              <Link href="/forgot-password" className="login-form__forgot">
+              <Link href="/forgot-password" className="text-sm font-medium text-accent-primary-hover hover:underline">
                 Forgot password?
               </Link>
             </div>
@@ -244,13 +236,13 @@ function LoginForm() {
             <Button
               type="submit"
               fullWidth
-              className="login-submit-btn"
+              className="w-full mt-1"
               disabled={loading}
               id="login-submit"
             >
               {loading ? (
-                <div className="spinner-wrapper">
-                  <span className="spinner"></span>
+                <div className="flex items-center justify-center gap-2.5">
+                  <span className="w-4 h-4 border-2 border-text-primary/20 border-t-text-primary rounded-full animate-spin"></span>
                   Authenticating...
                 </div>
               ) : (
@@ -258,9 +250,9 @@ function LoginForm() {
               )}
             </Button>
             
-            <div className="login-form__footer">
-              <span className="login-form__signup">
-                Not a member yet? <Link href="/register">Apply to join</Link>
+            <div className="mt-2 flex flex-col gap-4 text-center">
+              <span className="text-sm text-text-secondary">
+                Not a member yet? <Link href="/register" className="text-text-primary font-bold hover:text-accent-primary-hover hover:underline ml-1">Apply to join</Link>
               </span>
             </div>
           </form>
@@ -274,9 +266,9 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="login-page">
-          <div className="login-card text-center">
-            <p style={{ color: "var(--text-secondary)" }}>Loading terminal...</p>
+        <div className="min-h-[calc(100vh-var(--nav-height))] flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-text-secondary">Loading terminal...</p>
           </div>
         </div>
       }

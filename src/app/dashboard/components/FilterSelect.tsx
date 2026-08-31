@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { Filter, Check, ChevronDown } from "lucide-react";
-import "@/components/ui/Select.css";
 
 export interface FilterOption {
   value: string;
@@ -56,6 +55,50 @@ export default function FilterSelect({
       ref={containerRef}
       data-open={isOpen}
     >
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          .filter-select-opt {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 7px 12px;
+            margin: 0;
+            border: none;
+            border-bottom: 1px solid var(--border-default);
+            font-family: var(--font-body);
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            background-color: transparent;
+            transition: background-color var(--transition-fast), color var(--transition-fast), font-weight var(--transition-fast);
+            white-space: nowrap;
+          }
+          .filter-select-opt:first-child {
+            border-top-left-radius: calc(var(--radius-md) - 2px);
+            border-top-right-radius: calc(var(--radius-md) - 2px);
+          }
+          .filter-select-opt:last-child {
+            border-bottom: none;
+            border-bottom-left-radius: calc(var(--radius-md) - 2px);
+            border-bottom-right-radius: calc(var(--radius-md) - 2px);
+          }
+          .filter-select-opt:hover, .filter-select-opt.is-selected {
+            background-color: var(--accent-primary-light);
+            color: var(--text-primary);
+            font-weight: 700;
+          }
+          html.dark .filter-select-opt:hover,
+          .dark .filter-select-opt:hover,
+          html.dark .filter-select-opt.is-selected,
+          .dark .filter-select-opt.is-selected {
+            background-color: color-mix(in srgb, var(--accent-primary) 25%, var(--surface-primary));
+            color: #FFFFFF !important;
+            font-weight: 700 !important;
+          }
+        `
+      }} />
+
       <button
         type="button"
         disabled={disabled}
@@ -78,21 +121,14 @@ export default function FilterSelect({
 
       {isOpen && !disabled && (
         <div
-          className="custom-select-dropdown"
-          style={{
-            position: "absolute",
-            top: "calc(100% + 4px)",
-            left: 0,
-            minWidth: "170px",
-            zIndex: 500,
-          }}
+          className="absolute top-[calc(100%+4px)] left-0 min-w-[170px] bg-surface-primary border border-text-primary dark:border-border-default rounded-md shadow-[4px_4px_0px_0px_var(--accent-primary)] z-[500] max-h-[250px] overflow-y-auto overflow-x-hidden flex flex-col m-0 p-0 list-none animate-in fade-in slide-in-from-top-1 duration-150"
         >
           {options.map((opt) => {
             const isSelected = value === opt.value;
             return (
               <div
                 key={opt.value}
-                className={`custom-select-option ${isSelected ? "selected" : ""}`}
+                className={`filter-select-opt ${isSelected ? "is-selected" : ""}`}
                 onClick={() => {
                   onChange(opt.value);
                   setIsOpen(false);
@@ -109,8 +145,7 @@ export default function FilterSelect({
                 {isSelected && (
                   <Check
                     size={14}
-                    className="text-text-primary dark:text-white"
-                    style={{ flexShrink: 0, marginLeft: "8px" }}
+                    className="text-text-primary dark:text-white shrink-0 ml-2"
                   />
                 )}
               </div>

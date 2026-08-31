@@ -1,7 +1,5 @@
 // Codeforces Roadmap Page
 
-import "./roadmaps.css";
-
 const roadmapLevels = [
   {
     level: "Newbie",
@@ -51,34 +49,44 @@ const roadmapLevels = [
 
 export default function RoadmapsPage() {
   return (
-    <main className="section container">
-      <div className="section-header text-center">
-        <span className="kicker">CP Hub</span>
-        <h2>Codeforces Roadmaps</h2>
-        <p>Follow the path to reach your target rating!</p>
-      </div>
-      
-      <div className="container container--narrow">
-        <div className="roadmap-timeline">
-          {roadmapLevels.map((r) => (
-            <div key={r.level} className="roadmap-timeline__item">
-              <div 
-                className="roadmap-timeline__marker" 
-                style={{ backgroundColor: r.color, borderColor: 'var(--surface-primary)' }} 
-              />
-              <div className="roadmap-timeline__content">
-                <span className="roadmap-timeline__rating" style={{ color: r.color }}>
-                  {r.rating}
-                </span>
-                <h4 style={{ color: r.color }}>{r.level}</h4>
-                <ul className="roadmap-timeline__topics">
-                  {r.topics.map((t, idx) => (
-                    <li key={idx}>{t}</li>
-                  ))}
-                </ul>
+    <main className="py-8 md:py-12">
+      <div className="container mx-auto px-4 md:px-8">
+        <div className="text-center max-w-[640px] mx-auto mb-10">
+          <span className="kicker">CP Hub</span>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-text-primary mb-2">
+            Codeforces Roadmaps
+          </h1>
+          <p className="text-text-secondary text-lg">Follow the path to reach your target rating!</p>
+        </div>
+        
+        <div className="max-w-3xl mx-auto">
+          <div className="relative pl-6 before:content-[''] before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-[2px] before:bg-border-default my-6">
+            {roadmapLevels.map((r) => (
+              <div key={r.level} className="relative pb-8 last:pb-0 pl-4">
+                <div 
+                  className="absolute -left-6 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-surface-primary z-10" 
+                  style={{ backgroundColor: r.color }} 
+                />
+                <div>
+                  <span
+                    className="font-mono [font-feature-settings:'liga'_0,'calt'_0] text-xs font-bold uppercase tracking-wider inline-block mb-2 py-0.5 px-2 bg-surface-secondary rounded border border-border-default"
+                    style={{ color: r.color }}
+                  >
+                    {r.rating}
+                  </span>
+                  <h4 className="text-2xl font-bold mb-3 text-text-primary" style={{ color: r.color }}>{r.level}</h4>
+                  <ul className="list-none p-0 m-0 flex flex-col gap-2">
+                    {r.topics.map((t, idx) => (
+                      <li key={idx} className="text-base text-text-secondary flex items-start gap-2">
+                        <span className="text-text-tertiary font-mono [font-feature-settings:'liga'_0,'calt'_0]">→</span>
+                        <span>{t}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </main>

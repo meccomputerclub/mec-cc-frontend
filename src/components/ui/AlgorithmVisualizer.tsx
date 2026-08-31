@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import "./AlgorithmVisualizer.css";
 
 const ARRAY_SIZE = 16;
 const BUBBLE_SPEED_MS = 250;
@@ -113,28 +112,25 @@ export function AlgorithmVisualizer() {
 
   // Initial Auto-start
   useEffect(() => {
-    // Start immediately without delay
     runAlgorithm(INITIAL_ARRAY);
-
     return () => clearTimeouts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <div className="algo-vis">
-      <div className="algo-vis__header">
-        <div className="algo-vis__info">
-          <h3 className="algo-vis__title">Bubble Sort</h3>
-          <span className="algo-vis__complex">O(N²)</span>
+    <div className="w-full max-w-[480px] bg-surface-primary border-4 border-text-primary dark:border-border-default rounded-xl shadow-[8px_8px_0px_var(--text-primary)] dark:shadow-[8px_8px_0px_var(--border-hover)] hover:shadow-[8px_8px_0px_var(--accent-primary)] dark:hover:shadow-[8px_8px_0px_var(--accent-primary)] hover:-translate-x-1 hover:-translate-y-1 transition-all duration-150 overflow-hidden flex flex-col animate-in fade-in slide-in-from-right-8 duration-700">
+      <div className="flex justify-between items-center py-3 px-4 bg-surface-secondary border-b-4 border-text-primary dark:border-border-default">
+        <div className="flex items-center gap-3">
+          <h3 className="m-0 font-black text-xl uppercase tracking-tight text-text-primary">Bubble Sort</h3>
+          <span className="font-mono [font-feature-settings:'liga'_0,'calt'_0] text-xs font-bold bg-text-primary text-surface-primary py-1 px-2 rounded-sm">O(N²)</span>
         </div>
-        <div className="algo-vis__controls">
+        <div className="flex gap-2">
           <button 
-            className="algo-vis__btn" 
+            className="flex items-center justify-center w-9 h-9 bg-surface-primary border-2 border-text-primary dark:border-border-default rounded-md cursor-pointer text-text-primary transition-all duration-150 hover:not-disabled:bg-surface-secondary hover:not-disabled:-translate-y-0.5 hover:not-disabled:shadow-[2px_2px_0px_var(--text-primary)] dark:hover:not-disabled:shadow-[2px_2px_0px_var(--border-default)] active:not-disabled:translate-y-0 active:not-disabled:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={handleShuffleClick} 
             disabled={isRunning}
             title="Shuffle Array"
           >
-            {/* Shuffle Icon */}
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="16 3 21 3 21 8"></polyline>
               <line x1="4" y1="20" x2="21" y2="3"></line>
@@ -144,12 +140,11 @@ export function AlgorithmVisualizer() {
             </svg>
           </button>
           <button 
-            className="algo-vis__btn algo-vis__btn--primary" 
+            className="flex items-center justify-center w-9 h-9 bg-accent-primary text-accent-primary-text border-2 border-text-primary dark:border-border-default rounded-md cursor-pointer transition-all duration-150 hover:not-disabled:bg-accent-primary-hover hover:not-disabled:-translate-y-0.5 hover:not-disabled:shadow-[2px_2px_0px_var(--text-primary)] dark:hover:not-disabled:shadow-[2px_2px_0px_var(--border-default)] active:not-disabled:translate-y-0 active:not-disabled:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={handleRunClick} 
             disabled={isRunning}
             title="Run Sort"
           >
-            {/* Play Icon */}
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="5 3 19 12 5 21 5 3"></polygon>
             </svg>
@@ -157,22 +152,26 @@ export function AlgorithmVisualizer() {
         </div>
       </div>
       
-      <div className="algo-vis__canvas">
+      <div className="h-[240px] flex items-end p-4 gap-1 [background-image:linear-gradient(to_right,var(--grid-lines)_1px,transparent_1px),linear-gradient(to_top,var(--grid-lines)_1px,transparent_1px)] [background-size:20px_20px]">
         {array.map((value, idx) => {
-          let barClass = "algo-vis__bar";
-          
           const isComparing = comparing.includes(idx);
           const isSorted = sortedIndices.includes(idx);
-          if (isComparing) barClass += " algo-vis__bar--compare";
-          else if (isSorted) barClass += " algo-vis__bar--sorted";
           
           return (
             <div 
               key={idx} 
-              className={barClass} 
+              className={`flex-1 border-2 border-b-0 rounded-t flex justify-center items-start pt-1 transition-all duration-200 relative overflow-hidden ${
+                isComparing
+                  ? "bg-accent-primary border-text-primary dark:border-accent-primary"
+                  : isSorted
+                  ? "bg-text-primary border-text-primary"
+                  : "bg-text-primary border-text-primary"
+              }`}
               style={{ height: `${value}%` }}
             >
-              <span className="algo-vis__val">{value}</span>
+              <span className="font-mono [font-feature-settings:'liga'_0,'calt'_0] text-[10px] font-bold text-surface-primary [writing-mode:vertical-rl] [text-orientation:mixed] rotate-180 pointer-events-none">
+                {value}
+              </span>
             </div>
           );
         })}

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { ProfileCard, ProfileGrid } from "@/components/ui/ProfileCard";
 import { alumniBatches } from "@/data/alumni";
-import "./alumni.css";
 
 export const metadata: Metadata = {
   title: "Alumni | Legacy Code",
@@ -11,24 +10,30 @@ export const metadata: Metadata = {
 export default function AlumniPage() {
   return (
     <>
-      <section className="section alumni-hero">
-        <div className="container">
+      <section className="pt-10 md:pt-14 pb-8 md:pb-10 text-center">
+        <div className="container mx-auto px-4 md:px-8">
           <span className="kicker">Hall of Fame</span>
-          <h1>Our Alumni Network (Legacy Code)</h1>
-          <p className="alumni-hero__subtitle">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-text-primary my-3">
+            Our Alumni Network (Legacy Code)
+          </h1>
+          <p className="text-base sm:text-lg text-text-secondary max-w-[600px] mx-auto">
             The legends who built this club and shaped its culture.
           </p>
         </div>
       </section>
 
-      <section className="section section--alt">
-        <div className="container">
-          <div className="alumni-batches">
+      <section className="py-8 md:py-12 bg-surface-secondary">
+        <div className="container mx-auto px-4 md:px-8">
+          <div className="flex flex-col gap-12">
             {alumniBatches.map((batch) => (
-              <div key={batch.batchNumber} className="alumni-batch">
-                <div className="alumni-batch__header">
-                  <h2>{batch.batchNumber}</h2>
-                  <span className="alumni-batch__year">{batch.year}</span>
+              <div key={batch.batchNumber} className="flex flex-col">
+                <div className="flex items-baseline gap-4 mb-6 pb-3 border-b border-border-default">
+                  <h2 className="text-2xl sm:text-3xl font-bold text-text-primary m-0">
+                    {batch.batchNumber}
+                  </h2>
+                  <span className="font-mono [font-feature-settings:'liga'_0,'calt'_0] text-accent-primary-hover text-base font-bold">
+                    {batch.year}
+                  </span>
                 </div>
                 <ProfileGrid className="stagger-children">
                   {batch.members.map((member) => (

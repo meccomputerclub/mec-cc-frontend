@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { events, getEventBySlug } from "@/data/events";
 import { EventRegisterButton } from "./EventRegisterButton";
-import "./event-detail.css";
 
 export async function generateStaticParams() {
   return events.map((event) => ({ slug: event.slug }));
@@ -41,35 +40,37 @@ export default async function EventDetailPage({
   });
 
   return (
-    <article className="event-detail">
-      <div className="container container--narrow">
-        <div className="event-detail__header">
+    <article className="py-12 md:py-16">
+      <div className="container max-w-[var(--max-width-narrow)] mx-auto px-4 md:px-8">
+        <div className="mb-8">
           {success === "true" && (
-            <div style={{ marginBottom: "var(--space-4)", padding: "16px", background: "rgba(0, 255, 0, 0.1)", border: "1px solid #10B981", borderRadius: "8px", color: "#065F46", textAlign: "center" }}>
+            <div className="mb-6 p-4 bg-emerald-500/10 border border-accent-success rounded-lg text-emerald-800 dark:text-emerald-300 text-center text-sm">
               <strong>Registration Successful!</strong> We&apos;ve received your registration for this event.
             </div>
           )}
           <Badge variant={event.status === "upcoming" ? "upcoming" : "past"} size="md">
             {event.status}
           </Badge>
-          <h1>{event.title}</h1>
-          <div className="event-detail__meta">
-            <div className="event-detail__meta-item">
-              <span className="event-detail__meta-label">Date</span>
-              <span>{formattedDate}</span>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-text-primary my-3">
+            {event.title}
+          </h1>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-5 bg-surface-secondary rounded-xl border border-border-default mb-6">
+            <div className="flex flex-col gap-1">
+              <span className="font-mono [font-feature-settings:'liga'_0,'calt'_0] text-xs text-text-tertiary uppercase tracking-wider font-semibold">Date</span>
+              <span className="font-semibold text-text-primary text-sm">{formattedDate}</span>
             </div>
-            <div className="event-detail__meta-item">
-              <span className="event-detail__meta-label">Time</span>
-              <span>{event.time}</span>
+            <div className="flex flex-col gap-1">
+              <span className="font-mono [font-feature-settings:'liga'_0,'calt'_0] text-xs text-text-tertiary uppercase tracking-wider font-semibold">Time</span>
+              <span className="font-semibold text-text-primary text-sm">{event.time}</span>
             </div>
-            <div className="event-detail__meta-item">
-              <span className="event-detail__meta-label">Location</span>
-              <span>{event.location}</span>
+            <div className="flex flex-col gap-1">
+              <span className="font-mono [font-feature-settings:'liga'_0,'calt'_0] text-xs text-text-tertiary uppercase tracking-wider font-semibold">Location</span>
+              <span className="font-semibold text-text-primary text-sm">{event.location}</span>
             </div>
             {event.attendeeCount && (
-              <div className="event-detail__meta-item">
-                <span className="event-detail__meta-label">Attendees</span>
-                <span>{event.attendeeCount}</span>
+              <div className="flex flex-col gap-1">
+                <span className="font-mono [font-feature-settings:'liga'_0,'calt'_0] text-xs text-text-tertiary uppercase tracking-wider font-semibold">Attendees</span>
+                <span className="font-semibold text-text-primary text-sm">{event.attendeeCount}</span>
               </div>
             )}
           </div>
@@ -78,28 +79,30 @@ export default async function EventDetailPage({
           )}
         </div>
 
-        <div className="event-detail__body">
-          <p>{event.longDescription || event.description}</p>
+        <div className="text-base leading-relaxed text-text-secondary">
+          <p className="mb-6 whitespace-pre-line">{event.longDescription || event.description}</p>
           {event.speakers && event.speakers.length > 0 && (
-            <div className="event-detail__speakers">
-              <h3>Speakers / Teams</h3>
-              <ul>
+            <div className="mt-6 p-5 bg-surface-secondary rounded-xl border border-border-default">
+              <h3 className="text-lg font-bold text-text-primary mb-3">Speakers / Teams</h3>
+              <ul className="list-none p-0 m-0 flex flex-col divide-y divide-border-default">
                 {event.speakers.map((s) => (
-                  <li key={s}>{s}</li>
+                  <li key={s} className="py-2.5 font-medium text-text-primary">{s}</li>
                 ))}
               </ul>
             </div>
           )}
           {event.tags && (
-            <div className="event-detail__tags">
+            <div className="flex flex-wrap gap-2 mt-6">
               {event.tags.map((tag) => (
-                <span key={tag} className="event-detail__tag">{tag}</span>
+                <span key={tag} className="font-mono [font-feature-settings:'liga'_0,'calt'_0] text-xs py-1 px-3 bg-surface-secondary border border-border-default rounded-full text-text-secondary">
+                  {tag}
+                </span>
               ))}
             </div>
           )}
         </div>
 
-        <div className="event-detail__back">
+        <div className="mt-10 pt-6 border-t border-border-default">
           <Button href="/events" variant="ghost">
             ← Back to all events
           </Button>

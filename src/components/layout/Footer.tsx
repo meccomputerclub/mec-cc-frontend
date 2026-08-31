@@ -6,14 +6,7 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { useAccent } from "@/components/AccentProvider";
-import { 
-  Compass, 
-  BookOpen, 
-  Link2, 
-  ExternalLink,
-  Heart
-} from "lucide-react";
-import "./Footer.css";
+import { Compass, BookOpen, Link2, ExternalLink, Heart } from "lucide-react";
 
 const footerLinks = {
   explore: [
@@ -75,60 +68,72 @@ export function Footer() {
     return null;
   }
 
+  const socialLinkClass =
+    "flex items-center justify-center w-9 h-9 rounded-[var(--radius-md)] bg-surface-elevated border border-border-brutalist text-text-secondary no-underline transition-all duration-200 hover:shadow-[4px_4px_0px_var(--accent-primary)] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:bg-accent-primary-hover hover:text-white";
+
+  const footerLinkClass =
+    "text-sm text-text-tertiary no-underline transition-colors duration-150 hover:text-text-primary";
+
+  const headingClass =
+    "flex items-center gap-2 font-mono text-xs font-semibold uppercase tracking-wider text-text-primary mb-[var(--space-3)]";
+
   return (
-    <footer className="footer" role="contentinfo">
+    <footer className="bg-surface-secondary border-t border-border-default pt-[var(--space-7)] pb-[var(--space-5)] mt-[var(--space-8)] max-[640px]:pt-[var(--space-6)] max-[640px]:pb-[var(--space-4)] max-[640px]:mt-[var(--space-6)]" role="contentinfo">
       <div className="container">
-        <div className="footer__grid">
-          {/* Brand column */}
-          <div className="footer__brand">
-            <Link href="/" className="footer__logo" aria-label="MEC Computer Club">
+
+        {/* Main grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr] gap-[var(--space-5)] lg:gap-[var(--space-6)] pb-[var(--space-5)] lg:pb-[var(--space-6)] border-b border-border-default">
+
+          {/* Brand column — full-width on mobile & tablet, 2fr on desktop */}
+          <div className="sm:col-span-2 lg:col-span-1 max-[640px]:text-center max-[640px]:flex max-[640px]:flex-col max-[640px]:items-center">
+            <Link href="/" className="flex items-center no-underline mb-[var(--space-3)] h-12 max-[640px]:justify-center" aria-label="MEC Computer Club">
               {mounted ? (
-                <Image 
+                <Image
                   src={`/logo-${currentVibe}-${resolvedTheme === 'dark' ? 'dark' : 'light'}.png`}
                   alt="MEC Computer Club Logo"
                   width={180}
                   height={45}
-                  className="footer__logo-image"
+                  className="object-contain"
                 />
               ) : (
-                <Image 
+                <Image
                   src="/logo-lime-light.png"
                   alt="MEC Computer Club Logo"
                   width={180}
                   height={45}
-                  className="footer__logo-image"
+                  className="object-contain"
                 />
               )}
             </Link>
-            <p className="footer__tagline">
+            <p className="text-sm text-text-tertiary leading-[var(--leading-relaxed)] max-w-[280px] mb-[var(--space-4)] max-[640px]:max-w-full max-[640px]:text-center">
               Weekly CP practice, real projects, one club.
               Building the next generation of developers at MEC.
             </p>
-            <div className="footer__socials">
-              <a href="https://github.com" target="_blank" rel="noopener noreferrer" aria-label="GitHub" className="footer__social-link">
+            <div className="flex gap-[var(--space-2)] max-[640px]:justify-center">
+              <a href="https://github.com" target="_blank" rel="noopener noreferrer" aria-label="GitHub" className={socialLinkClass}>
                 <IconGitHub />
               </a>
-              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="footer__social-link">
+              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className={socialLinkClass}>
                 <IconFacebook />
               </a>
-              <a href="https://discord.gg" target="_blank" rel="noopener noreferrer" aria-label="Discord" className="footer__social-link">
+              <a href="https://discord.gg" target="_blank" rel="noopener noreferrer" aria-label="Discord" className={socialLinkClass}>
                 <IconDiscord />
               </a>
-              <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="footer__social-link">
+              <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className={socialLinkClass}>
                 <IconLinkedIn />
               </a>
             </div>
           </div>
 
-          {/* Link columns */}
-          <div className="footer__column">
-            <h4 className="footer__heading">
+          {/* Explore */}
+          <div>
+            <h4 className={headingClass}>
               <Compass size={16} /> Explore
             </h4>
-            <ul className="footer__list">
+            <ul className="list-none p-0 m-0">
               {footerLinks.explore.map((link) => (
-                <li key={link.href}>
-                  <Link href={link.href} className="footer__link">
+                <li key={link.href} className="mb-[var(--space-2)]">
+                  <Link href={link.href} className={footerLinkClass}>
                     {link.label}
                   </Link>
                 </li>
@@ -136,14 +141,15 @@ export function Footer() {
             </ul>
           </div>
 
-          <div className="footer__column">
-            <h4 className="footer__heading">
+          {/* Resources */}
+          <div>
+            <h4 className={headingClass}>
               <BookOpen size={16} /> Resources
             </h4>
-            <ul className="footer__list">
+            <ul className="list-none p-0 m-0">
               {footerLinks.resources.map((link) => (
-                <li key={link.href}>
-                  <Link href={link.href} className="footer__link">
+                <li key={link.href} className="mb-[var(--space-2)]">
+                  <Link href={link.href} className={footerLinkClass}>
                     {link.label}
                   </Link>
                 </li>
@@ -151,20 +157,21 @@ export function Footer() {
             </ul>
           </div>
 
-          <div className="footer__column">
-            <h4 className="footer__heading">
+          {/* Connect */}
+          <div>
+            <h4 className={headingClass}>
               <Link2 size={16} /> Connect
             </h4>
-            <ul className="footer__list">
+            <ul className="list-none p-0 m-0">
               {footerLinks.connect.map((link) => (
-                <li key={link.href}>
+                <li key={link.href} className="mb-[var(--space-2)]">
                   <a
                     href={link.href}
-                    className="footer__link footer__link--external"
+                    className={`${footerLinkClass} inline-flex items-center gap-1`}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    {link.label} <ExternalLink size={14} className="external-icon" />
+                    {link.label} <ExternalLink size={14} className="opacity-70" />
                   </a>
                 </li>
               ))}
@@ -172,12 +179,13 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="footer__bottom">
-          <p className="footer__copyright">
+        {/* Bottom bar */}
+        <div className="flex items-center justify-between pt-[var(--space-4)] max-[480px]:flex-col max-[480px]:gap-[var(--space-2)] max-[480px]:items-center max-[480px]:text-center max-[480px]:pt-[var(--space-3)]">
+          <p className="text-xs text-text-tertiary">
             © {new Date().getFullYear()} MEC Computer Club. All rights reserved.
           </p>
-          <p className="footer__built">
-            Built with <Heart size={14} className="heart-icon" /> by the Web Dev panel.
+          <p className="text-xs text-text-tertiary flex items-center justify-center gap-1">
+            Built with <Heart size={14} className="text-accent-primary-hover inline-block align-middle mx-0.5" /> by the Web Dev panel.
           </p>
         </div>
       </div>

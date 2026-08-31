@@ -16,7 +16,6 @@ import {
   Ticket,
   Menu,
 } from "lucide-react";
-import "./Sidebar.css";
 
 interface SidebarProps {
   type: "user" | "admin";
@@ -58,62 +57,76 @@ export function Sidebar({ type }: SidebarProps) {
   return (
     <>
       <button
-        className="sidebar-toggle"
+        className="md:hidden flex items-center justify-center p-2 rounded-md bg-surface-elevated border border-border-default text-text-primary fixed top-4 left-4 z-[999] cursor-pointer"
         onClick={() => setIsOpen(true)}
         aria-label="Open sidebar"
-        style={{ position: "fixed", top: "16px", left: "16px", zIndex: 999 }}
       >
         <Menu size={18} />
       </button>
 
       {isOpen && (
         <div
-          className="sidebar-overlay sidebar-overlay--open"
+          className="md:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-[998]"
           onClick={() => setIsOpen(false)}
         />
       )}
 
-      <aside className={`sidebar ${isOpen ? "sidebar--open" : ""}`}>
-        <div className="sidebar__header">
-          <Link href="/" className="sidebar__logo">
-            MEC CC {type === "admin" && <span className="sidebar__badge">ADMIN</span>}
+      <aside
+        className={`w-[280px] bg-surface-elevated border-r border-border-default flex flex-col fixed top-0 bottom-0 left-0 z-[999] transition-transform duration-200 ${
+          isOpen ? "translate-x-0" : "max-md:-translate-x-full"
+        }`}
+      >
+        <div className="h-16 flex items-center px-4 border-b border-border-default">
+          <Link href="/" className="font-bold text-xl text-text-primary no-underline flex items-center gap-2">
+            <span>MEC CC</span>
+            {type === "admin" && (
+              <span className="bg-accent-primary-light text-accent-primary-text font-mono text-[0.65rem] py-0.5 px-1.5 rounded-sm font-bold">
+                ADMIN
+              </span>
+            )}
           </Link>
         </div>
 
-        <nav className="sidebar__nav">
-          {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`sidebar__link ${pathname === link.href ? "sidebar__link--active" : ""}`}
-            >
-              <span>{link.icon}</span>
-              {link.label}
-            </Link>
-          ))}
+        <nav className="flex-1 p-4 overflow-y-auto flex flex-col gap-1">
+          {links.map((link) => {
+            const isActive = pathname === link.href;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`flex items-center gap-3 p-3 text-sm font-medium no-underline rounded-md transition-all duration-150 border ${
+                  isActive
+                    ? "text-text-primary bg-surface-secondary border-text-primary dark:border-border-default shadow-[2px_2px_0px_var(--accent-primary)] font-bold"
+                    : "text-text-secondary border-transparent hover:text-text-primary hover:bg-surface-secondary"
+                }`}
+              >
+                <span>{link.icon}</span>
+                <span>{link.label}</span>
+              </Link>
+            );
+          })}
         </nav>
 
-        <div className="sidebar__footer">
-          <div className="sidebar__user">
-            <div className="sidebar__avatar">
+        <div className="p-4 border-t border-border-default flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-md bg-accent-primary flex items-center justify-center font-bold text-accent-primary-text font-mono text-base">
               {user?.fullName ? user.fullName.charAt(0).toUpperCase() : type === "admin" ? "AD" : "US"}
             </div>
-            <div className="sidebar__user-info">
-              <span className="sidebar__user-name">
+            <div className="flex flex-col">
+              <span className="text-sm font-bold text-text-primary">
                 {user?.fullName || (type === "admin" ? "Admin User" : "Member")}
               </span>
-              <span className="sidebar__user-role">
+              <span className="text-xs text-text-tertiary font-mono">
                 {user?.role ? user.role.toUpperCase() : type === "admin" ? "Executive" : "Member"}
               </span>
             </div>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div className="flex justify-between items-center pt-1">
             <ThemeToggle />
             <button
               type="button"
               onClick={handleLogout}
-              className="sidebar__link"
-              style={{ padding: "4px 8px", fontSize: "12px", background: "none", border: "none", cursor: "pointer" }}
+              className="py-1 px-2 text-xs font-semibold text-text-secondary hover:text-accent-error bg-transparent border-none cursor-pointer transition-colors"
             >
               Logout
             </button>

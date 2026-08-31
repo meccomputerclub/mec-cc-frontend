@@ -42,7 +42,9 @@ export default async function RootLayout({
             <ScaleWrapper>
               <Toaster position="bottom-right" />
               <Navbar />
-              <main id="main-content">{children}</main>
+              <main id="main-content" className="w-full max-w-[1440px] mx-auto min-h-[calc(100vh-var(--nav-height))]">
+                {children}
+              </main>
               <Footer />
               <AccentIndicator />
             </ScaleWrapper>

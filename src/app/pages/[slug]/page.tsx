@@ -1,8 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Sparkles, Calendar } from "lucide-react";
-import "./page.css";
 
 interface CustomPage {
   _id: string;
@@ -98,46 +96,47 @@ function processCustomPageHtml(rawHtml: string): { scopedHtml: string; scopedCss
     cleaned = cleaned.replace(/([^{}]+)\{([^}]+)\}/g, (match, selectors, declarations) => {
       const trimmed = selectors.trim();
       if (
-        trimmed.startsWith("@keyframes") ||
         trimmed.startsWith("@media") ||
+        trimmed.startsWith("@keyframes") ||
         trimmed.startsWith("@font-face") ||
         trimmed.startsWith("@import")
       ) {
         return match;
       }
 
-      // If declarations belong to body or html, strip hardcoded background-color so theme isn't ruined
-      let sanitizedDeclarations = declarations;
-      if (/^(:root|html|body)$/i.test(trimmed)) {
-        sanitizedDeclarations = sanitizedDeclarations.replace(/background(-color)?\s*:[^;]+;?/gi, "");
-      }
-
-      const scopedSelectors = selectors
+      // If selector is :root or body, map its variables/styles directly to .custom-page-rendered
+      const scopedSelector = trimmed
         .split(",")
-        .map((sel: string) => {
-          let s = sel.trim();
-          if (!s) return "";
-          // If selector is :root, html, or body -> map directly to .custom-page-rendered so CSS variables work!
-          if (/^(:root|html|body)$/i.test(s)) {
+        .map((s: string) => {
+          const sel = s.trim();
+          if (sel === ":root" || sel === "body" || sel === "html") {
             return ".custom-page-rendered";
           }
-          // If selector starts with body/html/root followed by a descendant
-          s = s.replace(/^(body|html|:root)\s+/i, "");
-          if (s.startsWith(".custom-page-rendered")) return s;
-          return `.custom-page-rendered ${s}`;
+          if (sel.startsWith("body ") || sel.startsWith("html ")) {
+            return sel.replace(/^(body|html)\s+/, ".custom-page-rendered ");
+          }
+          return `.custom-page-rendered ${sel}`;
         })
-        .filter(Boolean)
         .join(", ");
-      return `${scopedSelectors} { ${sanitizedDeclarations} }`;
+
+      // Strip hardcoded dark background-colors from the body/root rules
+      let cleanDeclarations = declarations;
+      if (trimmed === ":root" || trimmed === "body" || trimmed === "html") {
+        cleanDeclarations = cleanDeclarations
+          .replace(/background(-color)?\s*:\s*[^;]+;/gi, "background-color: transparent !important;")
+          .replace(/color\s*:\s*(#fff|#ffffff|white|#eee|#f8f8f6)\s*;/gi, "");
+      }
+
+      return `${scopedSelector} {${cleanDeclarations}}`;
     });
 
-    scopedCss += cleaned + "\n";
+    scopedCss += "\n" + cleaned;
   }
 
-  return { scopedHtml: html.trim(), scopedCss };
+  return { scopedHtml: html, scopedCss };
 }
 
-export default async function CustomPageRoute({
+export default async function DynamicCustomPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
@@ -158,36 +157,64 @@ export default async function CustomPageRoute({
   });
 
   return (
-    <section className="section custom-page-section">
-      <div className="container">
-        {/* Scoped Dynamic Styles from Admin Content */}
-        {scopedCss && (
-          <style dangerouslySetInnerHTML={{ __html: scopedCss }} />
-        )}
+    <section className="py-8 md:py-12 min-h-[75vh] w-full overflow-x-hidden">
+      <div className="container mx-auto px-4 md:px-8">
+        {/* Built-in scoped CSS for CMS content rendering */}
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            .custom-page-rendered { width: 100%; max-width: 100%; color: var(--text-primary); line-height: 1.75; font-size: 1rem; word-break: break-word; background-color: transparent !important; }
+            .custom-page-rendered .custom-page-inner-container { width: 100%; max-width: 900px; margin: 0 auto; padding: 1rem 0; }
+            .custom-page-rendered h1, .custom-page-rendered h2, .custom-page-rendered h3, .custom-page-rendered h4, .custom-page-rendered h5, .custom-page-rendered h6 { color: var(--text-primary) !important; font-weight: 700; margin-top: 1.5em; margin-bottom: 0.6em; line-height: 1.3; }
+            .custom-page-rendered h1 { font-size: clamp(1.6rem, 3vw, 2.2rem); }
+            .custom-page-rendered h2 { font-size: clamp(1.4rem, 2.5vw, 1.8rem); }
+            .custom-page-rendered h3 { font-size: clamp(1.2rem, 2vw, 1.4rem); }
+            .custom-page-rendered p, .custom-page-rendered .intro-text { margin-bottom: 1.25em; color: var(--text-secondary) !important; }
+            .custom-page-rendered a:not(.apply-btn):not([class*="btn"]) { color: var(--accent-text-on-surface); text-decoration: underline; text-underline-offset: 3px; font-weight: 600; }
+            .dark .custom-page-rendered a:not(.apply-btn):not([class*="btn"]) { color: var(--accent-primary-hover); }
+            .custom-page-rendered .apply-btn, .custom-page-rendered a[class*="btn"], .custom-page-rendered button[class*="btn"] { display: inline-block; background-color: var(--accent-primary) !important; color: var(--accent-primary-text) !important; padding: 12px 28px; border-radius: var(--radius-lg); text-decoration: none !important; font-weight: 700; font-size: 1rem; border: 1px solid var(--border-default); box-shadow: 3px 3px 0px 0px rgba(0, 0, 0, 0.4); cursor: pointer; transition: transform 0.2s ease, opacity 0.2s ease; }
+            .custom-page-rendered .apply-btn:hover, .custom-page-rendered a[class*="btn"]:hover, .custom-page-rendered button[class*="btn"]:hover { transform: translateY(-2px); opacity: 0.95; }
+            .custom-page-rendered .benefit-card, .custom-page-rendered .cta-section, .custom-page-rendered div[class*="card"] { background-color: var(--surface-secondary) !important; border: 1px solid var(--border-default) !important; color: var(--text-primary) !important; box-shadow: 3px 3px 0px 0px var(--border-default) !important; border-radius: var(--radius-lg); padding: 1.25rem; }
+            .custom-page-rendered ul, .custom-page-rendered ol { margin: 1em 0 1.5em; padding-left: 1.5em; color: var(--text-secondary); }
+            .custom-page-rendered li { margin-bottom: 0.5em; }
+            .custom-page-rendered img { max-width: 100%; height: auto; border-radius: var(--radius-lg); border: 1px solid var(--border-default); margin: 1.5em auto; display: block; }
+            .custom-page-rendered blockquote { border-left: 4px solid var(--accent-primary); padding: 0.75rem 1rem; margin: 1.5em 0; background: var(--surface-secondary); border-radius: 0 var(--radius-md) var(--radius-md) 0; font-style: italic; color: var(--text-secondary); }
+            .custom-page-rendered table { width: 100%; border-collapse: collapse; margin: 1.5em 0; font-size: 0.875rem; }
+            .custom-page-rendered th, .custom-page-rendered td { padding: 10px 14px; border: 1px solid var(--border-default); text-align: left; }
+            .custom-page-rendered th { background: var(--surface-secondary); font-weight: 700; color: var(--text-primary); }
+            .custom-page-rendered pre, .custom-page-rendered code { font-family: var(--font-mono); }
+            .custom-page-rendered code:not(pre code) { background: var(--surface-secondary); padding: 2px 6px; border-radius: var(--radius-sm); font-size: 0.9em; border: 1px solid var(--border-default); }
+            .custom-page-rendered pre { background: var(--surface-inverse); color: var(--text-inverse); padding: 1rem; border-radius: var(--radius-lg); overflow-x: auto; margin: 1.5em 0; font-size: 0.875rem; }
+            ${scopedCss}
+          `
+        }} />
 
         {/* Page Header Card */}
-        <div className="custom-page-header-card">
+        <div className="bg-surface-elevated border border-border-default rounded-2xl shadow-[4px_4px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_var(--border-default)] overflow-hidden mb-6">
           {page.coverImageUrl && (
             <div
-              className="custom-page-cover"
+              className="w-full h-[280px] md:h-[380px] bg-cover bg-center bg-surface-secondary border-b border-border-default relative"
               style={{ backgroundImage: `url(${page.coverImageUrl})` }}
               aria-hidden="true"
             />
           )}
 
-          <div className="custom-page-meta-wrap">
+          <div className="p-6 md:p-8">
             <span className="kicker">
-              <Sparkles size={14} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
+              <Sparkles size={14} className="inline align-middle mr-1" />
               MEC Computer Club Page
             </span>
 
-            <h1>{page.title}</h1>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-text-primary my-2">
+              {page.title}
+            </h1>
 
             {page.description && (
-              <p className="custom-page-description">{page.description}</p>
+              <p className="text-base sm:text-lg text-text-secondary leading-relaxed max-w-[800px] mb-4">
+                {page.description}
+              </p>
             )}
 
-            <div className="custom-page-date">
+            <div className="text-xs font-mono text-text-tertiary font-semibold flex items-center gap-1.5">
               <Calendar size={13} />
               <span>Last updated: {formattedDate}</span>
             </div>
@@ -195,7 +222,7 @@ export default async function CustomPageRoute({
         </div>
 
         {/* Scoped Content Card */}
-        <div className="custom-page-content-card">
+        <div className="bg-surface-elevated border border-border-default rounded-2xl p-6 md:p-8 shadow-[4px_4px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_var(--border-default)] overflow-x-auto">
           <div
             className="custom-page-rendered"
             dangerouslySetInnerHTML={{ __html: scopedHtml }}

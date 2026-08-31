@@ -27,7 +27,6 @@ import { staticExecutives } from "@/data/executives";
 import { staticAdvisors } from "@/data/advisors";
 import { activeMembers } from "@/data/members";
 import { alumniBatches } from "@/data/alumni";
-import "../profile.css";
 
 /* ── Social SVGs ── */
 const IconGH = () => (
@@ -216,12 +215,12 @@ export default function MemberProfilePage() {
 
   if (loading) {
     return (
-      <div className="profile-page">
-        <div className="profile-page__cover-wrap">
-          <div className="profile-page__cover-pattern" />
+      <div className="min-h-[calc(100vh-var(--navbar-height,64px))] bg-surface-secondary pb-16">
+        <div className="relative w-full h-[200px] bg-gradient-to-br from-slate-900 via-emerald-950 to-emerald-800 border-b-2 border-border-brutalist overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.15)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
         </div>
-        <div className="profile-page__container">
-          <div className="profile-page__loading">
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 text-text-secondary font-semibold">
             <Sparkles size={32} className="animate-spin text-emerald-500" />
             <p>Loading member profile...</p>
           </div>
@@ -232,22 +231,28 @@ export default function MemberProfilePage() {
 
   if (error || !member) {
     return (
-      <div className="profile-page">
-        <div className="profile-page__cover-wrap">
-          <div className="profile-page__cover-pattern" />
-          <div className="profile-page__cover-nav">
-            <Link href="/members" className="profile-page__back-btn">
+      <div className="min-h-[calc(100vh-var(--navbar-height,64px))] bg-surface-secondary pb-16">
+        <div className="relative w-full h-[200px] bg-gradient-to-br from-slate-900 via-emerald-950 to-emerald-800 border-b-2 border-border-brutalist overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.15)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
+          <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10">
+            <Link
+              href="/members"
+              className="inline-flex items-center gap-1.5 py-1.5 px-3.5 bg-surface-elevated text-text-primary border-2 border-border-brutalist rounded-md shadow-[2px_2px_0px_var(--border-brutalist)] text-xs font-bold transition-all hover:shadow-[3px_3px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5"
+            >
               <ArrowLeft size={14} /> Back to Directory
             </Link>
           </div>
         </div>
-        <div className="profile-page__container">
-          <div className="profile-page__hero-card" style={{ textAlign: "center", padding: "48px 24px" }}>
-            <h2 style={{ fontSize: "24px", fontWeight: 800, marginBottom: "8px" }}>Member Not Found</h2>
-            <p style={{ color: "var(--text-secondary)", marginBottom: "20px" }}>
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="bg-surface-elevated border-2 border-border-brutalist rounded-xl shadow-[6px_6px_0px_var(--border-brutalist)] -mt-14 p-10 text-center relative z-10 mb-6">
+            <h2 className="text-2xl font-extrabold text-text-primary mb-2">Member Not Found</h2>
+            <p className="text-text-secondary mb-5">
               The requested member profile could not be located or may have been removed.
             </p>
-            <Link href="/members" className="profile-page__back-btn" style={{ display: "inline-flex" }}>
+            <Link
+              href="/members"
+              className="inline-flex items-center gap-1.5 py-2 px-4 bg-surface-elevated text-text-primary border-2 border-border-brutalist rounded-md shadow-[2px_2px_0px_var(--border-brutalist)] text-xs font-bold transition-all hover:shadow-[3px_3px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5"
+            >
               <ArrowLeft size={14} /> Return to Member Directory
             </Link>
           </div>
@@ -270,33 +275,33 @@ export default function MemberProfilePage() {
   const socials = member.socialLinks || {};
 
   return (
-    <div className="profile-page">
+    <div className="min-h-[calc(100vh-var(--navbar-height,64px))] bg-surface-secondary pb-16">
       {/* ── 1. Cover Banner ── */}
-      <div className="profile-page__cover-wrap">
+      <div className="relative w-full h-[200px] bg-gradient-to-br from-slate-900 via-emerald-950 to-emerald-800 border-b-2 border-border-brutalist overflow-hidden">
         {member.coverUrl ? (
           <Image
             src={member.coverUrl}
             alt={`${name}'s cover`}
             fill
             sizes="100vw"
-            className="profile-page__cover-img"
+            className="w-full h-full object-cover"
           />
         ) : (
-          <div className="profile-page__cover-pattern" />
+          <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.15)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
         )}
 
-        <div className="profile-page__cover-nav">
+        <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10">
           <button
             type="button"
             onClick={() => router.back()}
-            className="profile-page__back-btn"
+            className="inline-flex items-center gap-1.5 py-1.5 px-3.5 bg-surface-elevated text-text-primary border-2 border-border-brutalist rounded-md shadow-[2px_2px_0px_var(--border-brutalist)] text-xs font-bold transition-all hover:shadow-[3px_3px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5 cursor-pointer"
           >
             <ArrowLeft size={14} /> Back
           </button>
           <button
             type="button"
             onClick={handleShare}
-            className="profile-page__share-btn"
+            className="inline-flex items-center gap-1.5 py-1.5 px-3.5 bg-surface-elevated text-text-primary border-2 border-border-brutalist rounded-md shadow-[2px_2px_0px_var(--border-brutalist)] text-xs font-bold transition-all hover:shadow-[3px_3px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5 cursor-pointer"
             title="Share profile link"
           >
             <Share2 size={14} /> Share Profile
@@ -304,90 +309,90 @@ export default function MemberProfilePage() {
         </div>
       </div>
 
-      <div className="profile-page__container">
+      <div className="max-w-4xl mx-auto px-4">
         {/* ── 2. Hero Identity Card ── */}
-        <div className="profile-page__hero-card">
-          <div className="profile-page__hero-top">
+        <div className="bg-surface-elevated border-2 border-border-brutalist dark:border-border-default rounded-xl shadow-[6px_6px_0px_var(--border-brutalist)] dark:shadow-[6px_6px_0px_var(--accent-primary)] -mt-14 p-6 sm:p-8 relative z-10 mb-6">
+          <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 mb-5 text-center sm:text-left">
             {/* Avatar Photo */}
-            <div className="profile-page__avatar-wrap">
+            <div className="relative w-28 h-28 min-w-[112px] rounded-xl border-2 border-border-brutalist dark:border-border-default shadow-[4px_4px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_var(--accent-primary)] bg-surface-secondary overflow-hidden -mt-10">
               {member.imageUrl ? (
                 <Image
                   src={member.imageUrl}
                   alt={`${name}'s profile photo`}
                   fill
                   sizes="130px"
-                  className="profile-page__avatar-img"
+                  className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="profile-page__avatar-placeholder">
+                <div className="w-full h-full flex items-center justify-center font-bold text-3xl text-text-primary bg-surface-secondary">
                   {initial}
                 </div>
               )}
             </div>
 
             {/* Main Info */}
-            <div className="profile-page__hero-info">
+            <div className="flex-1">
               {/* Role Badges */}
-              <div className="profile-page__role-ribbon-row">
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-2">
                 {isAdmin && (
-                  <span className="profile-page__pill profile-page__pill--admin" title="Platform Administrator">
+                  <span className="inline-flex items-center gap-1 py-0.5 px-2.5 rounded-sm font-bold text-[11px] uppercase tracking-wider bg-gradient-to-br from-yellow-300 to-amber-500 text-black border border-black shadow-[1.5px_1.5px_0px_#000]" title="Platform Administrator">
                     <Crown size={12} /> ADMIN
                   </span>
                 )}
                 {isMod && !isAdmin && (
-                  <span className="profile-page__pill profile-page__pill--moderator" title="Platform Moderator">
+                  <span className="inline-flex items-center gap-1 py-0.5 px-2.5 rounded-sm font-bold text-[11px] uppercase tracking-wider bg-gradient-to-br from-orange-200 to-orange-600 text-black border border-black shadow-[1.5px_1.5px_0px_#000]" title="Platform Moderator">
                     <ShieldCheck size={12} /> MOD
                   </span>
                 )}
                 {isExec && (
-                  <span className="profile-page__pill profile-page__pill--executive">
+                  <span className="inline-flex items-center gap-1 py-0.5 px-2.5 rounded-sm font-bold text-[11px] uppercase tracking-wider bg-accent-primary/15 text-accent-primary-hover border border-accent-primary">
                     <Sparkles size={12} /> ROOT USER / EXECUTIVE
                   </span>
                 )}
                 {isAdv && (
-                  <span className="profile-page__pill profile-page__pill--advisor">
+                  <span className="inline-flex items-center gap-1 py-0.5 px-2.5 rounded-sm font-bold text-[11px] uppercase tracking-wider bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 border border-cyan-500">
                     <GraduationCap size={12} /> SUDOER / ADVISOR
                   </span>
                 )}
                 {isAlumni && (
-                  <span className="profile-page__pill profile-page__pill--alumni">
+                  <span className="inline-flex items-center gap-1 py-0.5 px-2.5 rounded-sm font-bold text-[11px] uppercase tracking-wider bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 border border-indigo-500">
                     <Building2 size={12} /> ALUMNI NETWORK
                   </span>
                 )}
                 {!isExec && !isAdv && !isAlumni && (
-                  <span className="profile-page__pill" style={{ background: "var(--surface-secondary)", color: "var(--text-secondary)" }}>
+                  <span className="inline-flex items-center gap-1 py-0.5 px-2.5 rounded-sm font-bold text-[11px] uppercase tracking-wider bg-surface-secondary text-text-secondary border border-border-default">
                     <CheckCircle2 size={12} /> MEMBER
                   </span>
                 )}
               </div>
 
               {/* Name */}
-              <h1 className="profile-page__name">{name}</h1>
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-text-primary mb-1">{name}</h1>
 
               {/* Subtitle & Designation */}
-              <div className="profile-page__subtitle">
+              <div className="text-sm text-text-secondary flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-1">
                 <span>{sessionDisplay}</span>
                 {member.studentId && <span>• ID: {member.studentId}</span>}
               </div>
-              <div className="profile-page__designation">{designation}</div>
+              <div className="text-base font-bold text-accent-text-on-surface dark:text-accent-primary-hover">{designation}</div>
             </div>
           </div>
 
           {/* Bio statement */}
           {member.bio && (
-            <div className="profile-page__bio-box">
+            <div className="mt-4 p-3 sm:px-4 bg-surface-secondary border-l-4 border-accent-primary rounded-r-md text-sm text-text-primary leading-relaxed">
               &ldquo;{member.bio}&rdquo;
             </div>
           )}
 
           {/* Social Quick Bar */}
-          <div className="profile-page__social-bar">
+          <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-4 pt-4 border-t border-border-default">
             {socials.github && (
               <a
                 href={socials.github.startsWith("http") ? socials.github : `https://github.com/${socials.github}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="profile-page__social-btn"
+                className="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-md border border-border-brutalist dark:border-border-default bg-surface-secondary text-text-primary text-xs font-bold hover:bg-accent-primary-light/40 transition-colors"
               >
                 <IconGH /> GitHub
               </a>
@@ -397,7 +402,7 @@ export default function MemberProfilePage() {
                 href={socials.linkedin.startsWith("http") ? socials.linkedin : `https://linkedin.com/in/${socials.linkedin}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="profile-page__social-btn"
+                className="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-md border border-border-brutalist dark:border-border-default bg-surface-secondary text-text-primary text-xs font-bold hover:bg-accent-primary-light/40 transition-colors"
               >
                 <IconLI /> LinkedIn
               </a>
@@ -407,7 +412,7 @@ export default function MemberProfilePage() {
                 href={socials.codeforces.startsWith("http") ? socials.codeforces : `https://codeforces.com/profile/${socials.codeforces}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="profile-page__social-btn"
+                className="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-md border border-border-brutalist dark:border-border-default bg-surface-secondary text-text-primary text-xs font-bold hover:bg-accent-primary-light/40 transition-colors"
               >
                 <IconCF /> Codeforces
               </a>
@@ -417,7 +422,7 @@ export default function MemberProfilePage() {
                 href={socials.codechef.startsWith("http") ? socials.codechef : `https://www.codechef.com/users/${socials.codechef}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="profile-page__social-btn"
+                className="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-md border border-border-brutalist dark:border-border-default bg-surface-secondary text-text-primary text-xs font-bold hover:bg-accent-primary-light/40 transition-colors"
               >
                 <IconCC /> CodeChef
               </a>
@@ -427,7 +432,7 @@ export default function MemberProfilePage() {
                 href={socials.facebook.startsWith("http") ? socials.facebook : `https://facebook.com/${socials.facebook}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="profile-page__social-btn"
+                className="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-md border border-border-brutalist dark:border-border-default bg-surface-secondary text-text-primary text-xs font-bold hover:bg-accent-primary-light/40 transition-colors"
               >
                 <IconFB /> Facebook
               </a>
@@ -435,7 +440,7 @@ export default function MemberProfilePage() {
             {member.email && (
               <a
                 href={`mailto:${member.email}`}
-                className="profile-page__social-btn"
+                className="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-md border border-border-brutalist dark:border-border-default bg-surface-secondary text-text-primary text-xs font-bold hover:bg-accent-primary-light/40 transition-colors"
               >
                 <Mail size={14} /> {member.email}
               </a>
@@ -444,71 +449,71 @@ export default function MemberProfilePage() {
         </div>
 
         {/* ── 3. Bento Grid Section ── */}
-        <div className="profile-page__grid">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Card 1: Academic & Club Standing */}
-          <div className="profile-page__card">
-            <h2 className="profile-page__card-title">
-              <Layers size={16} /> Club & Academic Dossier
+          <div className="bg-surface-elevated border-2 border-border-brutalist dark:border-border-default rounded-xl shadow-[4px_4px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_var(--border-default)] p-6">
+            <h2 className="flex items-center gap-2 text-base font-extrabold text-text-primary uppercase tracking-wider mb-4 pb-3 border-b border-border-default">
+              <Layers size={16} /> Club &amp; Academic Dossier
             </h2>
-            <div className="profile-page__dossier-list">
-              <div className="profile-page__dossier-row">
-                <span className="profile-page__dossier-label">Department</span>
-                <span className="profile-page__dossier-value">{member.department || "Computer Science & Eng."}</span>
+            <div className="flex flex-col gap-3">
+              <div className="flex justify-between items-center text-sm pb-2 border-b border-dashed border-border-default">
+                <span className="text-text-secondary font-semibold">Department</span>
+                <span className="text-text-primary font-bold text-right">{member.department || "Computer Science & Eng."}</span>
               </div>
-              <div className="profile-page__dossier-row">
-                <span className="profile-page__dossier-label">Session</span>
-                <span className="profile-page__dossier-value">{sessionDisplay}</span>
+              <div className="flex justify-between items-center text-sm pb-2 border-b border-dashed border-border-default">
+                <span className="text-text-secondary font-semibold">Session</span>
+                <span className="text-text-primary font-bold text-right">{sessionDisplay}</span>
               </div>
               {member.studentId && (
-                <div className="profile-page__dossier-row">
-                  <span className="profile-page__dossier-label">Student ID</span>
-                  <span className="profile-page__dossier-value">{member.studentId}</span>
+                <div className="flex justify-between items-center text-sm pb-2 border-b border-dashed border-border-default">
+                  <span className="text-text-secondary font-semibold">Student ID</span>
+                  <span className="text-text-primary font-bold text-right">{member.studentId}</span>
                 </div>
               )}
-              <div className="profile-page__dossier-row">
-                <span className="profile-page__dossier-label">Club Standing</span>
-                <span className="profile-page__dossier-value">
+              <div className="flex justify-between items-center text-sm pb-2 border-b border-dashed border-border-default">
+                <span className="text-text-secondary font-semibold">Club Standing</span>
+                <span className="text-text-primary font-bold text-right">
                   {isAdv ? "Faculty Advisor" : isExec ? "Executive Committee" : isAlumni ? "Alumni Network" : "General Member"}
                 </span>
               </div>
-              <div className="profile-page__dossier-row">
-                <span className="profile-page__dossier-label">Platform Privilege</span>
-                <span className="profile-page__dossier-value">
+              <div className="flex justify-between items-center text-sm pb-2 border-b border-dashed border-border-default">
+                <span className="text-text-secondary font-semibold">Platform Privilege</span>
+                <span className="text-text-primary font-bold text-right">
                   {isAdmin ? "Administrator" : isMod ? "Moderator" : "Standard"}
                 </span>
               </div>
               {member.address && (
-                <div className="profile-page__dossier-row">
-                  <span className="profile-page__dossier-label">Campus / City</span>
-                  <span className="profile-page__dossier-value">{member.address}</span>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-text-secondary font-semibold">Campus / City</span>
+                  <span className="text-text-primary font-bold text-right">{member.address}</span>
                 </div>
               )}
             </div>
           </div>
 
           {/* Card 2: Developer & CP Handles */}
-          <div className="profile-page__card">
-            <h2 className="profile-page__card-title">
-              <Code2 size={16} /> Competitive & Dev Hub
+          <div className="bg-surface-elevated border-2 border-border-brutalist dark:border-border-default rounded-xl shadow-[4px_4px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_var(--border-default)] p-6">
+            <h2 className="flex items-center gap-2 text-base font-extrabold text-text-primary uppercase tracking-wider mb-4 pb-3 border-b border-border-default">
+              <Code2 size={16} /> Competitive &amp; Dev Hub
             </h2>
 
-            <div className="profile-page__handles-grid">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {/* GitHub */}
               {socials.github ? (
                 <a
                   href={socials.github.startsWith("http") ? socials.github : `https://github.com/${socials.github}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="profile-page__handle-tile"
+                  className="flex items-center gap-2.5 p-2.5 bg-surface-secondary border border-border-default rounded-md text-text-primary hover:border-accent-primary hover:shadow-[2px_2px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all"
                 >
-                  <div className="profile-page__handle-icon">
+                  <div className="w-8 h-8 rounded bg-surface-elevated border border-border-default flex items-center justify-center shrink-0">
                     <IconGH />
                   </div>
-                  <div className="profile-page__handle-info">
-                    <span className="profile-page__handle-platform">GitHub</span>
-                    <span className="profile-page__handle-username">{socials.github.replace(/https?:\/\/(www\.)?github\.com\//, "")}</span>
+                  <div className="overflow-hidden">
+                    <span className="text-[10px] font-extrabold uppercase text-text-secondary tracking-wider block">GitHub</span>
+                    <span className="text-xs font-bold whitespace-nowrap overflow-hidden text-ellipsis block">{socials.github.replace(/https?:\/\/(www\.)?github\.com\//, "")}</span>
                   </div>
-                  <ExternalLink size={12} style={{ marginLeft: "auto", opacity: 0.5 }} />
+                  <ExternalLink size={12} className="ml-auto opacity-50" />
                 </a>
               ) : null}
 
@@ -518,16 +523,16 @@ export default function MemberProfilePage() {
                   href={socials.codeforces.startsWith("http") ? socials.codeforces : `https://codeforces.com/profile/${socials.codeforces}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="profile-page__handle-tile"
+                  className="flex items-center gap-2.5 p-2.5 bg-surface-secondary border border-border-default rounded-md text-text-primary hover:border-accent-primary hover:shadow-[2px_2px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all"
                 >
-                  <div className="profile-page__handle-icon">
+                  <div className="w-8 h-8 rounded bg-surface-elevated border border-border-default flex items-center justify-center shrink-0">
                     <IconCF />
                   </div>
-                  <div className="profile-page__handle-info">
-                    <span className="profile-page__handle-platform">Codeforces</span>
-                    <span className="profile-page__handle-username">{socials.codeforces.replace(/https?:\/\/(www\.)?codeforces\.com\/profile\//, "")}</span>
+                  <div className="overflow-hidden">
+                    <span className="text-[10px] font-extrabold uppercase text-text-secondary tracking-wider block">Codeforces</span>
+                    <span className="text-xs font-bold whitespace-nowrap overflow-hidden text-ellipsis block">{socials.codeforces.replace(/https?:\/\/(www\.)?codeforces\.com\/profile\//, "")}</span>
                   </div>
-                  <ExternalLink size={12} style={{ marginLeft: "auto", opacity: 0.5 }} />
+                  <ExternalLink size={12} className="ml-auto opacity-50" />
                 </a>
               ) : null}
 
@@ -537,16 +542,16 @@ export default function MemberProfilePage() {
                   href={socials.codechef.startsWith("http") ? socials.codechef : `https://www.codechef.com/users/${socials.codechef}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="profile-page__handle-tile"
+                  className="flex items-center gap-2.5 p-2.5 bg-surface-secondary border border-border-default rounded-md text-text-primary hover:border-accent-primary hover:shadow-[2px_2px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all"
                 >
-                  <div className="profile-page__handle-icon">
+                  <div className="w-8 h-8 rounded bg-surface-elevated border border-border-default flex items-center justify-center shrink-0">
                     <IconCC />
                   </div>
-                  <div className="profile-page__handle-info">
-                    <span className="profile-page__handle-platform">CodeChef</span>
-                    <span className="profile-page__handle-username">{socials.codechef.replace(/https?:\/\/(www\.)?codechef\.com\/users\//, "")}</span>
+                  <div className="overflow-hidden">
+                    <span className="text-[10px] font-extrabold uppercase text-text-secondary tracking-wider block">CodeChef</span>
+                    <span className="text-xs font-bold whitespace-nowrap overflow-hidden text-ellipsis block">{socials.codechef.replace(/https?:\/\/(www\.)?codechef\.com\/users\//, "")}</span>
                   </div>
-                  <ExternalLink size={12} style={{ marginLeft: "auto", opacity: 0.5 }} />
+                  <ExternalLink size={12} className="ml-auto opacity-50" />
                 </a>
               ) : null}
 
@@ -555,17 +560,16 @@ export default function MemberProfilePage() {
                 <button
                   type="button"
                   onClick={() => copyText(socials.discord, "Discord handle")}
-                  className="profile-page__handle-tile"
-                  style={{ textAlign: "left", width: "100%", cursor: "pointer", border: "1px solid var(--border-default)" }}
+                  className="flex items-center gap-2.5 p-2.5 bg-surface-secondary border border-border-default rounded-md text-text-primary hover:border-accent-primary hover:shadow-[2px_2px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all w-full text-left cursor-pointer"
                 >
-                  <div className="profile-page__handle-icon">
+                  <div className="w-8 h-8 rounded bg-surface-elevated border border-border-default flex items-center justify-center shrink-0">
                     <IconDiscord />
                   </div>
-                  <div className="profile-page__handle-info">
-                    <span className="profile-page__handle-platform">Discord</span>
-                    <span className="profile-page__handle-username">{socials.discord}</span>
+                  <div className="overflow-hidden">
+                    <span className="text-[10px] font-extrabold uppercase text-text-secondary tracking-wider block">Discord</span>
+                    <span className="text-xs font-bold whitespace-nowrap overflow-hidden text-ellipsis block">{socials.discord}</span>
                   </div>
-                  <Copy size={12} style={{ marginLeft: "auto", opacity: 0.5 }} />
+                  <Copy size={12} className="ml-auto opacity-50" />
                 </button>
               ) : null}
 
@@ -575,51 +579,51 @@ export default function MemberProfilePage() {
                   href={socials.linkedin.startsWith("http") ? socials.linkedin : `https://linkedin.com/in/${socials.linkedin}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="profile-page__handle-tile"
+                  className="flex items-center gap-2.5 p-2.5 bg-surface-secondary border border-border-default rounded-md text-text-primary hover:border-accent-primary hover:shadow-[2px_2px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all"
                 >
-                  <div className="profile-page__handle-icon">
+                  <div className="w-8 h-8 rounded bg-surface-elevated border border-border-default flex items-center justify-center shrink-0">
                     <IconLI />
                   </div>
-                  <div className="profile-page__handle-info">
-                    <span className="profile-page__handle-platform">LinkedIn</span>
-                    <span className="profile-page__handle-username">Profile</span>
+                  <div className="overflow-hidden">
+                    <span className="text-[10px] font-extrabold uppercase text-text-secondary tracking-wider block">LinkedIn</span>
+                    <span className="text-xs font-bold whitespace-nowrap overflow-hidden text-ellipsis block">Profile</span>
                   </div>
-                  <ExternalLink size={12} style={{ marginLeft: "auto", opacity: 0.5 }} />
+                  <ExternalLink size={12} className="ml-auto opacity-50" />
                 </a>
               ) : null}
             </div>
 
             {/* Fallback if no handles */}
             {!socials.github && !socials.codeforces && !socials.codechef && !socials.discord && !socials.linkedin && (
-              <p style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", margin: 0 }}>
+              <p className="text-sm text-text-secondary m-0">
                 No public handles connected yet.
               </p>
             )}
           </div>
 
           {/* Card 3: Club Activities & Badges */}
-          <div className="profile-page__card" style={{ gridColumn: "span 2" }}>
-            <h2 className="profile-page__card-title">
-              <Award size={16} /> Club Engagements & Milestones
+          <div className="bg-surface-elevated border-2 border-border-brutalist dark:border-border-default rounded-xl shadow-[4px_4px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_var(--border-default)] p-6 md:col-span-2">
+            <h2 className="flex items-center gap-2 text-base font-extrabold text-text-primary uppercase tracking-wider mb-4 pb-3 border-b border-border-default">
+              <Award size={16} /> Club Engagements &amp; Milestones
             </h2>
-            <div className="profile-page__stat-badges">
-              <div className="profile-page__stat-box">
-                <div className="profile-page__stat-number">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
+              <div className="p-3 bg-surface-secondary border border-border-default rounded-md">
+                <div className="text-2xl font-black text-accent-primary-hover mb-1">
                   {Array.isArray(member.eventsAttended) ? member.eventsAttended.length : 0}
                 </div>
-                <div className="profile-page__stat-text">Events Attended</div>
+                <div className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Events Attended</div>
               </div>
-              <div className="profile-page__stat-box">
-                <div className="profile-page__stat-number">
+              <div className="p-3 bg-surface-secondary border border-border-default rounded-md">
+                <div className="text-2xl font-black text-accent-primary-hover mb-1">
                   {Array.isArray(member.certificates) ? member.certificates.length : 0}
                 </div>
-                <div className="profile-page__stat-text">Certificates</div>
+                <div className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Certificates</div>
               </div>
-              <div className="profile-page__stat-box">
-                <div className="profile-page__stat-number">
+              <div className="p-3 bg-surface-secondary border border-border-default rounded-md">
+                <div className="text-2xl font-black text-accent-primary-hover mb-1">
                   {Array.isArray(member.projectsContributed) ? member.projectsContributed.length : 0}
                 </div>
-                <div className="profile-page__stat-text">Projects</div>
+                <div className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Projects</div>
               </div>
             </div>
           </div>

@@ -6,8 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { api, ApiError } from "@/lib/api";
 import toast from "react-hot-toast";
-import { Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
-import "@/app/login/login.css";
+import { Eye, EyeOff, AlertCircle } from "lucide-react";
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -58,32 +57,32 @@ function ResetPasswordForm() {
   };
 
   return (
-    <div className="login-page">
-      <div className="login-card">
-        <div className="login-header">
-          <span className="login-badge">Security</span>
-          <h1>Set New Password</h1>
-          <p>Create a strong new password for your account.</p>
+    <div className="min-h-[calc(100vh-var(--nav-height))] flex items-center justify-center py-8 px-4 sm:px-6">
+      <div className="max-w-[480px] w-full bg-surface-elevated p-6 sm:p-8 rounded-xl border border-border-brutalist dark:border-border-default shadow-[4px_4px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_var(--accent-primary)] transition-all duration-200">
+        <div className="text-center mb-6">
+          <span className="kicker">Security</span>
+          <h1 className="text-2xl sm:text-3xl font-bold text-text-primary mb-2">Set New Password</h1>
+          <p className="text-sm text-text-secondary">Create a strong new password for your account.</p>
         </div>
 
         {error && (
-          <div className="login-alert login-alert--error" style={{ marginBottom: "var(--space-4)" }}>
-            <AlertCircle size={16} />
+          <div className="flex items-center gap-2 bg-red-500/10 border border-accent-error/30 rounded-lg p-3 text-sm text-accent-error mb-4">
+            <AlertCircle size={16} className="shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        <form className="login-form" onSubmit={handleSubmit}>
+        <form className="flex flex-col gap-4 w-full" onSubmit={handleSubmit}>
           {!emailParam && (
-            <div className="form-group">
-              <label className="form-label" htmlFor="reset-email">
+            <div className="w-full flex flex-col gap-1.5">
+              <label className="block font-medium text-sm text-text-primary" htmlFor="reset-email">
                 Institutional Email
               </label>
               <input
                 id="reset-email"
                 type="email"
                 required
-                className="form-input"
+                className="w-full px-3.5 py-2.5 border border-border-brutalist dark:border-border-default rounded-md bg-surface-primary text-base text-text-primary shadow-[2px_2px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_var(--border-default)] transition-all duration-200 focus:outline-none focus:border-accent-primary focus:shadow-[4px_4px_0px_var(--accent-primary)] focus:-translate-x-0.5 focus:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:bg-surface-secondary"
                 placeholder="name@std.mec.edu.bd"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -91,21 +90,21 @@ function ResetPasswordForm() {
             </div>
           )}
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="new-password">New Password</label>
-            <div className="form-input-wrap">
+          <div className="w-full flex flex-col gap-1.5">
+            <label className="block font-medium text-sm text-text-primary" htmlFor="new-password">New Password</label>
+            <div className="relative flex items-center w-full">
               <input
                 id="new-password"
                 type={showPassword ? "text" : "password"}
                 required
-                className="form-input"
+                className="w-full px-3.5 py-2.5 pr-11 border border-border-brutalist dark:border-border-default rounded-md bg-surface-primary text-base text-text-primary shadow-[2px_2px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_var(--border-default)] transition-all duration-200 focus:outline-none focus:border-accent-primary focus:shadow-[4px_4px_0px_var(--accent-primary)] focus:-translate-x-0.5 focus:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:bg-surface-secondary"
                 placeholder="Min 6 characters"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
               />
               <button
                 type="button"
-                className="password-toggle"
+                className="absolute right-3 p-1 text-text-tertiary hover:text-text-primary transition-colors flex items-center justify-center select-none"
                 onClick={() => setShowPassword(!showPassword)}
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
@@ -114,13 +113,13 @@ function ResetPasswordForm() {
             </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="confirm-password">Confirm New Password</label>
+          <div className="w-full flex flex-col gap-1.5">
+            <label className="block font-medium text-sm text-text-primary" htmlFor="confirm-password">Confirm New Password</label>
             <input
               id="confirm-password"
               type={showPassword ? "text" : "password"}
               required
-              className="form-input"
+              className="w-full px-3.5 py-2.5 border border-border-brutalist dark:border-border-default rounded-md bg-surface-primary text-base text-text-primary shadow-[2px_2px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_var(--border-default)] transition-all duration-200 focus:outline-none focus:border-accent-primary focus:shadow-[4px_4px_0px_var(--accent-primary)] focus:-translate-x-0.5 focus:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:bg-surface-secondary"
               placeholder="Repeat new password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
@@ -130,14 +129,14 @@ function ResetPasswordForm() {
           <Button
             type="submit"
             size="lg"
-            className="login-submit-btn"
+            className="w-full mt-1"
             disabled={loading}
           >
             {loading ? "Updating Password..." : "Update Password"}
           </Button>
 
-          <div style={{ marginTop: "var(--space-4)", textAlign: "center" }}>
-            <Link href="/login" className="forgot-link">
+          <div className="mt-4 text-center">
+            <Link href="/login" className="text-sm font-medium text-accent-primary-hover hover:underline">
               Back to Sign In
             </Link>
           </div>
@@ -149,7 +148,7 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<div className="login-page"><div className="login-card text-center"><p style={{ color: "var(--text-secondary)" }}>Loading reset form...</p></div></div>}>
+    <Suspense fallback={<div className="min-h-[calc(100vh-var(--nav-height))] flex items-center justify-center"><div className="text-center text-text-secondary"><p>Loading reset form...</p></div></div>}>
       <ResetPasswordForm />
     </Suspense>
   );

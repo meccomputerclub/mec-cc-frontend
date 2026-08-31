@@ -18,7 +18,6 @@ import {
   Building2,
   Lock,
 } from "lucide-react";
-import "./join.css";
 
 function JoinGateContent() {
   const router = useRouter();
@@ -71,59 +70,63 @@ function JoinGateContent() {
   };
 
   return (
-    <section className="section join-gate-page">
-      <div className="container">
+    <section className="py-12 md:py-16 min-h-[85vh] flex flex-col justify-center">
+      <div className="container mx-auto px-4 md:px-8">
         {/* Header */}
-        <div className="join-gate-header">
+        <div className="text-center mb-10">
           <span className="kicker">
-            <Sparkles size={14} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
+            <Sparkles size={14} className="inline align-middle mr-1" />
             MEC Computer Club Clearance
           </span>
-          <h1>Join the Club</h1>
-          <p>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight my-2 bg-gradient-to-br from-text-primary via-text-primary to-accent-primary bg-clip-text text-transparent">
+            Join the Club
+          </h1>
+          <p className="text-base sm:text-lg text-text-secondary max-w-[620px] mx-auto leading-relaxed">
             Membership is invite-only. Enter your exclusive invitation access key to unlock the registration portal.
           </p>
         </div>
 
         {/* Gate Card */}
-        <div className="join-gate-card-wrap">
-          <div className="join-gate-card">
-            <div className="join-gate-icon-badge">
+        <div className="max-w-[580px] mx-auto mb-12 w-full">
+          <div className="bg-surface-elevated border-2 border-border-brutalist dark:border-border-default rounded-2xl p-6 sm:p-8 shadow-[6px_6px_0px_var(--border-brutalist)] dark:shadow-[6px_6px_0px_var(--accent-primary)] flex flex-col items-center text-center relative overflow-hidden transition-all duration-200">
+            <div className="w-[68px] h-[68px] rounded-xl bg-surface-secondary border-2 border-border-brutalist dark:border-border-default flex items-center justify-center text-accent-primary shadow-[3px_3px_0px_var(--border-brutalist)] dark:shadow-[3px_3px_0px_var(--accent-primary)] mb-4">
               <KeyRound size={28} />
             </div>
 
-            <div className="join-gate-status-pill">
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-1 font-mono [font-feature-settings:'liga'_0,'calt'_0] text-xs font-bold tracking-wider bg-red-500/10 text-accent-error border border-red-500/25 rounded-full mb-4">
               <Lock size={13} /> INVITATION ACCESS KEY REQUIRED
             </div>
 
-            <h2 className="join-gate-title">Enter Invitation Code</h2>
-            <p className="join-gate-subtitle">
+            <h2 className="text-2xl font-extrabold text-text-primary mb-2 tracking-tight">
+              Enter Invitation Code
+            </h2>
+            <p className="text-text-secondary text-sm leading-relaxed max-w-[440px] mb-5">
               Please input the 6-character access key provided to you by the MEC Computer Club committee or received in your email.
             </p>
 
             {error && (
-              <div className="join-gate-error" role="alert">
-                <AlertCircle size={18} style={{ flexShrink: 0 }} />
+              <div className="flex items-center gap-2 bg-red-500/10 border border-accent-error rounded-md p-3 sm:px-4 text-sm text-accent-error w-full text-left mb-4" role="alert">
+                <AlertCircle size={18} className="shrink-0" />
                 <span>{error}</span>
               </div>
             )}
 
             {successInfo && (
-              <div className="join-gate-success" role="status">
-                <ShieldCheck size={18} style={{ flexShrink: 0 }} />
+              <div className="flex items-center gap-2 bg-emerald-500/10 border border-accent-success rounded-md p-3 sm:px-4 text-sm text-accent-success w-full text-left mb-4" role="status">
+                <ShieldCheck size={18} className="shrink-0" />
                 <span>
                   Key verified for <strong>{successInfo.role.toUpperCase()}</strong>! Redirecting to registration...
                 </span>
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="join-gate-form">
-              <div className="join-gate-input-wrapper">
+            <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4">
+              <div className="w-full">
                 <input
                   type="text"
                   id="invitation-code"
                   name="invitationCode"
-                  className="join-gate-code-input"
+                  className="w-full py-4 px-4 border-2 border-border-brutalist dark:border-border-default rounded-md bg-surface-primary font-mono [font-feature-settings:'liga'_0,'calt'_0] text-xl font-extrabold tracking-[0.25em] text-center uppercase text-text-primary shadow-[4px_4px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_var(--accent-primary)] transition-all duration-200 focus:outline-none focus:border-accent-primary focus:shadow-[5px_5px_0px_var(--accent-primary)] focus:-translate-x-px focus:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed"
                   placeholder="e.g. 358921"
                   value={code}
                   onChange={(e) => {
@@ -142,56 +145,55 @@ function JoinGateContent() {
                 type="submit"
                 size="lg"
                 disabled={loading || !code.trim() || Boolean(successInfo)}
-                className="join-gate-submit-btn"
-                style={{ width: "100%" }}
+                className="w-full"
               >
                 {loading ? (
                   "Verifying Access Key..."
                 ) : (
                   <>
-                    Unlock Registration Form <ArrowRight size={18} style={{ marginLeft: 8 }} />
+                    Unlock Registration Form <ArrowRight size={18} className="ml-2" />
                   </>
                 )}
               </Button>
             </form>
 
-            <div className="join-gate-login-prompt">
+            <div className="mt-5 text-xs text-text-secondary">
               <span>Already a verified member?</span>{" "}
-              <Link href="/login" className="join-gate-login-link">
-                Sign in to your dashboard <ArrowRight size={13} style={{ display: "inline", verticalAlign: "middle" }} />
+              <Link href="/login" className="text-accent-text-on-surface dark:text-accent-primary-hover font-bold hover:underline ml-1">
+                Sign in to your dashboard <ArrowRight size={13} className="inline align-middle ml-0.5" />
               </Link>
             </div>
           </div>
         </div>
 
         {/* Info Cards Grid */}
-        <div className="join-info-grid">
-          <div className="join-info-card">
-            <div className="join-info-card__icon">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-[1050px] mx-auto w-full">
+          <div className="bg-surface-elevated border border-border-brutalist dark:border-border-default rounded-xl p-5 shadow-[4px_4px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_var(--border-default)] flex flex-col gap-2 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0px_var(--accent-primary)]">
+            <div className="w-11 h-11 rounded-lg bg-surface-secondary border border-border-default flex items-center justify-center text-accent-primary mb-1">
               <HelpCircle size={22} />
             </div>
-            <h3>How to get an invitation code?</h3>
-            <p>
+            <h3 className="text-base font-bold text-text-primary m-0">How to get an invitation code?</h3>
+            <p className="text-xs text-text-secondary leading-relaxed m-0">
               Invitations are issued by the executive committee and faculty advisors to enrolled students during seasonal recruitment drives and workshops.
             </p>
           </div>
 
-          <div className="join-info-card">
-            <div className="join-info-card__icon">
+          <div className="bg-surface-elevated border border-border-brutalist dark:border-border-default rounded-xl p-5 shadow-[4px_4px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_var(--border-default)] flex flex-col gap-2 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0px_var(--accent-primary)]">
+            <div className="w-11 h-11 rounded-lg bg-surface-secondary border border-border-default flex items-center justify-center text-accent-primary mb-1">
               <Users size={22} />
             </div>
-            <h3>Multi-Track Membership</h3>
-            <p>
+            <h3 className="text-base font-bold text-text-primary m-0">Multi-Track Membership</h3>
+            <p className="text-xs text-text-secondary leading-relaxed m-0">
               Your invitation clearance key automatically unlocks your respective track: <strong>General Member</strong> (Students), <strong>Alumni Network</strong>, or <strong>Faculty Advisor</strong>.
             </p>
           </div>
 
-          <div className="join-info-card">
-            <div className="join-info-card__icon">
+          <div className="bg-surface-elevated border border-border-brutalist dark:border-border-default rounded-xl p-5 shadow-[4px_4px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_var(--border-default)] flex flex-col gap-2 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[5px_5px_0px_var(--accent-primary)]">
+            <div className="w-11 h-11 rounded-lg bg-surface-secondary border border-border-default flex items-center justify-center text-accent-primary mb-1">
               <Building2 size={22} />
             </div>
-            <h3>MEC Computer Club</h3>
-            <p>
+            <h3 className="text-base font-bold text-text-primary m-0">MEC Computer Club</h3>
+            <p className="text-xs text-text-secondary leading-relaxed m-0">
               The premier student organization at Mymensingh Engineering College empowering programmers, developers, and tech innovators.
             </p>
           </div>
@@ -203,7 +205,7 @@ function JoinGateContent() {
 
 export default function JoinPage() {
   return (
-    <Suspense fallback={<div className="container" style={{ padding: "80px 0", textAlign: "center" }}>Loading invitation clearance...</div>}>
+    <Suspense fallback={<div className="container mx-auto py-20 text-center text-text-secondary">Loading invitation clearance...</div>}>
       <JoinGateContent />
     </Suspense>
   );
