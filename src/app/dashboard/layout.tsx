@@ -17,12 +17,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  // Redirect to login if not authenticated
+  const isExecutive =
+    user?.role === "admin" ||
+    user?.role === "moderator" ||
+    user?.role === "executive" ||
+    user?.clubRole === "executive";
+
+  // Redirect to login if not authenticated, or to /profile if not executive
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.replace("/login");
+    if (!isLoading) {
+      if (!isAuthenticated) {
+        router.replace("/login");
+      } else if (user && !isExecutive) {
+        router.replace("/profile");
+      }
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, isAuthenticated, user, isExecutive, router]);
 
   // Sync role when user loads
   useEffect(() => {
@@ -33,10 +43,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const activeTab = useMemo(() => {
     if (!pathname) return "overview";
     const rest = pathname.replace(/^\/dashboard\/?/, "");
-    if (!rest) return role === "admin" || role === "moderator" ? "overview" : "activity";
+    if (!rest) return "overview";
     const firstSegment = rest.split("/")[0];
     return firstSegment || "overview";
-  }, [pathname, role]);
+  }, [pathname]);
 
   const handleSetRole = async (newRole: "admin" | "member") => {
     if (user?.role !== "admin") {
@@ -59,13 +69,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     });
   };
 
-  if (isLoading || !isAuthenticated || !user) {
+  if (isLoading || !isAuthenticated || !user || !isExecutive) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-surface-primary">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-primary mx-auto"></div>
           <p className="mt-4 text-text-secondary">
-            {isLoading ? "Loading dashboard..." : "Redirecting to login..."}
+            {isLoading
+              ? "Loading dashboard..."
+              : !isAuthenticated
+              ? "Redirecting to login..."
+              : "Redirecting to profile..."}
           </p>
         </div>
       </div>
@@ -86,9 +100,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       />
 
       <div
-        className={`flex flex-col flex-1 ${
-          isSidebarCollapsed ? "lg:pl-20" : "lg:pl-64"
-        } min-w-0 transition-all duration-300 ease-in-out`}
+        className={`flex flex-col flex-1 ${isSidebarCollapsed ? "lg:pl-20" : "lg:pl-64"
+          } min-w-0 transition-all duration-300 ease-in-out`}
       >
         <DashboardNavbar
           role={role}

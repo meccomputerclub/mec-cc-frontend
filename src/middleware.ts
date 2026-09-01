@@ -26,7 +26,19 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  // --- 2. Dashboard-protected pages ---
+  // --- 2. Profile-protected pages ---
+  if (pathname === "/profile") {
+    if (!payload) {
+      const response = NextResponse.redirect(new URL("/login", req.url));
+      if (token) {
+        response.cookies.delete("auth_token");
+        response.cookies.delete("role");
+      }
+      return response;
+    }
+  }
+
+  // --- 3. Dashboard-protected pages (Executive Only) ---
   if (pathname.startsWith("/dashboard")) {
     if (!payload) {
       const response = NextResponse.redirect(new URL("/login", req.url));
@@ -37,6 +49,15 @@ export async function middleware(req: NextRequest) {
       }
       return response;
     }
+
+    const isExecutive =
+      payload.role === "admin" ||
+      payload.role === "moderator" ||
+      payload.role === "executive";
+
+    if (!isExecutive) {
+      return NextResponse.redirect(new URL("/profile", req.url));
+    }
   }
 
   return NextResponse.next();
@@ -45,6 +66,7 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     "/register/form/:path*",
+    "/profile",
     "/dashboard/:path*",
   ],
 };

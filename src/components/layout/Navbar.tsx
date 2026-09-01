@@ -274,20 +274,20 @@ export function Navbar() {
         {/* Logo */}
         <Link href="/" className="navbar__logo" aria-label="MEC Computer Club — Home">
           {mounted ? (
-            <Image 
+            <Image
               src={`/logo-${currentVibe}-${resolvedTheme === 'dark' ? 'dark' : 'light'}.png`}
-              alt="MEC Computer Club Logo" 
-              width={160} 
-              height={40} 
+              alt="MEC Computer Club Logo"
+              width={160}
+              height={40}
               priority
               className="navbar__logo-image"
             />
           ) : (
-            <Image 
+            <Image
               src="/logo-lime-light.png"
-              alt="MEC Computer Club Logo" 
-              width={160} 
-              height={40} 
+              alt="MEC Computer Club Logo"
+              width={160}
+              height={40}
               priority
               className="navbar__logo-image"
             />
@@ -314,7 +314,7 @@ export function Navbar() {
                 {item.label}
                 {item.children && (
                   <svg className="navbar__chevron" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 )}
               </Link>
@@ -351,11 +351,11 @@ export function Navbar() {
                 >
                   {user.imageUrl ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
-                    <img 
+                    <img
                       key={user.imageUrl}
-                      src={user.imageUrl} 
-                      alt={user.fullName} 
-                      className="navbar__user-avatar" 
+                      src={user.imageUrl}
+                      alt={user.fullName}
+                      className="navbar__user-avatar"
                       onError={(e) => {
                         e.currentTarget.style.display = 'none';
                         const fallback = e.currentTarget.parentElement?.querySelector('.navbar__user-initials');
@@ -363,7 +363,7 @@ export function Navbar() {
                       }}
                     />
                   ) : null}
-                  <span 
+                  <span
                     className="navbar__user-initials"
                     style={{ display: user.imageUrl ? 'none' : 'flex' }}
                   >
@@ -371,7 +371,7 @@ export function Navbar() {
                   </span>
                   <span className="navbar__user-name">{user.fullName?.split(" ")[0] || "Member"}</span>
                   <svg className="navbar__chevron" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </button>
 
@@ -384,7 +384,7 @@ export function Navbar() {
                       </li>
                       <li role="none">
                         <Link
-                          href="/dashboard?mode=personal"
+                          href="/profile"
                           className="navbar__dropdown-link"
                           role="menuitem"
                           onClick={() => setUserDropdownOpen(false)}
@@ -395,7 +395,7 @@ export function Navbar() {
                       </li>
                       <li role="none">
                         <Link
-                          href="/dashboard?mode=personal&tab=security"
+                          href="/profile?tab=security"
                           className="navbar__dropdown-link"
                           role="menuitem"
                           onClick={() => setUserDropdownOpen(false)}
@@ -404,16 +404,16 @@ export function Navbar() {
                           Security
                         </Link>
                       </li>
-                      {(isAdmin || user.role === "moderator") && (
+                      {(isAdmin || user.role === "moderator" || user.role === "executive" || user.clubRole === "executive") && (
                         <li role="none">
                           <Link
-                            href="/dashboard?mode=executive&tab=members-management"
+                            href="/dashboard"
                             className="navbar__dropdown-link"
                             role="menuitem"
                             onClick={() => setUserDropdownOpen(false)}
                           >
                             <LayoutDashboard size={14} style={{ marginRight: "6px" }} />
-                            Executive Command
+                            Dashboard
                           </Link>
                         </li>
                       )}
@@ -452,8 +452,8 @@ export function Navbar() {
       {/* Mobile Slide-Over Drawer */}
       {mobileMenuOpen && (
         <div className="navbar__mobile-drawer-overlay" onClick={() => setMobileMenuOpen(false)}>
-          <div 
-            className="navbar__mobile-drawer" 
+          <div
+            className="navbar__mobile-drawer"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -462,15 +462,15 @@ export function Navbar() {
             {/* Mobile Header */}
             <div className="navbar__mobile-header">
               <div className="navbar__mobile-logo">
-                <Image 
+                <Image
                   src={`/logo-${currentVibe}-${resolvedTheme === 'dark' ? 'dark' : 'light'}.png`}
-                  alt="MEC Computer Club" 
-                  width={130} 
-                  height={32} 
+                  alt="MEC Computer Club"
+                  width={130}
+                  height={32}
                   className="navbar__logo-image"
                 />
               </div>
-              <button 
+              <button
                 type="button"
                 className="navbar__mobile-close-btn"
                 onClick={() => setMobileMenuOpen(false)}
@@ -493,12 +493,12 @@ export function Navbar() {
                           onClick={() => toggleMobileSubmenu(item.label)}
                         >
                           <span>{item.label}</span>
-                          <ChevronDown 
-                            size={16} 
-                            style={{ 
+                          <ChevronDown
+                            size={16}
+                            style={{
                               transform: mobileExpandedItem === item.label ? "rotate(180deg)" : "rotate(0deg)",
                               transition: "transform 0.2s ease"
-                            }} 
+                            }}
                           />
                         </button>
                         {mobileExpandedItem === item.label && (
@@ -544,23 +544,23 @@ export function Navbar() {
                       </div>
                     </div>
                     <div className="navbar__mobile-user-actions">
-                      <Link 
-                        href="/dashboard?mode=personal" 
+                      <Link
+                        href="/profile"
                         className="navbar__mobile-action-btn"
                         onClick={() => setMobileMenuOpen(false)}
                       >
-                        <User size={15} /> Dashboard Profile
+                        <User size={15} /> Profile
                       </Link>
-                      {(isAdmin || user.role === "moderator") && (
-                        <Link 
-                          href="/dashboard?mode=executive&tab=members-management" 
+                      {(isAdmin || user.role === "moderator" || user.role === "executive" || user.clubRole === "executive") && (
+                        <Link
+                          href="/dashboard"
                           className="navbar__mobile-action-btn"
                           onClick={() => setMobileMenuOpen(false)}
                         >
                           <LayoutDashboard size={15} /> Executive Command
                         </Link>
                       )}
-                      <button 
+                      <button
                         type="button"
                         onClick={handleLogout}
                         className="navbar__mobile-action-btn navbar__mobile-action-btn--logout"

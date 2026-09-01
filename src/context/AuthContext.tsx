@@ -53,11 +53,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (identifier: string, password: string) => {
     try {
-      const res = await api.post("/api/users/login", { 
-        email: identifier, 
-        studentId: identifier, 
-        identifier, 
-        password 
+      const res = await api.post("/api/users/login", {
+        email: identifier,
+        studentId: identifier,
+        identifier,
+        password
       });
       if (res && res.user) {
         setUser(res.user);

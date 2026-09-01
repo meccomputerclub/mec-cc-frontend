@@ -249,7 +249,7 @@ function LoginForm() {
                 "SIGN IN"
               )}
             </Button>
-            
+
             <div className="mt-2 flex flex-col gap-4 text-center">
               <span className="text-sm text-text-secondary">
                 Not a member yet? <Link href="/register" className="text-text-primary font-bold hover:text-accent-primary-hover hover:underline ml-1">Apply to join</Link>

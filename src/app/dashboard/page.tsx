@@ -22,18 +22,8 @@ export default function DashboardPage() {
       );
     }
 
-    switch (userRole) {
-      case "admin":
-      case "moderator":
-        return <AdminOverview />;
-
-      case "member":
-      case "alumni":
-      case "guest":
-      default:
-        return <ActivityOverview />;
-    }
-  }, [isLoading, userRole]);
+    return <AdminOverview />;
+  }, [isLoading]);
 
   return <div className="space-y-8">{DashboardComponent}</div>;
 }

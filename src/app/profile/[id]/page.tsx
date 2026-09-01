@@ -15,7 +15,6 @@ import {
   CheckCircle2,
   Mail,
   Building2,
-  Calendar,
   Layers,
   Award,
   ExternalLink,
@@ -31,32 +30,32 @@ import { alumniBatches } from "@/data/alumni";
 /* ── Social SVGs ── */
 const IconGH = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+    <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
   </svg>
 );
 const IconLI = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
   </svg>
 );
 const IconFB = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
   </svg>
 );
 const IconCF = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <rect x="2" y="10" width="4" height="12" rx="1"/><rect x="10" y="4" width="4" height="18" rx="1"/><rect x="18" y="7" width="4" height="15" rx="1"/>
+    <rect x="2" y="10" width="4" height="12" rx="1" /><rect x="10" y="4" width="4" height="18" rx="1" /><rect x="18" y="7" width="4" height="15" rx="1" />
   </svg>
 );
 const IconCC = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M11.2574.0039c-.37.0101-.7353.041-1.1003.095C9.6164.153 9.0766.4236 8.482.694c-.757.3244-1.5147.6486-2.2176.7027-1.1896.3785-1.568.919-1.8925 1.3516 0 .054-.054.1079-.054.1079-.4325.865-.4873 1.73-.325 2.5952.1621.5407.3786 1.0282.5408 1.5148.3785 1.0274.7578 2.0007.92 3.1362.1622.3244.3235.7571.4316 1.1897.2704.8651.542 1.8383 1.353 2.5952l.0057-.0028c.0175.0183.0301.0387.0482.0568.0072-.0036.0141-.0063.0213-.0099l-.0213-.5849c.6489-.9733 1.5673-1.6221 2.865-1.8925.5195-.1093 1.081-.1497 1.6625-.1278a8.7733 8.7733 0 0 1 1.7988.2357c1.4599.3785 2.595 1.1358 2.6492 1.7846.0273.3549.0398.6952.0326 1.0364-.001.064-.0046.1285-.007.193l.1362.0682c.075-.0375.1424-.107.2059-.1902.0008-.001.002-.002.0028-.0028.0018-.0023.0039-.0061.0057-.0085.0396-.0536.0747-.1236.1107-.1931.0188-.0377.0372-.0866.0554-.1292.2048-.4622.362-1.1536.538-1.9635.0541-.2703.1092-.4864.1633-.7027.4326-.9733 1.0266-1.8382 1.6213-2.6492.9733-1.3518 1.8928-2.5962 1.7846-4.0561-1.784-3.4608-4.2718-4.0017-5.5695-4.272-.2163-.0541-.3233-.0539-.4856-.108-1.3382-.2433-2.4945-.3953-3.6046-.3648zm5.0428 14.3788a9.8602 9.8602 0 0 0-.0326-.9824c-.0541-.703-1.1892-1.46-2.7032-1.8386-.588-.1336-1.1764-.2142-1.7448-.2356-.539-.0137-1.0657.0248-1.5546.1277-1.2436.2704-2.2162.9193-2.811 1.8925l.0511 1.431c.6672-.3558 1.7326-.8747 3.139-.9994.0662-.0059.1368-.0059.2044-.0099.1177-.013.2667-.044.4444-.044 1.6075 0 3.2682.5336 4.8767 1.6483.039-.2744.0611-.549.071-.8234l.044.0227c.0028-.0622.0143-.1268.0156-.1888z"/>
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M11.2574.0039c-.37.0101-.7353.041-1.1003.095C9.6164.153 9.0766.4236 8.482.694c-.757.3244-1.5147.6486-2.2176.7027-1.1896.3785-1.568.919-1.8925 1.3516 0 .054-.054.1079-.054.1079-.4325.865-.4873 1.73-.325 2.5952.1621.5407.3786 1.0282.5408 1.5148.3785 1.0274.7578 2.0007.92 3.1362.1622.3244.3235.7571.4316 1.1897.2704.8651.542 1.8383 1.353 2.5952l.0057-.0028c.0175.0183.0301.0387.0482.0568.0072-.0036.0141-.0063.0213-.0099l-.0213-.5849c.6489-.9733 1.5673-1.6221 2.865-1.8925.5195-.1093 1.081-.1497 1.6625-.1278a8.7733 8.7733 0 0 1 1.7988.2357c1.4599.3785 2.595 1.1358 2.6492 1.7846.0273.3549.0398.6952.0326 1.0364-.001.064-.0046.1285-.007.193l.1362.0682c.075-.0375.1424-.107.2059-.1902.0008-.001.002-.002.0028-.0028.0018-.0023.0039-.0061.0057-.0085.0396-.0536.0747-.1236.1107-.1931.0188-.0377.0372-.0866.0554-.1292.2048-.4622.362-1.1536.538-1.9635.0541-.2703.1092-.4864.1633-.7027.4326-.9733 1.0266-1.8382 1.6213-2.6492.9733-1.3518 1.8928-2.5962 1.7846-4.0561-1.784-3.4608-4.2718-4.0017-5.5695-4.272-.2163-.0541-.3233-.0539-.4856-.108-1.3382-.2433-2.4945-.3953-3.6046-.3648zm5.0428 14.3788a9.8602 9.8602 0 0 0-.0326-.9824c-.0541-.703-1.1892-1.46-2.7032-1.8386-.588-.1336-1.1764-.2142-1.7448-.2356-.539-.0137-1.0657.0248-1.5546.1277-1.2436.2704-2.2162.9193-2.811 1.8925l.0511 1.431c.6672-.3558 1.7326-.8747 3.139-.9994.0662-.0059.1368-.0059.2044-.0099.1177-.013.2667-.044.4444-.044 1.6075 0 3.2682.5336 4.8767 1.6483.039-.2744.0611-.549.071-.8234l.044.0227c.0028-.0622.0143-.1268.0156-.1888z" />
   </svg>
 );
 const IconDiscord = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.894.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+    <path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.894.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
   </svg>
 );
 
@@ -93,7 +92,7 @@ export default function MemberProfilePage() {
             return;
           }
         }
-      } catch (err) {
+      } catch {
         // Backend not reachable or error, fallback to static records
       }
 
@@ -215,14 +214,14 @@ export default function MemberProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-[calc(100vh-var(--navbar-height,64px))] bg-surface-secondary pb-16">
-        <div className="relative w-full h-[200px] bg-gradient-to-br from-slate-900 via-emerald-950 to-emerald-800 border-b-2 border-border-brutalist overflow-hidden">
+      <div className="min-h-[calc(100vh-var(--nav-height,64px))] bg-surface-secondary pb-16">
+        <div className="relative w-full h-[180px] sm:h-[220px] bg-gradient-to-br from-slate-900 via-emerald-950 to-emerald-800 border-b-2 border-border-brutalist overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.15)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
         </div>
         <div className="max-w-4xl mx-auto px-4">
-          <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 text-text-secondary font-semibold">
-            <Sparkles size={32} className="animate-spin text-emerald-500" />
-            <p>Loading member profile...</p>
+          <div className="flex flex-col items-center justify-center min-h-[45vh] gap-4 text-text-secondary font-semibold">
+            <Sparkles size={32} className="animate-spin text-accent-primary" />
+            <p className="font-mono text-xs sm:text-sm">&gt; loading member credentials...</p>
           </div>
         </div>
       </div>
@@ -231,8 +230,8 @@ export default function MemberProfilePage() {
 
   if (error || !member) {
     return (
-      <div className="min-h-[calc(100vh-var(--navbar-height,64px))] bg-surface-secondary pb-16">
-        <div className="relative w-full h-[200px] bg-gradient-to-br from-slate-900 via-emerald-950 to-emerald-800 border-b-2 border-border-brutalist overflow-hidden">
+      <div className="min-h-[calc(100vh-var(--nav-height,64px))] bg-surface-secondary pb-16">
+        <div className="relative w-full h-[180px] sm:h-[220px] bg-gradient-to-br from-slate-900 via-emerald-950 to-emerald-800 border-b-2 border-border-brutalist overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.15)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
           <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10">
             <Link
@@ -244,14 +243,14 @@ export default function MemberProfilePage() {
           </div>
         </div>
         <div className="max-w-4xl mx-auto px-4">
-          <div className="bg-surface-elevated border-2 border-border-brutalist rounded-xl shadow-[6px_6px_0px_var(--border-brutalist)] -mt-14 p-10 text-center relative z-10 mb-6">
-            <h2 className="text-2xl font-extrabold text-text-primary mb-2">Member Not Found</h2>
-            <p className="text-text-secondary mb-5">
+          <div className="bg-surface-elevated border-2 border-border-brutalist dark:border-border-default rounded-xl shadow-[6px_6px_0px_var(--border-brutalist)] dark:shadow-[6px_6px_0px_var(--accent-primary)] -mt-14 p-8 sm:p-10 text-center relative z-10 mb-6">
+            <h2 className="text-xl sm:text-2xl font-extrabold text-text-primary mb-2">Member Not Found</h2>
+            <p className="text-text-secondary text-xs sm:text-sm mb-5">
               The requested member profile could not be located or may have been removed.
             </p>
             <Link
               href="/members"
-              className="inline-flex items-center gap-1.5 py-2 px-4 bg-surface-elevated text-text-primary border-2 border-border-brutalist rounded-md shadow-[2px_2px_0px_var(--border-brutalist)] text-xs font-bold transition-all hover:shadow-[3px_3px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5"
+              className="inline-flex items-center gap-1.5 py-2 px-4 bg-surface-elevated text-text-primary border-2 border-border-brutalist dark:border-border-default rounded-md shadow-[2px_2px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_var(--border-default)] text-xs font-bold transition-all hover:shadow-[3px_3px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5"
             >
               <ArrowLeft size={14} /> Return to Member Directory
             </Link>
@@ -275,9 +274,9 @@ export default function MemberProfilePage() {
   const socials = member.socialLinks || {};
 
   return (
-    <div className="min-h-[calc(100vh-var(--navbar-height,64px))] bg-surface-secondary pb-16">
+    <div className="min-h-[calc(100vh-var(--nav-height,64px))] bg-surface-secondary pb-16">
       {/* ── 1. Cover Banner ── */}
-      <div className="relative w-full h-[200px] bg-gradient-to-br from-slate-900 via-emerald-950 to-emerald-800 border-b-2 border-border-brutalist overflow-hidden">
+      <div className="relative w-full h-[180px] sm:h-[220px] bg-gradient-to-br from-slate-900 via-emerald-950 to-emerald-800 border-b-2 border-border-brutalist dark:border-border-default overflow-hidden">
         {member.coverUrl ? (
           <Image
             src={member.coverUrl}
@@ -294,14 +293,14 @@ export default function MemberProfilePage() {
           <button
             type="button"
             onClick={() => router.back()}
-            className="inline-flex items-center gap-1.5 py-1.5 px-3.5 bg-surface-elevated text-text-primary border-2 border-border-brutalist rounded-md shadow-[2px_2px_0px_var(--border-brutalist)] text-xs font-bold transition-all hover:shadow-[3px_3px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5 cursor-pointer"
+            className="inline-flex items-center gap-1.5 py-1.5 px-3.5 bg-surface-elevated text-text-primary border-2 border-border-brutalist dark:border-border-default rounded-md shadow-[2px_2px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_var(--border-default)] text-xs font-bold transition-all hover:shadow-[3px_3px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5 cursor-pointer"
           >
             <ArrowLeft size={14} /> Back
           </button>
           <button
             type="button"
             onClick={handleShare}
-            className="inline-flex items-center gap-1.5 py-1.5 px-3.5 bg-surface-elevated text-text-primary border-2 border-border-brutalist rounded-md shadow-[2px_2px_0px_var(--border-brutalist)] text-xs font-bold transition-all hover:shadow-[3px_3px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5 cursor-pointer"
+            className="inline-flex items-center gap-1.5 py-1.5 px-3.5 bg-surface-elevated text-text-primary border-2 border-border-brutalist dark:border-border-default rounded-md shadow-[2px_2px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_var(--border-default)] text-xs font-bold transition-all hover:shadow-[3px_3px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5 cursor-pointer"
             title="Share profile link"
           >
             <Share2 size={14} /> Share Profile
@@ -311,10 +310,10 @@ export default function MemberProfilePage() {
 
       <div className="max-w-4xl mx-auto px-4">
         {/* ── 2. Hero Identity Card ── */}
-        <div className="bg-surface-elevated border-2 border-border-brutalist dark:border-border-default rounded-xl shadow-[6px_6px_0px_var(--border-brutalist)] dark:shadow-[6px_6px_0px_var(--accent-primary)] -mt-14 p-6 sm:p-8 relative z-10 mb-6">
-          <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 mb-5 text-center sm:text-left">
+        <div className="bg-surface-elevated border-2 border-border-brutalist dark:border-border-default rounded-xl shadow-[6px_6px_0px_var(--border-brutalist)] dark:shadow-[6px_6px_0px_var(--accent-primary)] -mt-14 p-5 sm:p-8 relative z-10 mb-6">
+          <div className="flex flex-col sm:flex-row items-center sm:items-end gap-5 sm:gap-6 mb-5 text-center sm:text-left">
             {/* Avatar Photo */}
-            <div className="relative w-28 h-28 min-w-[112px] rounded-xl border-2 border-border-brutalist dark:border-border-default shadow-[4px_4px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_var(--accent-primary)] bg-surface-secondary overflow-hidden -mt-10">
+            <div className="relative w-24 h-24 sm:w-28 sm:h-28 min-w-[96px] sm:min-w-[112px] rounded-xl border-2 border-border-brutalist dark:border-border-default shadow-[4px_4px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_var(--accent-primary)] bg-surface-secondary overflow-hidden -mt-10">
               {member.imageUrl ? (
                 <Image
                   src={member.imageUrl}
@@ -370,17 +369,17 @@ export default function MemberProfilePage() {
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-text-primary mb-1">{name}</h1>
 
               {/* Subtitle & Designation */}
-              <div className="text-sm text-text-secondary flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-1">
+              <div className="text-xs sm:text-sm text-text-secondary flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-1">
                 <span>{sessionDisplay}</span>
                 {member.studentId && <span>• ID: {member.studentId}</span>}
               </div>
-              <div className="text-base font-bold text-accent-text-on-surface dark:text-accent-primary-hover">{designation}</div>
+              <div className="text-sm sm:text-base font-bold text-accent-text-on-surface dark:text-accent-primary-hover">{designation}</div>
             </div>
           </div>
 
           {/* Bio statement */}
           {member.bio && (
-            <div className="mt-4 p-3 sm:px-4 bg-surface-secondary border-l-4 border-accent-primary rounded-r-md text-sm text-text-primary leading-relaxed">
+            <div className="mt-4 p-3 sm:px-4 bg-surface-secondary border-l-4 border-accent-primary rounded-r-md text-xs sm:text-sm text-text-primary leading-relaxed">
               &ldquo;{member.bio}&rdquo;
             </div>
           )}
@@ -451,39 +450,39 @@ export default function MemberProfilePage() {
         {/* ── 3. Bento Grid Section ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Card 1: Academic & Club Standing */}
-          <div className="bg-surface-elevated border-2 border-border-brutalist dark:border-border-default rounded-xl shadow-[4px_4px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_var(--border-default)] p-6">
-            <h2 className="flex items-center gap-2 text-base font-extrabold text-text-primary uppercase tracking-wider mb-4 pb-3 border-b border-border-default">
+          <div className="bg-surface-elevated border-2 border-border-brutalist dark:border-border-default rounded-xl shadow-[4px_4px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_var(--border-default)] p-5 sm:p-6">
+            <h2 className="flex items-center gap-2 text-sm sm:text-base font-extrabold text-text-primary uppercase tracking-wider mb-4 pb-3 border-b border-border-default">
               <Layers size={16} /> Club &amp; Academic Dossier
             </h2>
             <div className="flex flex-col gap-3">
-              <div className="flex justify-between items-center text-sm pb-2 border-b border-dashed border-border-default">
+              <div className="flex justify-between items-center text-xs sm:text-sm pb-2 border-b border-dashed border-border-default">
                 <span className="text-text-secondary font-semibold">Department</span>
                 <span className="text-text-primary font-bold text-right">{member.department || "Computer Science & Eng."}</span>
               </div>
-              <div className="flex justify-between items-center text-sm pb-2 border-b border-dashed border-border-default">
+              <div className="flex justify-between items-center text-xs sm:text-sm pb-2 border-b border-dashed border-border-default">
                 <span className="text-text-secondary font-semibold">Session</span>
                 <span className="text-text-primary font-bold text-right">{sessionDisplay}</span>
               </div>
               {member.studentId && (
-                <div className="flex justify-between items-center text-sm pb-2 border-b border-dashed border-border-default">
+                <div className="flex justify-between items-center text-xs sm:text-sm pb-2 border-b border-dashed border-border-default">
                   <span className="text-text-secondary font-semibold">Student ID</span>
                   <span className="text-text-primary font-bold text-right">{member.studentId}</span>
                 </div>
               )}
-              <div className="flex justify-between items-center text-sm pb-2 border-b border-dashed border-border-default">
+              <div className="flex justify-between items-center text-xs sm:text-sm pb-2 border-b border-dashed border-border-default">
                 <span className="text-text-secondary font-semibold">Club Standing</span>
                 <span className="text-text-primary font-bold text-right">
                   {isAdv ? "Faculty Advisor" : isExec ? "Executive Committee" : isAlumni ? "Alumni Network" : "General Member"}
                 </span>
               </div>
-              <div className="flex justify-between items-center text-sm pb-2 border-b border-dashed border-border-default">
+              <div className="flex justify-between items-center text-xs sm:text-sm pb-2 border-b border-dashed border-border-default">
                 <span className="text-text-secondary font-semibold">Platform Privilege</span>
                 <span className="text-text-primary font-bold text-right">
                   {isAdmin ? "Administrator" : isMod ? "Moderator" : "Standard"}
                 </span>
               </div>
               {member.address && (
-                <div className="flex justify-between items-center text-sm">
+                <div className="flex justify-between items-center text-xs sm:text-sm">
                   <span className="text-text-secondary font-semibold">Campus / City</span>
                   <span className="text-text-primary font-bold text-right">{member.address}</span>
                 </div>
@@ -492,8 +491,8 @@ export default function MemberProfilePage() {
           </div>
 
           {/* Card 2: Developer & CP Handles */}
-          <div className="bg-surface-elevated border-2 border-border-brutalist dark:border-border-default rounded-xl shadow-[4px_4px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_var(--border-default)] p-6">
-            <h2 className="flex items-center gap-2 text-base font-extrabold text-text-primary uppercase tracking-wider mb-4 pb-3 border-b border-border-default">
+          <div className="bg-surface-elevated border-2 border-border-brutalist dark:border-border-default rounded-xl shadow-[4px_4px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_var(--border-default)] p-5 sm:p-6">
+            <h2 className="flex items-center gap-2 text-sm sm:text-base font-extrabold text-text-primary uppercase tracking-wider mb-4 pb-3 border-b border-border-default">
               <Code2 size={16} /> Competitive &amp; Dev Hub
             </h2>
 
@@ -595,32 +594,32 @@ export default function MemberProfilePage() {
 
             {/* Fallback if no handles */}
             {!socials.github && !socials.codeforces && !socials.codechef && !socials.discord && !socials.linkedin && (
-              <p className="text-sm text-text-secondary m-0">
+              <p className="text-xs sm:text-sm text-text-secondary m-0">
                 No public handles connected yet.
               </p>
             )}
           </div>
 
           {/* Card 3: Club Activities & Badges */}
-          <div className="bg-surface-elevated border-2 border-border-brutalist dark:border-border-default rounded-xl shadow-[4px_4px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_var(--border-default)] p-6 md:col-span-2">
-            <h2 className="flex items-center gap-2 text-base font-extrabold text-text-primary uppercase tracking-wider mb-4 pb-3 border-b border-border-default">
+          <div className="bg-surface-elevated border-2 border-border-brutalist dark:border-border-default rounded-xl shadow-[4px_4px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_var(--border-default)] p-5 sm:p-6 md:col-span-2">
+            <h2 className="flex items-center gap-2 text-sm sm:text-base font-extrabold text-text-primary uppercase tracking-wider mb-4 pb-3 border-b border-border-default">
               <Award size={16} /> Club Engagements &amp; Milestones
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
               <div className="p-3 bg-surface-secondary border border-border-default rounded-md">
-                <div className="text-2xl font-black text-accent-primary-hover mb-1">
+                <div className="text-xl sm:text-2xl font-black text-accent-primary-hover mb-1">
                   {Array.isArray(member.eventsAttended) ? member.eventsAttended.length : 0}
                 </div>
                 <div className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Events Attended</div>
               </div>
               <div className="p-3 bg-surface-secondary border border-border-default rounded-md">
-                <div className="text-2xl font-black text-accent-primary-hover mb-1">
+                <div className="text-xl sm:text-2xl font-black text-accent-primary-hover mb-1">
                   {Array.isArray(member.certificates) ? member.certificates.length : 0}
                 </div>
                 <div className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Certificates</div>
               </div>
               <div className="p-3 bg-surface-secondary border border-border-default rounded-md">
-                <div className="text-2xl font-black text-accent-primary-hover mb-1">
+                <div className="text-xl sm:text-2xl font-black text-accent-primary-hover mb-1">
                   {Array.isArray(member.projectsContributed) ? member.projectsContributed.length : 0}
                 </div>
                 <div className="text-[11px] font-bold text-text-secondary uppercase tracking-wider">Projects</div>
