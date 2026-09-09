@@ -16,8 +16,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   return (
     <NextThemesProvider
       attribute="class"
-      defaultTheme="light"
+      defaultTheme="system"
       enableSystem
+      storageKey="mec-cc-theme"
     >
       <AccentProvider>{children}</AccentProvider>
     </NextThemesProvider>

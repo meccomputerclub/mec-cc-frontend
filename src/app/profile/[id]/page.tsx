@@ -24,7 +24,6 @@ import {
   Briefcase,
   Calendar,
   MapPin,
-  Phone,
   Pencil,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -531,12 +530,6 @@ export default function MemberProfilePage() {
                   {isAdv ? "Faculty Advisor" : isExec ? "Executive Committee" : isAlumni ? "Alumni Network" : "General Member"}
                 </span>
               </div>
-              <div className="flex justify-between items-center text-xs sm:text-sm pb-2 border-b border-dashed border-border-default">
-                <span className="text-text-secondary font-semibold">Platform Privilege</span>
-                <span className="text-text-primary font-bold text-right">
-                  {isAdmin ? "Administrator" : isMod ? "Moderator" : "Standard Member"}
-                </span>
-              </div>
               {member.email && (
                 <div className="flex justify-between items-center text-xs sm:text-sm pb-2 border-b border-dashed border-border-default">
                   <span className="text-text-secondary font-semibold flex items-center gap-1.5">
@@ -554,29 +547,6 @@ export default function MemberProfilePage() {
                       onClick={() => copyText(member.email, "Email address")}
                       className="text-text-secondary hover:text-accent-primary p-0.5 cursor-pointer"
                       title="Copy email"
-                    >
-                      <Copy size={12} />
-                    </button>
-                  </div>
-                </div>
-              )}
-              {member.contactNumber && (
-                <div className="flex justify-between items-center text-xs sm:text-sm pb-2 border-b border-dashed border-border-default">
-                  <span className="text-text-secondary font-semibold flex items-center gap-1.5">
-                    <Phone size={13} /> Contact
-                  </span>
-                  <div className="flex items-center gap-1.5 text-right">
-                    <a
-                      href={`tel:${member.contactNumber}`}
-                      className="text-text-primary font-semibold hover:text-accent-primary transition-colors"
-                    >
-                      {member.contactNumber}
-                    </a>
-                    <button
-                      type="button"
-                      onClick={() => copyText(member.contactNumber, "Contact number")}
-                      className="text-text-secondary hover:text-accent-primary p-0.5 cursor-pointer"
-                      title="Copy contact number"
                     >
                       <Copy size={12} />
                     </button>
