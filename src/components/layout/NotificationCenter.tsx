@@ -30,6 +30,25 @@ export interface NotificationItem {
   link?: string;
   actionLabel?: string;
   priority?: "normal" | "high" | "urgent";
+  read?: boolean;
+  createdAt?: string;
+}
+
+function formatRelativeTime(dateStr?: string): string {
+  if (!dateStr) return "Just now";
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  if (isNaN(diffMs) || diffMs < 0) return "Just now";
+  const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 60) return "Just now";
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 export function NotificationCenter() {
@@ -37,214 +56,118 @@ export function NotificationCenter() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<"all" | "unread" | "important">("all");
-  const [baseAlerts, setBaseAlerts] = useState<NotificationItem[]>([]);
-  const [readIds, setReadIds] = useState<string[]>([]);
-  const [dismissedIds, setDismissedIds] = useState<string[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [serverUnreadCount, setServerUnreadCount] = useState<number>(0);
+  const [clientDismissedIds, setClientDismissedIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const userId = user?.id || user?._id || "";
-  const isModerator = user?.role === "moderator";
-  const isExecutive = isAdmin || isModerator;
+  const storageKey = userId ? `mcc_dismissed_${userId}` : null;
 
-  // Storage key for user read/dismissed IDs
-  const storageKey = userId ? `mcc_notifs_${userId}` : null;
-
-  // 1. Load persisted read/dismissed state
+  // Load client-dismissed IDs from localStorage
   useEffect(() => {
     if (!storageKey) return;
     try {
       const saved = localStorage.getItem(storageKey);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed.read)) setReadIds(parsed.read);
-        if (Array.isArray(parsed.dismissed)) setDismissedIds(parsed.dismissed);
+        if (Array.isArray(parsed)) setClientDismissedIds(parsed);
       }
     } catch {
-      // Ignore storage read error
+      // Ignore
     }
   }, [storageKey]);
 
-  // 2. Persist read/dismissed state
-  const persistState = useCallback(
-    (newRead: string[], newDismissed: string[]) => {
-      if (!storageKey) return;
-      try {
-        localStorage.setItem(
-          storageKey,
-          JSON.stringify({ read: newRead, dismissed: newDismissed })
-        );
-      } catch {
-        // Ignore storage write error
-      }
-    },
-    [storageKey]
-  );
+  // Fetch notifications from backend API
+  const fetchNotifications = useCallback(async (isSilent = false) => {
+    if (!user) return;
+    if (!isSilent) setLoading(true);
 
-  // 3. Fetch base notifications (runs only on mount / user switch)
+    try {
+      const res = await api.get<{
+        success: boolean;
+        data?: {
+          notifications: Array<{
+            id: string;
+            type: NotificationItem["type"];
+            title: string;
+            message: string;
+            link?: string;
+            actionLabel?: string;
+            priority: "normal" | "high" | "urgent";
+            createdAt: string;
+            read: boolean;
+          }>;
+          unreadCount: number;
+        };
+      }>("/api/notifications?limit=40");
+
+      if (res?.data?.notifications) {
+        const fetchedItems: NotificationItem[] = res.data.notifications.map((item) => ({
+          id: item.id,
+          type: item.type,
+          title: item.title,
+          message: item.message,
+          timeAgo: formatRelativeTime(item.createdAt),
+          link: item.link,
+          actionLabel: item.actionLabel,
+          priority: item.priority,
+          read: item.read,
+          createdAt: item.createdAt,
+        }));
+
+        // Client fallback alert for unverified email if applicable
+        if (!user.isVerified) {
+          const clientVerifyItem: NotificationItem = {
+            id: "client-email-verify",
+            type: "security",
+            title: "Email Verification Required",
+            message: "Please complete email verification to ensure full access.",
+            timeAgo: "Action Needed",
+            link: `/verify-email?email=${encodeURIComponent(user.email || "")}`,
+            actionLabel: "Verify Email",
+            priority: "urgent",
+            read: false,
+          };
+          fetchedItems.unshift(clientVerifyItem);
+        }
+
+        setNotifications(fetchedItems);
+        setServerUnreadCount(res.data.unreadCount ?? fetchedItems.filter((i) => !i.read).length);
+      }
+    } catch {
+      // Graceful fallback if backend is momentarily unreachable
+    } finally {
+      if (!isSilent) setLoading(false);
+    }
+  }, [user]);
+
+  // Initial fetch and auto-polling every 45 seconds + on window focus
   useEffect(() => {
     if (!user) return;
+    fetchNotifications(false);
 
-    let isMounted = true;
+    const interval = setInterval(() => {
+      fetchNotifications(true);
+    }, 45000);
 
-    const fetchAlerts = async () => {
-      const list: NotificationItem[] = [];
-
-      // A. Application Status
-      if (user.applicationStatus === "approved") {
-        list.push({
-          id: "status-approved",
-          type: "approval",
-          title: "Membership Approved",
-          message: "Your application is active with verified club credentials.",
-          timeAgo: "Permanent",
-          link: "/dashboard?mode=personal&tab=profile",
-          actionLabel: "View Credentials",
-          priority: "normal",
-        });
-      } else if (user.applicationStatus === "pending") {
-        list.push({
-          id: "status-pending",
-          type: "approval",
-          title: "Application In Review",
-          message: "Your membership registration is being processed by the executive board.",
-          timeAgo: "Active",
-          link: "/dashboard?mode=personal&tab=overview",
-          actionLabel: "Check Status",
-          priority: "high",
-        });
-      }
-
-      // B. Email verification warning
-      if (!user.isVerified) {
-        list.push({
-          id: "email-verify-needed",
-          type: "security",
-          title: "Email Verification Required",
-          message: "Please complete email verification to ensure full access.",
-          timeAgo: "Action Needed",
-          link: `/verify-email?email=${encodeURIComponent(user.email || "")}`,
-          actionLabel: "Verify Email",
-          priority: "urgent",
-        });
-      }
-
-      // C. Profile Completion
-      if (!user.socialLinks?.github || !user.bio) {
-        list.push({
-          id: "profile-complete",
-          type: "system",
-          title: "Profile Incomplete",
-          message: "Add your GitHub handle and developer bio to stand out in the directory.",
-          timeAgo: "Recommendation",
-          link: "/dashboard?mode=personal&tab=profile",
-          actionLabel: "Complete Profile",
-          priority: "normal",
-        });
-      }
-
-      // D. Executive Alerts
-      if (isExecutive) {
-        list.push({
-          id: "exec-role-active",
-          type: "security",
-          title: `${isAdmin ? "Administrator" : "Moderator"} Access`,
-          message: "Executive command access is active. Review registrations and manage events.",
-          timeAgo: "Active",
-          link: "/dashboard?mode=executive&tab=members-management",
-          actionLabel: "Executive Hub",
-          priority: "high",
-        });
-
-        try {
-          const [membersRes, msgsRes] = await Promise.all([
-            api.get("/api/dashboard/members").catch(() => null),
-            api.get("/api/contact-messages").catch(() => null),
-          ]);
-
-          const allMembers = membersRes?.data || [];
-          const pendingCount = Array.isArray(allMembers)
-            ? allMembers.filter((m: any) => m.applicationStatus === "pending").length
-            : 0;
-
-          if (pendingCount > 0) {
-            list.push({
-              id: "pending-approvals-alert",
-              type: "approval",
-              title: "Pending Member Applications",
-              message: `${pendingCount} registration application(s) awaiting verification.`,
-              timeAgo: "Action Needed",
-              link: "/dashboard?mode=executive&tab=members-management",
-              actionLabel: "Review Applications",
-              priority: "urgent",
-            });
-          }
-
-          const messages = msgsRes?.data || msgsRes?.messages || [];
-          if (Array.isArray(messages) && messages.length > 0) {
-            list.push({
-              id: "contact-messages-alert",
-              type: "message",
-              title: "Contact Messages Received",
-              message: `${messages.length} inquiries received in the club contact inbox.`,
-              timeAgo: "Inbox",
-              link: "/dashboard?mode=executive&tab=messages",
-              actionLabel: "Open Messages",
-              priority: "normal",
-            });
-          }
-        } catch {
-          // Graceful fallback
-        }
-      }
-
-      // E. Events from API
-      try {
-        const eventsRes = await api.get("/api/events").catch(() => null);
-        const events = eventsRes?.data || eventsRes?.events || [];
-        if (Array.isArray(events) && events.length > 0) {
-          const topEvent = events[0];
-          if (topEvent?.title) {
-            list.push({
-              id: `event-${topEvent._id || topEvent.slug || "latest"}`,
-              type: "event",
-              title: `Event: ${topEvent.title}`,
-              message: topEvent.description
-                ? `${topEvent.description.slice(0, 75)}...`
-                : "Upcoming official club event and contest session.",
-              timeAgo: topEvent.date
-                ? new Date(topEvent.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-                : "Upcoming",
-              link: topEvent.slug ? `/events/${topEvent.slug}` : "/events",
-              actionLabel: "Event Details",
-              priority: "normal",
-            });
-          }
-        }
-      } catch {
-        // Graceful fallback
-      }
-
-      if (isMounted) {
-        setBaseAlerts(list);
-      }
+    const handleFocus = () => {
+      fetchNotifications(true);
     };
 
-    fetchAlerts();
+    window.addEventListener("focus", handleFocus);
 
     return () => {
-      isMounted = false;
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
     };
-  }, [user, isAdmin, isExecutive]);
+  }, [user, fetchNotifications]);
 
-  // 4. Derive computed notifications list without network triggers
-  const notifications = useMemo(() => {
-    return baseAlerts
-      .filter((item) => !dismissedIds.includes(item.id))
-      .map((item) => ({
-        ...item,
-        read: readIds.includes(item.id),
-      }));
-  }, [baseAlerts, dismissedIds, readIds]);
+  // Filter out dismissed items
+  const activeNotifications = useMemo(() => {
+    return notifications.filter((item) => !clientDismissedIds.includes(item.id));
+  }, [notifications, clientDismissedIds]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -257,36 +180,90 @@ export function NotificationCenter() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const markAsRead = (id: string) => {
-    if (readIds.includes(id)) return;
-    const updated = [...readIds, id];
-    setReadIds(updated);
-    persistState(updated, dismissedIds);
+  // Action: Mark single notification as read
+  const markAsRead = async (id: string) => {
+    // Optimistically update
+    setNotifications((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, read: true } : item))
+    );
+    setServerUnreadCount((prev) => Math.max(0, prev - 1));
+
+    if (!id.startsWith("client-")) {
+      try {
+        await api.patch(`/api/notifications/${id}/read`);
+      } catch {
+        // Silent error
+      }
+    }
   };
 
-  const markAllAsRead = () => {
-    const allIds = notifications.map((n) => n.id);
-    const unique = Array.from(new Set([...readIds, ...allIds]));
-    setReadIds(unique);
-    persistState(unique, dismissedIds);
+  // Action: Mark all as read
+  const markAllAsRead = async () => {
+    // Optimistically update
+    setNotifications((prev) => prev.map((item) => ({ ...item, read: true })));
+    setServerUnreadCount(0);
+
+    try {
+      await api.patch("/api/notifications/read-all");
+    } catch {
+      // Silent error
+    }
   };
 
-  const dismissNotification = (e: React.MouseEvent, id: string) => {
+  // Action: Dismiss single notification
+  const dismissNotification = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    const updatedDismissed = [...dismissedIds, id];
-    setDismissedIds(updatedDismissed);
-    persistState(readIds, updatedDismissed);
+
+    // Track dismissed in local state & localStorage
+    const updated = [...clientDismissedIds, id];
+    setClientDismissedIds(updated);
+    if (storageKey) {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(updated));
+      } catch {
+        // Ignore storage error
+      }
+    }
+
+    // Optimistically remove from visible list
+    setNotifications((prev) => prev.filter((item) => item.id !== id));
+
+    if (!id.startsWith("client-")) {
+      try {
+        await api.delete(`/api/notifications/${id}`);
+      } catch {
+        // Silent error
+      }
+    }
   };
 
-  const clearAll = () => {
-    const allIds = baseAlerts.map((n) => n.id);
-    const updatedDismissed = Array.from(new Set([...dismissedIds, ...allIds]));
-    setDismissedIds(updatedDismissed);
-    persistState(readIds, updatedDismissed);
+  // Action: Clear all notifications
+  const clearAll = async () => {
+    const allIds = activeNotifications.map((n) => n.id);
+    const updated = Array.from(new Set([...clientDismissedIds, ...allIds]));
+    setClientDismissedIds(updated);
+    if (storageKey) {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(updated));
+      } catch {
+        // Ignore storage error
+      }
+    }
+
+    setNotifications([]);
+    setServerUnreadCount(0);
+
+    try {
+      await api.delete("/api/notifications/clear-all");
+    } catch {
+      // Silent error
+    }
   };
 
   const handleActionClick = (item: NotificationItem) => {
-    markAsRead(item.id);
+    if (!item.read) {
+      markAsRead(item.id);
+    }
     setOpen(false);
     if (item.link) {
       router.push(item.link);
@@ -294,16 +271,16 @@ export function NotificationCenter() {
   };
 
   const unreadCount = useMemo(() => {
-    return notifications.filter((n) => !n.read).length;
-  }, [notifications]);
+    return activeNotifications.filter((n) => !n.read).length;
+  }, [activeNotifications]);
 
   const filteredNotifications = useMemo(() => {
-    return notifications.filter((n) => {
+    return activeNotifications.filter((n) => {
       if (activeFilter === "unread") return !n.read;
       if (activeFilter === "important") return n.priority === "high" || n.priority === "urgent";
       return true;
     });
-  }, [notifications, activeFilter]);
+  }, [activeNotifications, activeFilter]);
 
   const getTypeIcon = (type: NotificationItem["type"]) => {
     switch (type) {
