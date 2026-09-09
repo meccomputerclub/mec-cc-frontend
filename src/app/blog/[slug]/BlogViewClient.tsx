@@ -69,6 +69,7 @@ export default function BlogViewClient({ post, isHtml }: BlogViewClientProps) {
   const { user, isAuthenticated } = useAuth();
 
   const currentUserId = user?.id || (user as any)?._id;
+  const [viewsCount, setViewsCount] = useState<number>(post.views ?? 0);
   const [likesCount, setLikesCount] = useState(
     post.likesCount ?? (post.likes ? post.likes.length : 0)
   );
@@ -76,6 +77,41 @@ export default function BlogViewClient({ post, isHtml }: BlogViewClientProps) {
     Boolean(currentUserId && post.likes && post.likes.includes(currentUserId))
   );
   const [liking, setLiking] = useState(false);
+  const viewRecordedRef = useRef(false);
+
+  // Increment view count only when blog details are opened
+  useEffect(() => {
+    if (viewRecordedRef.current || !post.id) return;
+    viewRecordedRef.current = true;
+
+    // Use session key so refreshes or rapid tab switches don't inflate view count
+    const sessionKey = `mcc_viewed_blog_${post.id}`;
+    let alreadyViewed = false;
+    try {
+      alreadyViewed = Boolean(sessionStorage.getItem(sessionKey));
+      if (!alreadyViewed) {
+        sessionStorage.setItem(sessionKey, "1");
+      }
+    } catch {
+      // Ignore if sessionStorage is unavailable
+    }
+
+    if (alreadyViewed) return;
+
+    // Call view increment endpoint
+    api
+      .post<{ success: boolean; views: number }>(`/api/blogs/${post.id}/view`)
+      .then((res) => {
+        if (res && typeof res.views === "number") {
+          setViewsCount(res.views);
+        } else {
+          setViewsCount((prev) => prev + 1);
+        }
+      })
+      .catch(() => {
+        // Fallback or ignore for static demo posts
+      });
+  }, [post.id]);
 
   useEffect(() => {
     if (currentUserId && post.likes) {
@@ -171,7 +207,7 @@ export default function BlogViewClient({ post, isHtml }: BlogViewClientProps) {
             <span className="opacity-50">·</span>
             <span className="flex items-center gap-1">
               <Eye size={12} />
-              {post.views ?? 0} views
+              {viewsCount} {viewsCount === 1 ? "view" : "views"}
             </span>
             <span className="opacity-50">·</span>
             <span className="flex items-center gap-1">
