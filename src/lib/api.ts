@@ -1,3 +1,5 @@
+import Cookies from "js-cookie";
+
 export const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
 ).replace(/\/+$/, "");
@@ -25,6 +27,14 @@ async function request<T = any>(
   const headers = new Headers(options.headers || {});
   if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
+  }
+
+  if (!headers.has("Authorization") && typeof window !== "undefined") {
+    const token =
+      localStorage.getItem("auth_token") || Cookies.get("auth_token");
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
   }
 
   const response = await fetch(url, {

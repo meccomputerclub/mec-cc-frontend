@@ -33,7 +33,7 @@ function LoginForm() {
       ? redirectParam
       : "/dashboard";
 
-  const { login, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, login, isAuthenticated, loading: authLoading } = useAuth();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -43,9 +43,19 @@ function LoginForm() {
   // If already authenticated, redirect to destination
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      router.replace(redirectPath);
+      const isExecutive =
+        user?.role === "admin" ||
+        user?.role === "moderator" ||
+        user?.role === "executive";
+      const destination =
+        redirectParam && redirectParam.startsWith("/") && !redirectParam.startsWith("//")
+          ? redirectParam
+          : isExecutive
+          ? "/dashboard"
+          : "/profile";
+      window.location.href = destination;
     }
-  }, [authLoading, isAuthenticated, redirectPath, router]);
+  }, [authLoading, isAuthenticated, redirectParam, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,7 +74,17 @@ function LoginForm() {
       const res = await login(identifier.trim(), password);
       if (res.success) {
         toast.success("Welcome back to MEC CC!");
-        router.push(redirectPath);
+        const isExecutive =
+          res.user?.role === "admin" ||
+          res.user?.role === "moderator" ||
+          res.user?.role === "executive";
+        const destination =
+          redirectParam && redirectParam.startsWith("/") && !redirectParam.startsWith("//")
+            ? redirectParam
+            : isExecutive
+            ? "/dashboard"
+            : "/profile";
+        window.location.href = destination;
       } else {
         // Evaluate specific error messages from backend
         const msg = res.message || "";

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import Cookies from "js-cookie";
 import { AuthUser } from "@/types";
 import { api, ApiError } from "@/lib/api";
 
@@ -8,7 +9,7 @@ interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
   isLoading: boolean; // alias for loading — used by new dashboard
-  login: (identifier: string, password: string) => Promise<{ success: boolean; message?: string }>;
+  login: (identifier: string, password: string) => Promise<{ success: boolean; message?: string; user?: AuthUser }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   isAuthenticated: boolean;
@@ -37,10 +38,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await api.get<{ success: boolean; user: AuthUser }>("/api/users/me");
       if (response && response.user) {
         setUser(response.user);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("user", JSON.stringify(response.user));
+          if (response.user.role) {
+            Cookies.set("role", response.user.role, {
+              expires: 7,
+              path: "/",
+              sameSite: "lax",
+              secure: window.location.protocol === "https:",
+            });
+          }
+        }
       } else {
         setUser(null);
       }
     } catch {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("user");
+        Cookies.remove("auth_token", { path: "/" });
+        Cookies.remove("role", { path: "/" });
+      }
       setUser(null);
     } finally {
       setLoading(false);
@@ -48,6 +66,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cachedUser = localStorage.getItem("user");
+        if (cachedUser) {
+          setUser(JSON.parse(cachedUser));
+        }
+      } catch {
+        // ignore
+      }
+    }
     refreshUser();
   }, [refreshUser]);
 
@@ -60,10 +88,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password
       });
       if (res && res.user) {
+        if (typeof window !== "undefined") {
+          if (res.token) {
+            localStorage.setItem("auth_token", res.token);
+            const isHttps = window.location.protocol === "https:";
+            Cookies.set("auth_token", res.token, {
+              expires: 7,
+              path: "/",
+              sameSite: "lax",
+              secure: isHttps,
+            });
+          }
+          if (res.user.role) {
+            const isHttps = window.location.protocol === "https:";
+            Cookies.set("role", res.user.role, {
+              expires: 7,
+              path: "/",
+              sameSite: "lax",
+              secure: isHttps,
+            });
+          }
+          localStorage.setItem("user", JSON.stringify(res.user));
+        }
         setUser(res.user);
-        // also refresh full profile in background
         refreshUser();
-        return { success: true, message: res.message || "Login successful" };
+        return { success: true, message: res.message || "Login successful", user: res.user };
       }
       return { success: false, message: res.message || "Failed to login" };
     } catch (err: any) {
@@ -79,6 +128,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore
     } finally {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("user");
+        Cookies.remove("auth_token", { path: "/" });
+        Cookies.remove("role", { path: "/" });
+      }
       setUser(null);
     }
   };

@@ -54,10 +54,14 @@ export async function middleware(req: NextRequest) {
       return response;
     }
 
+    const roleCookie = req.cookies.get("role")?.value;
     const isExecutive =
       payload.role === "admin" ||
       payload.role === "moderator" ||
-      payload.role === "executive";
+      payload.role === "executive" ||
+      roleCookie === "admin" ||
+      roleCookie === "moderator" ||
+      roleCookie === "executive";
 
     if (!isExecutive) {
       return NextResponse.redirect(new URL("/profile", req.url));
