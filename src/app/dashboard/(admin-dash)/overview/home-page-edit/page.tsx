@@ -3,6 +3,7 @@ import HomePageEditor from "@/components/dashboard/HomePageEditor";
 import LoadingScreen from "@/components/ui/shared/LoadingScreen";
 import { defaultState } from "@/lib/types/homePage";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 import { useEffect, useState } from "react";
 
 const Page = () => {
@@ -13,7 +14,7 @@ const Page = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/page`);
+        const response = await axios.get(`${API_BASE_URL}/api/page`);
         if (response.status === 200) {
           setData(response.data.data);
           setLoading(false);

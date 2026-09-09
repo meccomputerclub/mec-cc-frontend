@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 import {
   MessageSquare, RefreshCw, ArrowLeft, Send,
   Mail, MailOpen, Trash2, Clock, User, Reply,
@@ -25,7 +26,7 @@ interface ContactMessage {
   createdAt: string;
 }
 
-const API = `${process.env.NEXT_PUBLIC_API_URL}/api/contact-messages`;
+const API = `${API_BASE_URL}/api/contact-messages`;
 
 export default function MessagesPage() {
   const { user } = useAuth();

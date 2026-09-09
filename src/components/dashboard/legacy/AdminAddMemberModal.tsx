@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
-import { api, ApiError } from "@/lib/api";
+import { api, ApiError, API_BASE_URL } from "@/lib/api";
 import toast from "react-hot-toast";
 import {
   UserPlus,
@@ -119,7 +119,7 @@ export function AdminAddMemberModal({ isOpen, onClose, onSuccess }: AdminAddMemb
   const [systemRole, setSystemRole] = useState<"member" | "moderator" | "admin">("member");
 
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/site-settings/public`)
+    fetch(`${API_BASE_URL}/api/site-settings/public`)
       .then((r) => r.json())
       .then((d) => { if (d.success && d.data) setBatchConfig(d.data); })
       .catch(() => {});

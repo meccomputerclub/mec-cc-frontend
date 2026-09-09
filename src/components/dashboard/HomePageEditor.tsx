@@ -3,6 +3,7 @@
 
 import React, { useState, useCallback, useEffect } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 import {
   Save, Plus, Trash2, LayoutDashboard, Users,
   Image as ImageIcon, Link as LinkIcon, FileText,
@@ -192,7 +193,7 @@ export default function HomePageEditor({ initialData }: { initialData?: Partial<
     setMessage(null);
     try {
       await axios.patch(
-        `${process.env.NEXT_PUBLIC_API_URL}/page`,
+        `${API_BASE_URL}/api/page`,
         formData,
         { withCredentials: true }
       );

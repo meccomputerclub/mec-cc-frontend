@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 import { FormField, SavedForm } from "@/lib/types/form";
 import toast from "react-hot-toast";
 
@@ -36,7 +37,7 @@ export default function ImportFormModal({ isOpen, onClose, onImportFields }: Pro
       setLoading(true);
       try {
         const res = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/forms`,
+          `${API_BASE_URL}/api/forms`,
           { withCredentials: true }
         );
         if (res.data?.data) {

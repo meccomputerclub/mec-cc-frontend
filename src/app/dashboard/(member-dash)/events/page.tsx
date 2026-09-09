@@ -4,7 +4,7 @@ import axios from "axios";
 import { Calendar, MapPin, Clock, RefreshCw, FileText } from "lucide-react";
 import { FormsTab } from "@/components/dashboard/legacy/FormsTab";
 import { useAuth } from "@/context/AuthContext";
-import { api } from "@/lib/api";
+import { api, API_BASE_URL } from "@/lib/api";
 
 interface EventItem {
   _id: string;
@@ -30,7 +30,7 @@ export default function MemberEventsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/events`, {
+      const res = await axios.get(`${API_BASE_URL}/api/events`, {
         withCredentials: true,
       });
       setEvents(res.data.data || res.data);

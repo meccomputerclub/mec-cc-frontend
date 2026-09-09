@@ -18,6 +18,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 
 type EventItem = {
   title: string;
@@ -55,7 +56,7 @@ export default function EventsManagementPage() {
   useEffect(() => {
     const fetchForms = async () => {
       try {
-        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/forms`, { withCredentials: true });
+        const response = await axios.get(`${API_BASE_URL}/api/forms`, { withCredentials: true });
         setForms(response.data.data || []);
       } catch (error) {
         console.error("Error fetching forms:", error);
@@ -63,7 +64,7 @@ export default function EventsManagementPage() {
     };
     const fetchEvents = async () => {
       try {
-        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/events`, { withCredentials: true });
+        const response = await axios.get(`${API_BASE_URL}/api/events`, { withCredentials: true });
         setEvents(response.data.data || []);
       } catch (error) {
         console.error("Error fetching events:", error);
@@ -88,7 +89,7 @@ export default function EventsManagementPage() {
     setDeleteError(null);
     try {
       const endpoint = type === "event" ? `/api/events/${id}` : `/api/forms/${id}`;
-      await axios.delete(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}${endpoint}`, {
+      await axios.delete(`${API_BASE_URL}${endpoint}`, {
         withCredentials: true,
       });
       if (type === "event") {

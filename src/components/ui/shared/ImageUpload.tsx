@@ -41,9 +41,10 @@ export interface ImageUploadProps {
   disabled?: boolean;
 }
 
+import { API_BASE_URL } from "@/lib/api";
+
 const getApiBaseUrl = () => {
-  const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/\/+$/, "");
-  return base.endsWith("/api") ? base : `${base}/api`;
+  return API_BASE_URL.endsWith("/api") ? API_BASE_URL : `${API_BASE_URL}/api`;
 };
 
 export default function ImageUpload({

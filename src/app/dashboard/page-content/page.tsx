@@ -19,8 +19,9 @@ import {
   MessageSquare,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { API_BASE_URL } from "@/lib/api";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_BASE = API_BASE_URL;
 
 export default function PageContentManagerPage() {
   const [activeTab, setActiveTab] = useState<"home" | "cp-hub" | "contact">("home");

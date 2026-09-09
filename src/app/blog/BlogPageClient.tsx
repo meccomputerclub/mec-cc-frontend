@@ -6,7 +6,7 @@ import Link from "next/link";
 import { BlogCard } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/context/AuthContext";
-import { api } from "@/lib/api";
+import { api, API_BASE_URL } from "@/lib/api";
 import ConfirmationModal from "@/components/ui/shared/ConfirmModal";
 import {
   PenLine,
@@ -82,7 +82,7 @@ export default function BlogPageClient() {
     setLoading(true);
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/blogs?published=true`
+        `${API_BASE_URL}/api/blogs?published=true`
       );
       if (res.ok) {
         const data = await res.json();

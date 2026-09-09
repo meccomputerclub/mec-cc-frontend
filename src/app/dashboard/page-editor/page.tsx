@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 import Link from "next/link";
 import {
   Plus, Pencil, Trash2, Eye, Globe, Lock,
@@ -22,7 +23,7 @@ interface CustomPage {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-const API = () => `${process.env.NEXT_PUBLIC_API_URL}/api/custom-pages`;
+const API = () => `${API_BASE_URL}/api/custom-pages`;
 
 function slugify(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");

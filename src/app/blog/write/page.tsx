@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { api } from "@/lib/api";
+import { api, API_BASE_URL } from "@/lib/api";
 import axios from "axios";
 import { Button } from "@/components/ui/Button";
 import BlogCoverUploader from "./components/BlogCoverUploader";
@@ -296,9 +296,7 @@ function BlogWriteContent() {
         id: "blog-editor-upload",
       });
       try {
-        const base = (
-          process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
-        ).replace(/\/+$/, "");
+        const base = API_BASE_URL;
         const uploadUrl = base.endsWith("/api")
           ? `${base}/upload/image`
           : `${base}/api/upload/image`;
@@ -464,9 +462,7 @@ function BlogWriteContent() {
         id: "cover-upload-publish",
       });
       try {
-        const base = (
-          process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
-        ).replace(/\/+$/, "");
+        const base = API_BASE_URL;
         const uploadUrl = base.endsWith("/api")
           ? `${base}/upload/image`
           : `${base}/api/upload/image`;

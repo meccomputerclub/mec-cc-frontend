@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -97,7 +98,7 @@ function EventCombobox({
   useEffect(() => {
     setLoading(true);
     axios
-      .get(`${process.env.NEXT_PUBLIC_API_URL}/api/events`)
+      .get(`${API_BASE_URL}/api/events`)
       .then((r: any) => setAllEvents(r.data.data || []))
       .catch(() => { })
       .finally(() => setLoading(false));
@@ -369,13 +370,13 @@ export default function SponsorForm({ initialData, mode }: Props) {
     try {
       if (mode === "edit" && initialData?._id) {
         await axios.patch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/sponsors/${initialData._id}`,
+          `${API_BASE_URL}/api/sponsors/${initialData._id}`,
           payload,
           { withCredentials: true }
         );
       } else {
         await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/sponsors`,
+          `${API_BASE_URL}/api/sponsors`,
           payload,
           { withCredentials: true }
         );

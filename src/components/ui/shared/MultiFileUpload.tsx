@@ -12,6 +12,7 @@
  */
 import React, { useCallback, useRef, useState } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 import { Upload, X, Loader2, CheckCircle, AlertCircle, Sparkles } from "lucide-react";
 import { compressImage } from "@/lib/imageCompressor";
 
@@ -85,7 +86,7 @@ export default function MultiFileUpload({
       const fd = new FormData();
       fd.append("image", fileToUpload);
       fd.append("folder", folder);
-      const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/\/+$/, "");
+      const base = API_BASE_URL;
       const uploadUrl = base.endsWith("/api") ? `${base}/upload/image` : `${base}/api/upload/image`;
       const res = await axios.post(
         `${uploadUrl}?folder=${encodeURIComponent(folder)}`,

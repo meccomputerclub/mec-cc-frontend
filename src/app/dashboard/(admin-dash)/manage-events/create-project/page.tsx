@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Save, Globe, Calendar, Tag, Users, AlignLeft, Type } from "lucide-react";
@@ -51,7 +52,7 @@ export default function CreateProjectPage() {
     setSaving(true);
     setError(null);
     try {
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/projects`, {
+      await axios.post(`${API_BASE_URL}/api/projects`, {
         title: form.title,
         description: form.description,
         department: form.department,

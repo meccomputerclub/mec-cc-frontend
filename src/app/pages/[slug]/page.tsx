@@ -12,8 +12,9 @@ interface CustomPage {
   coverImageUrl?: string;
   updatedAt: string;
 }
+import { API_BASE_URL } from "@/lib/api";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_BASE = API_BASE_URL;
 
 async function getPage(slug: string): Promise<CustomPage | null> {
   try {

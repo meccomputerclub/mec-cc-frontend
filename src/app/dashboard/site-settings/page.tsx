@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Settings, Save, RefreshCw, GraduationCap, Globe, Building2, Info } from "lucide-react";
 import ToastNotification, { Toast } from "@/components/ui/shared/ToastNotification";
+import { API_BASE_URL } from "@/lib/api";
 
 interface SiteSetting {
   key: string;
@@ -23,7 +24,7 @@ export default function SiteSettingsPage() {
     setError(null);
     try {
       const res = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/site-settings`,
+        `${API_BASE_URL}/api/site-settings`,
         { withCredentials: true }
       );
       setSettings(res.data.data || res.data);
@@ -49,7 +50,7 @@ export default function SiteSettingsPage() {
     setSaving(true);
     try {
       await axios.put(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/site-settings`,
+        `${API_BASE_URL}/api/site-settings`,
         { settings },
         { withCredentials: true }
       );

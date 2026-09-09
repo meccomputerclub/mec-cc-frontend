@@ -1,13 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { AuthUser } from "@/types";
 import CustomInput from "../ui/shared/CustomInput";
 import { Loader2, Search, UserIcon, UserCheck } from "lucide-react";
 import { capitalizeFirstLetter, handleKeyDown } from "@/lib/utils";
 import UserAvatarWithFallback from "../ui/shared/UserAvatarWithFallback";
 import ProfileCard from "../ui/shared/ProfileCard";
-import { useState } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 import ToastNotification, { Toast } from "@/components/ui/shared/ToastNotification";
 import ConfirmationModal from "../ui/shared/ConfirmModal";
 import { Select } from "@/components/ui/Select";
@@ -35,7 +36,7 @@ const RolesManagement = () => {
       setError(null);
 
       const res = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/users/profile/${encodeURIComponent(searchIdentifier.trim())}`,
+        `${API_BASE_URL}/api/users/profile/${encodeURIComponent(searchIdentifier.trim())}`,
         { withCredentials: true }
       );
       setSearchedUser(res.data.data);
@@ -72,7 +73,7 @@ const RolesManagement = () => {
 
     try {
       await axios.patch(
-        `${process.env.NEXT_PUBLIC_API_URL}/users/admin/update/${searchedUser._id}`,
+        `${API_BASE_URL}/api/users/admin/update/${searchedUser._id}`,
         { role: editedRole },
         { withCredentials: true }
       );

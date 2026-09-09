@@ -32,6 +32,7 @@ import ImportFormModal from "./ImportFormModal";
 import CoverImageUploader from "./CoverImageUploader";
 import { Select } from "@/components/ui/Select";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 
@@ -115,7 +116,7 @@ export default function FormBuilder({ initialData }: { initialData?: InitialData
     const fetchEvents = async () => {
       try {
         const res = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/events`,
+          `${API_BASE_URL}/api/events`,
           { withCredentials: true }
         );
         if (res.data?.data) {
@@ -220,7 +221,7 @@ export default function FormBuilder({ initialData }: { initialData?: InitialData
           const formData = new FormData();
           formData.append("image", pendingCoverFile);
 
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+          const apiUrl = API_BASE_URL;
           const uploadRes = await axios.post(`${apiUrl}/api/upload/image?folder=forms`, formData, {
             headers: { "Content-Type": "multipart/form-data" },
             withCredentials: true,
@@ -258,13 +259,13 @@ export default function FormBuilder({ initialData }: { initialData?: InitialData
       let res;
       if (isEditMode && initialData?._id) {
         res = await axios.put(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/forms/${initialData._id}`,
+          `${API_BASE_URL}/api/forms/${initialData._id}`,
           payload,
           { withCredentials: true }
         );
       } else {
         res = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/forms`,
+          `${API_BASE_URL}/api/forms`,
           payload,
           { withCredentials: true }
         );

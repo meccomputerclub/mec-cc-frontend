@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { CheckCircle, XCircle, Clock, Search, Filter, MoreVertical } from "lucide-react";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 import LoadingScreen from "../ui/shared/LoadingScreen";
 
 interface Application {
@@ -21,7 +22,7 @@ const AdminPendingPage = () => {
     const fetchPendingApplications = async () => {
       try {
         const response = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL}/dashboard/members`,
+          `${API_BASE_URL}/api/dashboard/members`,
           {
             filter: {
               property: "applicationStatus",
@@ -47,7 +48,7 @@ const AdminPendingPage = () => {
   const handleAction = async (id: string, action: "approved" | "rejected", reason?: string) => {
     try {
       const res = await axios.patch(
-        `${process.env.NEXT_PUBLIC_API_URL}/dashboard/application-status/${id}`,
+        `${API_BASE_URL}/api/dashboard/application-status/${id}`,
         {
           status: action,
           reason,

@@ -6,6 +6,7 @@ import {
   LayoutDashboard, PenLine, FolderOpen, DollarSign,
 } from "lucide-react";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { DashboardStats } from "@/types";
 import Link from "next/link";
@@ -29,11 +30,11 @@ export default function AdminOverview() {
       try {
         const [statsRes, msgsRes] = await Promise.all([
           axios.get(
-            `${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/admin-stats`,
+            `${API_BASE_URL}/api/dashboard/admin-stats`,
             { withCredentials: true }
           ),
           axios.get(
-            `${process.env.NEXT_PUBLIC_API_URL}/api/contact-messages?limit=4`,
+            `${API_BASE_URL}/api/contact-messages?limit=4`,
             { withCredentials: true }
           ),
         ]);

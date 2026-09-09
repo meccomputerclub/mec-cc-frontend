@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 import {
   Calendar,
   Send,
@@ -54,7 +55,7 @@ export default function PublicFormViewPage() {
     const fetchForm = async () => {
       setLoading(true);
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+        const apiUrl = API_BASE_URL;
         const res = await axios.get(`${apiUrl}/api/forms/${formId}`);
         if (res.data?.data) {
           setForm(res.data.data);
@@ -134,7 +135,7 @@ export default function PublicFormViewPage() {
     const toastId = toast.loading("Submitting response...");
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const apiUrl = API_BASE_URL;
       const finalResponses: Record<string, any> = { ...responses };
 
       // Upload any file attachments first to Cloudinary

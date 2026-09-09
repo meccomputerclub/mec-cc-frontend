@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Save, Eye, EyeOff, Tag, AlignLeft, Type } from "lucide-react";
@@ -44,7 +45,7 @@ export default function CreateBlogPage() {
     setSaving(true);
     setError(null);
     try {
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/blogs`, {
+      await axios.post(`${API_BASE_URL}/api/blogs`, {
         ...form,
         tags: form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
       }, { withCredentials: true });

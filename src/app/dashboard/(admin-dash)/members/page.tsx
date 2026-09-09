@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { MembersData } from "@/types";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 import Link from "next/link";
 import UserAvatarWithFallback from "@/components/ui/shared/UserAvatarWithFallback";
 import { capitalizeFirstLetter } from "@/lib/utils";
@@ -84,7 +85,7 @@ export default function MemberManagementPage() {
     setIsDeleting(true);
     try {
       const res = await axios.delete(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/users/admin/${userToDelete._id}`,
+        `${API_BASE_URL}/api/users/admin/${userToDelete._id}`,
         { withCredentials: true }
       );
       toast.success(res.data?.message || "Member permanently deleted.");
@@ -121,7 +122,7 @@ export default function MemberManagementPage() {
       setLoading(true);
       const currentFilter = activeTab === "pending" ? pendingFilter : allFilter;
       const res = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/members`,
+        `${API_BASE_URL}/api/dashboard/members`,
         {
           params: {
             tab: activeTab,
@@ -180,7 +181,7 @@ export default function MemberManagementPage() {
     });
     try {
       await axios.patch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/application-status/${id}`,
+        `${API_BASE_URL}/api/dashboard/application-status/${id}`,
         { status },
         { withCredentials: true }
       );

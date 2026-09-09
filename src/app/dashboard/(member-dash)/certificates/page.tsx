@@ -19,7 +19,9 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
 
-const API = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api`;
+import { API_BASE_URL } from "@/lib/api";
+
+const API = `${API_BASE_URL}/api`;
 
 interface CertificateItem {
   _id: string;

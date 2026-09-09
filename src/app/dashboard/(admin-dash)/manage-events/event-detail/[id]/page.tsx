@@ -21,8 +21,9 @@ import { CertificateTemplatePreviewModal } from "@/components/certificates/Certi
 import { TemplateItem } from "@/components/certificates/CertificateTemplateCard";
 import { interpolateCertificateHtml } from "@/lib/utils/templateInterpolation";
 import { getOptimizedImageUrl } from "@/data/gallery";
+import { API_BASE_URL } from "@/lib/api";
 
-const API = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api`;
+const API = `${API_BASE_URL}/api`;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types

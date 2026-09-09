@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 import { useParams } from "next/navigation";
 import SponsorForm from "@/components/dashboard/SponsorForm";
 import { RefreshCw } from "lucide-react";
@@ -14,7 +15,7 @@ export default function EditSponsorPage() {
   useEffect(() => {
     if (!id) return;
     axios
-      .get(`${process.env.NEXT_PUBLIC_API_URL}/api/sponsors/${id}`, { withCredentials: true })
+      .get(`${API_BASE_URL}/api/sponsors/${id}`, { withCredentials: true })
       .then((res: any) => setData({ ...res.data.data, _id: id }))
       .catch(() => setError("Failed to load sponsor details."))
       .finally(() => setLoading(false));

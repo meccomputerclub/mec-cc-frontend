@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import toast from "react-hot-toast";
 import confetti from "canvas-confetti";
-import { api, ApiError } from "@/lib/api";
+import { api, ApiError, API_BASE_URL } from "@/lib/api";
 import {
   KeyRound,
   CheckCircle2,
@@ -495,7 +495,7 @@ function RegisterContent() {
 
   // Fetch batch config from public API on mount
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/site-settings/public`)
+    fetch(`${API_BASE_URL}/api/site-settings/public`)
       .then((r) => r.json())
       .then((d) => { if (d.success && d.data) setBatchConfig(d.data); })
       .catch(() => {/* use defaults */});

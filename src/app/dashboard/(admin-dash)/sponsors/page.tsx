@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 import Link from "next/link";
 import {
   Plus, Pencil, Trash2, RefreshCw,
@@ -28,7 +29,7 @@ interface Sponsor {
   }>;
 }
 
-const API = `${process.env.NEXT_PUBLIC_API_URL}/api/sponsors`;
+const API = `${API_BASE_URL}/api/sponsors`;
 
 export default function SponsorsPage() {
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);

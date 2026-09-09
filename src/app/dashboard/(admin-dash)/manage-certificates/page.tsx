@@ -31,7 +31,9 @@ import { CertificateTemplateCard, TemplateItem } from "@/components/certificates
 import { CertificateTemplateModal } from "@/components/certificates/CertificateTemplateModal";
 import { CertificateTemplatePreviewModal } from "@/components/certificates/CertificateTemplatePreviewModal";
 
-const API = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api`;
+import { API_BASE_URL } from "@/lib/api";
+
+const API = `${API_BASE_URL}/api`;
 
 interface CertificateItem {
   _id: string;

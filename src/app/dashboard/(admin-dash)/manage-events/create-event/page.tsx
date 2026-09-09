@@ -8,6 +8,7 @@ import {
   ListChecks, Plus, Trash2, HelpCircle
 } from "lucide-react";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ImageUpload from "@/components/ui/shared/ImageUpload";
@@ -162,7 +163,7 @@ function CreateEventFormContent() {
 
   // Pre-load available forms from Form Builder
   useEffect(() => {
-    const api = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+    const api = API_BASE_URL;
     axios.get(`${api}/api/forms`, { withCredentials: true })
       .then((res) => {
         const list = res.data?.data || res.data || [];
@@ -176,7 +177,7 @@ function CreateEventFormContent() {
     if (!editId) return;
     async function loadEvent() {
       try {
-        const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/events/${editId}`, { withCredentials: true });
+        const res = await axios.get(`${API_BASE_URL}/api/events/${editId}`, { withCredentials: true });
         const ev = res.data.data;
         if (ev) {
           setForm({
@@ -239,9 +240,9 @@ function CreateEventFormContent() {
       };
 
       if (editId) {
-        await axios.patch(`${process.env.NEXT_PUBLIC_API_URL}/api/events/${editId}`, payload, { withCredentials: true });
+        await axios.patch(`${API_BASE_URL}/api/events/${editId}`, payload, { withCredentials: true });
       } else {
-        await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/events`, payload, { withCredentials: true });
+        await axios.post(`${API_BASE_URL}/api/events`, payload, { withCredentials: true });
       }
       router.push("/dashboard/manage-events");
     } catch (err) {
