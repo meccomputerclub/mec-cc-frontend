@@ -32,7 +32,7 @@ import ImportFormModal from "./ImportFormModal";
 import CoverImageUploader from "./CoverImageUploader";
 import { Select } from "@/components/ui/Select";
 import axios from "axios";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 
 const initialForm = {
@@ -74,12 +74,16 @@ const FIELD_TYPE_TOOLBAR: {
 
 export default function FormBuilder({ initialData }: { initialData?: InitialData }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isEditMode = !!initialData;
 
+  const queryEventId = searchParams.get("eventId") || "";
+  const queryEventTitle = searchParams.get("eventTitle") || "";
+
   const [formInfo, setFormInfo] = useState({
-    title: initialData?.title ?? "",
+    title: initialData?.title ?? (queryEventTitle ? `${queryEventTitle} Registration Form` : ""),
     description: initialData?.description ?? "",
-    eventId: (initialData?.eventId as string) ?? "",
+    eventId: (initialData?.eventId as string) ?? queryEventId,
     coverImageUrl: initialData?.coverImageUrl ?? "",
     startDate: initialData?.startDate ?? new Date().toISOString().split("T")[0],
     endDate: initialData?.endDate ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
@@ -200,10 +204,6 @@ export default function FormBuilder({ initialData }: { initialData?: InitialData
       toast.error("Please provide a title for your form.");
       return;
     }
-    if (!formInfo.eventId) {
-      toast.error("Please select an associated event or choose 'Independent Form'.");
-      return;
-    }
     if (fields.length === 0) {
       toast.error("Please add at least one question field.");
       return;
@@ -249,6 +249,7 @@ export default function FormBuilder({ initialData }: { initialData?: InitialData
 
       const payload = {
         ...formInfo,
+        eventId: formInfo.eventId && formInfo.eventId !== "111111111111111111111111" ? formInfo.eventId : null,
         coverImageUrl: finalCoverUrl,
         fields: updatedFields,
         allowMultipleSubmissions,
@@ -298,8 +299,7 @@ export default function FormBuilder({ initialData }: { initialData?: InitialData
 
   // Build event options for custom Select
   const eventOptions = [
-    { value: "", label: "Select associated event..." },
-    { value: "111111111111111111111111", label: "Independent Club Form (No Event Attached)" },
+    { value: "", label: "Independent Club Form (No Event Attached)" },
     ...events.map((e) => ({
       value: e.id || (e as any)._id,
       label: e.title,

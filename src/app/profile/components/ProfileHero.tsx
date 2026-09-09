@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { AuthUser } from "@/types";
 import { Button } from "@/components/ui/Button";
 import {
@@ -11,7 +11,13 @@ import {
   GraduationCap,
   Clock,
   MapPin,
+  Move,
+  Check,
+  X,
+  RefreshCw,
 } from "lucide-react";
+import { api, ApiError } from "@/lib/api";
+import toast from "react-hot-toast";
 
 /* ── Social Icon SVGs ── */
 const IconGitHub = () => (
@@ -64,6 +70,9 @@ interface ProfileHeroProps {
   onEditProfileClick: () => void;
   uploadingCover?: boolean;
   uploadingAvatar?: boolean;
+  onCoverPositionSaved?: (position: string) => Promise<void>;
+  isRepositioningCover?: boolean;
+  onRepositionCoverChange?: (isRepositioning: boolean) => void;
 }
 
 export function ProfileHero({
@@ -73,7 +82,160 @@ export function ProfileHero({
   onEditProfileClick,
   uploadingCover = false,
   uploadingAvatar = false,
+  onCoverPositionSaved,
+  isRepositioningCover: controlledIsRepositioning,
+  onRepositionCoverChange,
 }: ProfileHeroProps) {
+  // Parse initial X and Y percentages
+  const parsePos = useCallback((posStr?: string) => {
+    if (!posStr) return { x: 50, y: 50 };
+    const parts = posStr.trim().split(/\s+/);
+    const x = parseFloat(parts[0]);
+    const y = parseFloat(parts[1] || parts[0]);
+    return {
+      x: Math.min(100, Math.max(0, isNaN(x) ? 50 : x)),
+      y: Math.min(100, Math.max(0, isNaN(y) ? 50 : y)),
+    };
+  }, []);
+
+  const [internalIsRepositioning, setInternalIsRepositioning] = useState(false);
+  const isRepositioning = controlledIsRepositioning !== undefined ? controlledIsRepositioning : internalIsRepositioning;
+  const setIsRepositioning = useCallback(
+    (val: boolean) => {
+      if (onRepositionCoverChange) {
+        onRepositionCoverChange(val);
+      }
+      setInternalIsRepositioning(val);
+    },
+    [onRepositionCoverChange]
+  );
+
+  const [posX, setPosX] = useState(50);
+  const [posY, setPosY] = useState(50);
+  const [isDragging, setIsDragging] = useState(false);
+  const [savingPosition, setSavingPosition] = useState(false);
+
+  const coverContainerRef = useRef<HTMLDivElement>(null);
+  const dragStartRef = useRef({ x: 0, y: 0, posX: 50, posY: 50 });
+
+  useEffect(() => {
+    const { x, y } = parsePos((user as any).coverPosition);
+    setPosX(x);
+    setPosY(y);
+  }, [user, parsePos]);
+
+  // Drag interaction handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!isRepositioning) return;
+    if ((e.target as HTMLElement).closest("button")) return;
+    e.preventDefault();
+    setIsDragging(true);
+    dragStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      posX,
+      posY,
+    };
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!isRepositioning) return;
+    if ((e.target as HTMLElement).closest("button")) return;
+    setIsDragging(true);
+    dragStartRef.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+      posX,
+      posY,
+    };
+  };
+
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isDragging || !coverContainerRef.current) return;
+      e.preventDefault();
+      const rect = coverContainerRef.current.getBoundingClientRect();
+      const deltaX = e.clientX - dragStartRef.current.x;
+      const deltaY = e.clientY - dragStartRef.current.y;
+
+      // Inverted delta for natural drag feel: pulling down reveals top, pulling up reveals bottom
+      const percentDeltaX = (deltaX / rect.width) * 100;
+      const percentDeltaY = (deltaY / rect.height) * 100;
+
+      const nextX = Math.min(100, Math.max(0, dragStartRef.current.posX - percentDeltaX));
+      const nextY = Math.min(100, Math.max(0, dragStartRef.current.posY - percentDeltaY));
+
+      setPosX(Math.round(nextX));
+      setPosY(Math.round(nextY));
+    },
+    [isDragging]
+  );
+
+  const handleTouchMove = useCallback(
+    (e: TouchEvent) => {
+      if (!isDragging || !coverContainerRef.current) return;
+      const rect = coverContainerRef.current.getBoundingClientRect();
+      const deltaX = e.touches[0].clientX - dragStartRef.current.x;
+      const deltaY = e.touches[0].clientY - dragStartRef.current.y;
+
+      const percentDeltaX = (deltaX / rect.width) * 100;
+      const percentDeltaY = (deltaY / rect.height) * 100;
+
+      const nextX = Math.min(100, Math.max(0, dragStartRef.current.posX - percentDeltaX));
+      const nextY = Math.min(100, Math.max(0, dragStartRef.current.posY - percentDeltaY));
+
+      setPosX(Math.round(nextX));
+      setPosY(Math.round(nextY));
+    },
+    [isDragging]
+  );
+
+  const handleDragEnd = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleDragEnd);
+      window.addEventListener("touchmove", handleTouchMove, { passive: false });
+      window.addEventListener("touchend", handleDragEnd);
+      return () => {
+        window.removeEventListener("mousemove", handleMouseMove);
+        window.removeEventListener("mouseup", handleDragEnd);
+        window.removeEventListener("touchmove", handleTouchMove);
+        window.removeEventListener("touchend", handleDragEnd);
+      };
+    }
+  }, [isDragging, handleMouseMove, handleTouchMove, handleDragEnd]);
+
+  // Save new cover position
+  const handleSavePosition = async () => {
+    const posString = `${posX}% ${posY}%`;
+    setSavingPosition(true);
+    try {
+      await api.patch("/api/users/me", { coverPosition: posString });
+      toast.success("Cover banner position saved!");
+      setIsRepositioning(false);
+      if (onCoverPositionSaved) {
+        await onCoverPositionSaved(posString);
+      }
+    } catch (err: any) {
+      const msg = err instanceof ApiError ? err.message : err?.message || "Failed to save cover position";
+      toast.error(msg);
+    } finally {
+      setSavingPosition(false);
+    }
+  };
+
+  // Cancel repositioning and revert
+  const handleCancelReposition = () => {
+    setIsRepositioning(false);
+    const { x, y } = parsePos((user as any).coverPosition);
+    setPosX(x);
+    setPosY(y);
+  };
+
   const userSocials = user.socialLinks;
   const heroSocialLinks: { href: string; label: string; icon: React.ReactNode }[] = [];
 
@@ -116,14 +278,22 @@ export function ProfileHero({
   return (
     <div className="w-full bg-surface-elevated relative">
       {/* Top Half: Cover Photo Banner */}
-      <div className="w-full h-[160px] sm:h-[190px] md:h-[230px] relative bg-slate-900 overflow-hidden">
+      <div
+        ref={coverContainerRef}
+        className={`w-full h-[160px] sm:h-[190px] md:h-[230px] relative bg-slate-900 overflow-hidden select-none ${
+          isRepositioning ? (isDragging ? "cursor-grabbing" : "cursor-grab") : ""
+        }`}
+        onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
+      >
         {user.coverUrl ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
             key={user.coverUrl}
             src={user.coverUrl}
             alt="Profile Cover"
-            className="w-full h-full object-cover block"
+            className="w-full h-full object-cover block pointer-events-none select-none transition-[object-position] duration-75"
+            style={{ objectPosition: `${posX}% ${posY}%` }}
             onError={(e) => {
               e.currentTarget.style.display = "none";
             }}
@@ -133,32 +303,106 @@ export function ProfileHero({
         )}
 
         {/* MEC Badge */}
-        <div className="absolute top-3 left-3 sm:top-3.5 sm:left-4 flex items-center gap-1.5 font-mono text-[10px] sm:text-[11px] font-extrabold tracking-wider text-white bg-black/75 backdrop-blur-sm px-2.5 py-1 rounded border border-white/20 z-10">
+        <div
+          className={`absolute top-3 left-3 sm:top-3.5 sm:left-4 flex items-center gap-1.5 font-mono text-[10px] sm:text-[11px] font-extrabold tracking-wider text-white bg-black/75 backdrop-blur-sm px-2.5 py-1 rounded border border-white/20 z-10 transition-opacity ${
+            isRepositioning ? "opacity-30 pointer-events-none" : "opacity-100"
+          }`}
+        >
           <span className="w-2 h-2 rounded-full bg-accent-primary inline-block shadow-[0_0_8px_var(--accent-primary)]" />
           <span>MEC COMPUTER CLUB // SEC CSE</span>
         </div>
 
-        {/* Change Cover Button */}
-        <button
-          type="button"
-          className="absolute bottom-3 right-3 sm:bottom-3.5 sm:right-4 inline-flex items-center gap-1.5 py-1.5 px-3 bg-surface-elevated border-[1.5px] border-text-primary dark:border-border-default rounded-md shadow-[2px_2px_0px_0px_var(--text-primary)] dark:shadow-[2px_2px_0px_0px_var(--accent-primary)] font-body text-xs font-bold text-text-primary dark:text-white cursor-pointer z-10 transition-all duration-150 hover:bg-accent-primary-light dark:hover:bg-[color-mix(in_srgb,var(--accent-primary)_30%,var(--surface-primary))] dark:hover:text-white hover:-translate-x-px hover:-translate-y-px hover:shadow-[3px_3px_0px_0px_var(--accent-primary)] disabled:opacity-50 disabled:cursor-not-allowed"
-          onClick={onOpenCoverModal}
-          disabled={uploadingCover}
-          title="Select or Upload Cover Photo"
-        >
-          <Palette size={13} />
-          <span>{uploadingCover ? "Uploading..." : "Change Cover"}</span>
-        </button>
+        {/* ── Repositioning Mode Overlays & Controls ── */}
+        {isRepositioning ? (
+          <>
+            {/* Center Draggable Floating Indicator */}
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3.5 py-1.5 bg-black/85 backdrop-blur-md border border-white/25 rounded-full text-white shadow-xl pointer-events-none z-30 animate-pulse">
+              <Move size={14} className="text-accent-primary" />
+              <span className="font-mono text-xs font-bold tracking-wide">
+                Drag to Reposition ({posX}% {posY}%)
+              </span>
+            </div>
+
+            {/* Subtle Rule-of-Thirds Alignment Guidelines */}
+            <div className="absolute inset-0 pointer-events-none z-20 flex flex-col justify-between py-8 px-12 opacity-30">
+              <div className="w-full border-t border-dashed border-white" />
+              <div className="w-full border-t border-dashed border-white" />
+            </div>
+
+            {/* Bottom-right Action Buttons */}
+            <div className="absolute bottom-3 right-3 sm:bottom-3.5 sm:right-4 flex items-center gap-2 z-30">
+              <button
+                type="button"
+                onClick={() => {
+                  setPosX(50);
+                  setPosY(50);
+                }}
+                className="px-2.5 py-1.5 bg-surface-elevated/95 hover:bg-surface-secondary text-text-primary border border-border-default rounded-lg text-xs font-mono font-bold shadow-[2px_2px_0px_0px_var(--border-default)] cursor-pointer transition-all duration-150 hover:-translate-x-px hover:-translate-y-px"
+                title="Reset position to Center (50% 50%)"
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                id="btn-cancel-cover-reposition"
+                onClick={handleCancelReposition}
+                disabled={savingPosition}
+                className="inline-flex items-center gap-1.5 py-1.5 px-3 bg-surface-elevated/95 hover:bg-surface-secondary text-text-primary dark:text-white border-2 border-text-primary dark:border-border-default rounded-lg text-xs font-bold shadow-[2px_2px_0px_0px_var(--text-primary)] cursor-pointer transition-all duration-150 hover:-translate-x-px hover:-translate-y-px disabled:opacity-50"
+              >
+                <X size={14} />
+                <span>Cancel</span>
+              </button>
+              <button
+                type="button"
+                id="btn-save-cover-reposition"
+                onClick={handleSavePosition}
+                disabled={savingPosition}
+                className="inline-flex items-center gap-1.5 py-1.5 px-3.5 bg-accent-primary hover:bg-accent-primary-hover text-accent-primary-text border-2 border-text-primary rounded-lg text-xs font-heading font-black shadow-[2px_2px_0px_0px_var(--text-primary)] cursor-pointer transition-all duration-150 hover:-translate-x-px hover:-translate-y-px hover:shadow-[3px_3px_0px_0px_var(--text-primary)] disabled:opacity-50"
+              >
+                <Check size={14} />
+                <span>{savingPosition ? "Saving..." : "Save Position"}</span>
+              </button>
+            </div>
+          </>
+        ) : (
+          /* ── Normal Mode Action Buttons ── */
+          <div className="absolute bottom-3 right-3 sm:bottom-3.5 sm:right-4 flex items-center gap-2 z-20">
+            {user.coverUrl && (
+              <button
+                type="button"
+                id="btn-reposition-cover"
+                className="inline-flex items-center gap-1.5 py-1.5 px-3 bg-surface-elevated/95 border-2 border-text-primary dark:border-border-default rounded-lg shadow-[2px_2px_0px_0px_var(--text-primary)] dark:shadow-[2px_2px_0px_0px_var(--accent-primary)] font-body text-xs font-bold text-text-primary dark:text-white cursor-pointer transition-all duration-150 hover:bg-accent-primary-light dark:hover:bg-[color-mix(in_srgb,var(--accent-primary)_30%,var(--surface-primary))] dark:hover:text-white hover:-translate-x-px hover:-translate-y-px hover:shadow-[3px_3px_0px_0px_var(--accent-primary)]"
+                onClick={() => setIsRepositioning(true)}
+                title="Drag to reposition cover banner"
+              >
+                <Move size={14} />
+                <span>Reposition</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              id="btn-change-cover"
+              className="inline-flex items-center gap-1.5 py-1.5 px-3 bg-surface-elevated/95 border-2 border-text-primary dark:border-border-default rounded-lg shadow-[2px_2px_0px_0px_var(--text-primary)] dark:shadow-[2px_2px_0px_0px_var(--accent-primary)] font-body text-xs font-bold text-text-primary dark:text-white cursor-pointer transition-all duration-150 hover:bg-accent-primary-light dark:hover:bg-[color-mix(in_srgb,var(--accent-primary)_30%,var(--surface-primary))] dark:hover:text-white hover:-translate-x-px hover:-translate-y-px hover:shadow-[3px_3px_0px_0px_var(--accent-primary)] disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={onOpenCoverModal}
+              disabled={uploadingCover}
+              title="Select Built-in or Upload Custom Cover Photo (1200x300 recommended)"
+            >
+              <Camera size={14} />
+              <span>{uploadingCover ? "Uploading..." : "Change Cover"}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Bottom Half: Profile Identity Layout */}
-      <div className="px-4 sm:px-6 pt-3 pb-5 flex flex-col gap-4 relative">
+      <div className="px-4 sm:px-6 pt-1 sm:pt-1.5 pb-5 flex flex-col gap-3.5 relative">
         {/* Level 1: Top Identity & Actions Row */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 -mt-12 sm:-mt-14 relative z-10">
-          <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 text-center sm:text-left">
-            {/* Profile Avatar */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 sm:gap-4 relative z-10">
+          <div className="flex flex-col sm:flex-row items-center sm:items-end gap-3.5 sm:gap-4 text-center sm:text-left">
+            {/* Profile Avatar (Aligned to designation line bottom) */}
             <div
-              className="w-20 h-20 sm:w-24 sm:h-24 md:w-[100px] md:h-[100px] rounded-xl border-[3px] border-surface-elevated shadow-[3px_3px_0px_0px_var(--text-primary)] dark:shadow-[3px_3px_0px_0px_var(--accent-primary)] relative cursor-pointer overflow-hidden bg-surface-secondary shrink-0 group"
+              className="-mt-10 sm:-mt-12 md:-mt-14 w-24 h-24 sm:w-28 sm:h-28 md:w-[108px] md:h-[108px] rounded-xl border-[3px] border-surface-elevated shadow-[3px_3px_0px_0px_var(--text-primary)] dark:shadow-[3px_3px_0px_0px_var(--accent-primary)] relative cursor-pointer overflow-hidden bg-surface-secondary shrink-0 group"
               key={user.imageUrl || "hero-avatar"}
               onClick={onAvatarUploadTrigger}
               title="Click to change profile picture"
@@ -170,6 +414,7 @@ export function ProfileHero({
                   src={user.imageUrl}
                   alt={user.fullName}
                   className="w-full h-full object-cover block"
+                  style={{ objectPosition: (user as any).imagePosition || "50% 50%" }}
                   onError={(e) => {
                     e.currentTarget.style.display = "none";
                     const fallback = e.currentTarget.parentElement?.querySelector(
@@ -192,20 +437,21 @@ export function ProfileHero({
               <span className="absolute bottom-1 right-1 w-3 h-3 rounded-full bg-accent-success border-2 border-surface-elevated" title="Active Member" />
             </div>
 
-            {/* User Name & Role */}
-            <div className="flex flex-col items-center sm:items-start gap-1">
+            {/* User Name (Line 1) & Designation + ID (Line 2) */}
+            <div className="flex flex-col items-center sm:items-start gap-1 pb-0.5">
+              {/* Line 1: Name */}
               <div className="flex items-center gap-1.5 flex-wrap justify-center sm:justify-start">
-                <h1 className="font-heading text-xl sm:text-2xl md:text-[28px] font-extrabold text-text-primary m-0 leading-tight">
+                <h1 className="font-heading text-xl sm:text-2xl md:text-[26px] font-extrabold text-text-primary m-0 leading-tight">
                   {user.fullName}
                 </h1>
                 <span className="text-accent-primary inline-flex" title="Verified SEC Member">
-                  <ShieldCheck size={19} />
+                  <ShieldCheck size={20} />
                 </span>
               </div>
 
-              {/* Club Role / Designation */}
-              <div className="font-body text-xs sm:text-sm font-bold text-accent-text-on-surface dark:text-accent-primary-hover">
-                <span>
+              {/* Line 2: Designation and ID in one line */}
+              <div className="flex items-center gap-2 flex-wrap justify-center sm:justify-start text-xs sm:text-sm">
+                <span className="font-body font-bold text-accent-text-on-surface dark:text-accent-primary-hover">
                   {user.designation ||
                     user.customRole ||
                     (user.clubRole === "executive"
@@ -216,15 +462,15 @@ export function ProfileHero({
                       ? "Alumni Member · MEC Computer Club"
                       : "General Member · MEC Computer Club")}
                 </span>
-              </div>
-
-              <div className="font-mono text-[11px] text-text-tertiary font-bold">
-                <span>ID: {user.studentId || "210347"}</span>
+                <span className="text-text-tertiary font-bold">&bull;</span>
+                <span className="font-mono text-xs font-bold text-text-secondary bg-surface-secondary px-2 py-0.5 rounded border border-border-default">
+                  ID: {user.studentId || "210347"}
+                </span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center justify-center sm:justify-end gap-2 shrink-0">
+          <div className="flex items-center justify-center sm:justify-end gap-2 shrink-0 pb-0.5">
             <Button variant="outline" size="sm" onClick={onEditProfileClick}>
               <User size={13} style={{ marginRight: "5px" }} /> Edit Profile
             </Button>

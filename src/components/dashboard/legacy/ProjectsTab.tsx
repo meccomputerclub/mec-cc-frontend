@@ -8,6 +8,8 @@ import { Select } from "@/components/ui/Select";
 import toast from "react-hot-toast";
 import { Code2, Plus, X, Sparkles, Send, CheckCircle2, Layers } from "lucide-react";
 
+import { api } from "@/lib/api";
+
 interface ProjectsTabProps {
   user: AuthUser;
   projects: any[];
@@ -23,6 +25,7 @@ const DEPARTMENT_OPTIONS = [
 ];
 
 export function ProjectsTab({ user, projects }: ProjectsTabProps) {
+  const [projectsList, setProjectsList] = useState<any[]>(projects);
   const [showProposePanel, setShowProposePanel] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [proposalData, setProposalData] = useState({
@@ -34,12 +37,35 @@ export function ProjectsTab({ user, projects }: ProjectsTabProps) {
     techStack: "",
   });
 
-  const handleProposeProject = (e: React.FormEvent) => {
+  const handleProposeProject = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
+    if (!proposalData.title.trim() || !proposalData.description.trim()) {
+      toast.error("Please enter a title and description.");
+      return;
+    }
 
-    setTimeout(() => {
-      toast.success("Project proposal submitted to club project leads!");
+    setIsSubmitting(true);
+    try {
+      const skills = proposalData.techStack
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      const res = await api.post("/api/projects", {
+        title: proposalData.title.trim(),
+        department: proposalData.department,
+        description: proposalData.description.trim(),
+        githubLink: proposalData.repoUrl.trim(),
+        liveDemoLink: proposalData.liveUrl.trim(),
+        requiredSkills: skills,
+        techStack: skills,
+        status: "in_progress",
+      });
+
+      toast.success("Project published successfully!");
+      if (res?.data) {
+        setProjectsList((prev) => [res.data, ...prev]);
+      }
       setIsSubmitting(false);
       setShowProposePanel(false);
       setProposalData({
@@ -50,14 +76,17 @@ export function ProjectsTab({ user, projects }: ProjectsTabProps) {
         liveUrl: "",
         techStack: "",
       });
-    }, 400);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to submit project");
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <div className="db-panel">
       <div className="db-panel-header">
         <div>
-          <h2>Club Projects &amp; Software ({projects.length})</h2>
+          <h2>Club Projects &amp; Software ({projectsList.length})</h2>
           <p>Open-source tools, platforms, and applications built by club members.</p>
         </div>
         <Button
@@ -249,9 +278,9 @@ export function ProjectsTab({ user, projects }: ProjectsTabProps) {
       )}
 
       {/* ── Project Cards Grid ── */}
-      {projects.length > 0 ? (
+      {projectsList.length > 0 ? (
         <div className="grid grid--3">
-          {projects.map((proj) => {
+          {projectsList.map((proj) => {
             const id = proj._id || proj.id || `p-${Math.random()}`;
             const slug = proj.slug || proj.id || proj._id || "project";
             const techStack = Array.isArray(proj.techStack)
@@ -266,7 +295,7 @@ export function ProjectsTab({ user, projects }: ProjectsTabProps) {
               : [user.fullName || "Club Contributor"];
             const department = proj.department || "webdev";
             const status = (proj.status === "completed" || proj.status === "archived" ? proj.status : "in-progress") as "in-progress" | "completed" | "archived";
-            const image = proj.image || "/images/projects/default.jpg";
+            const image = proj.image || proj.imageUrl || "/images/projects/default.jpg";
 
             return (
               <ProjectCard
@@ -279,7 +308,8 @@ export function ProjectsTab({ user, projects }: ProjectsTabProps) {
                 status={status}
                 slug={slug}
                 image={image}
-                liveUrl={proj.liveUrl}
+                liveUrl={proj.liveUrl || proj.liveDemoLink}
+                featured={Boolean(proj.featured)}
               />
             );
           })}

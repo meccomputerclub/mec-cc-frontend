@@ -1,15 +1,36 @@
-import { TeamMember } from "@/types";
+import { formatDeptSession } from "@/lib/formatters";
+import { groupPeopleByBatch } from "@/lib/batchUtils";
+
+export interface AlumniMember {
+  id: string;
+  name: string;
+  role: string;
+  batch?: string;
+  session?: string;
+  department?: string;
+  image?: string;
+  imagePosition?: string;
+  bio?: string;
+  socials?: {
+    linkedin?: string;
+    github?: string;
+    facebook?: string;
+    email?: string;
+    codeforces?: string;
+  };
+}
 
 export interface AlumniBatch {
   batchNumber: string;
   year: string;
-  members: TeamMember[];
+  members: AlumniMember[];
 }
 
+// Static fallback data (shown if API is unreachable)
 export const alumniBatches: AlumniBatch[] = [
   {
     batchNumber: "1st Batch",
-    year: "2019 - 2023",
+    year: "2019 – 2023",
     members: [
       {
         id: "a1-1",
@@ -31,12 +52,12 @@ export const alumniBatches: AlumniBatch[] = [
         role: "Former Web Lead",
         image: "",
         bio: "Architected the original MEC Judge. Frontend Developer at Innovate BD.",
-      }
+      },
     ],
   },
   {
     batchNumber: "2nd Batch",
-    year: "2020 - 2024",
+    year: "2020 – 2024",
     members: [
       {
         id: "a2-1",
@@ -51,12 +72,12 @@ export const alumniBatches: AlumniBatch[] = [
         role: "Former ML Lead",
         image: "",
         bio: "Started the ML research wing. AI Researcher at NeuroTech.",
-      }
+      },
     ],
   },
   {
     batchNumber: "3rd Batch",
-    year: "2021 - 2025",
+    year: "2021 – 2025",
     members: [
       {
         id: "a3-1",
@@ -78,7 +99,66 @@ export const alumniBatches: AlumniBatch[] = [
         role: "Former Web Lead",
         image: "",
         bio: "Full-stack developer. Started the open-source initiative in the club.",
-      }
+      },
     ],
   },
 ];
+
+export async function getAlumni(): Promise<AlumniBatch[]> {
+  const API_URL =
+    process.env.BACKEND_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://localhost:4000";
+  try {
+    const res = await fetch(`${API_URL}/api/users/profile/active`, {
+      next: { revalidate: 60 },
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const backendMembers: any[] = data.data || data.members || [];
+
+      // Filter only alumni
+      const alumniMembers = backendMembers.filter(
+        (m: any) => m.clubRole === "alumni" || m.role === "alumni"
+      );
+
+      if (alumniMembers.length > 0) {
+        // Map to AlumniMember shape
+        const mapped: AlumniMember[] = alumniMembers.map((m: any) => ({
+          id: m._id || m.id,
+          name: m.fullName,
+          role:
+            m.designation ||
+            m.customRole ||
+            (m.role === "alumni" ? "Alumni" : "Club Alumni"),
+          batch: m.batch || "",
+          session: formatDeptSession(m.department, m.session, m.batch) || "",
+          department: m.department || "",
+          image: m.imageUrl || "",
+          imagePosition: m.imagePosition || "50% 50%",
+          bio: m.bio || "",
+          socials: {
+            linkedin: m.socialLinks?.linkedin || undefined,
+            github: m.socialLinks?.github || undefined,
+            facebook: m.socialLinks?.facebook || undefined,
+            codeforces: m.socialLinks?.codeforces || undefined,
+            email: m.email || undefined,
+          },
+        }));
+
+        // Group by batch using robust batch utility
+        const grouped = groupPeopleByBatch(mapped);
+        return grouped.map((g) => ({
+          batchNumber: g.batchNumber,
+          year: g.year || "",
+          members: g.members.sort((a, b) => a.name.localeCompare(b.name)),
+        }));
+      }
+    }
+  } catch (err) {
+    console.warn("Could not fetch alumni from backend, using static fallback:", err);
+  }
+
+  return alumniBatches;
+}

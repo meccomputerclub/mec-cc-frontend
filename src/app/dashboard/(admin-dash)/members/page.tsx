@@ -18,7 +18,10 @@ import {
   Shield,
   GraduationCap,
   Sparkles,
+  Trash2,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import toast from "react-hot-toast";
 import { AdminAddMemberModal } from "@/components/dashboard/legacy/AdminAddMemberModal";
 import FilterSelect, { FilterOption } from "@/app/dashboard/components/FilterSelect";
 
@@ -71,6 +74,28 @@ export default function MemberManagementPage() {
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
   const [rowLoading, setRowLoading] = useState<Record<string, boolean>>({});
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  const { user: currentUser } = useAuth();
+  const [userToDelete, setUserToDelete] = useState<MembersData | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteUser = async () => {
+    if (!userToDelete?._id) return;
+    setIsDeleting(true);
+    try {
+      const res = await axios.delete(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/users/admin/${userToDelete._id}`,
+        { withCredentials: true }
+      );
+      toast.success(res.data?.message || "Member permanently deleted.");
+      setUserToDelete(null);
+      fetchMembers();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || err.message || "Failed to delete member.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Debounce search query
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -349,7 +374,7 @@ export default function MemberManagementPage() {
             <table className="min-w-full divide-y divide-border-default">
               <thead className="bg-surface-secondary">
                 <tr>
-                  {["Image", "Name & ID", "Email", "Club Role", "Status", "Activity", "Actions"].map(
+                  {["Image", "Name & ID", "Email", "Club Role", "Status", "Actions"].map(
                     (h) => (
                       <th
                         key={h}
@@ -389,15 +414,14 @@ export default function MemberManagementPage() {
                         applicationStatus={u.applicationStatus}
                       />
                     </td>
-                    <td className="px-5 py-3.5 text-xs text-text-secondary whitespace-nowrap font-semibold">
-                      {u.activityCounts || 0}
-                    </td>
                     <td className="px-5 py-3.5 whitespace-nowrap">
                       <ActionCell
                         user={u}
                         rowLoading={rowLoading}
                         rowErrors={rowErrors}
                         onStatusChange={handleStatusChange}
+                        isAdmin={currentUser?.role === "admin"}
+                        onDeleteClick={(target) => setUserToDelete(target)}
                       />
                     </td>
                   </tr>
@@ -431,15 +455,14 @@ export default function MemberManagementPage() {
                     status={u.profileStatus}
                     applicationStatus={u.applicationStatus}
                   />
-                  <span className="text-xs font-semibold text-text-secondary">
-                    {u.activityCounts || 0} activities
-                  </span>
                 </div>
                 <ActionCell
                   user={u}
                   rowLoading={rowLoading}
                   rowErrors={rowErrors}
                   onStatusChange={handleStatusChange}
+                  isAdmin={currentUser?.role === "admin"}
+                  onDeleteClick={(target) => setUserToDelete(target)}
                 />
               </div>
             ))}
@@ -527,6 +550,47 @@ export default function MemberManagementPage() {
           </div>
         </>
       )}
+
+      {/* ── Delete Confirmation Modal ── */}
+      {userToDelete && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="bg-surface-elevated border-2 border-border-brutalist dark:border-border-default rounded-xl shadow-[8px_8px_0px_var(--border-brutalist)] dark:shadow-[8px_8px_0px_#ef4444] max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center gap-3 text-red-600">
+              <div className="w-10 h-10 rounded-lg bg-red-100 dark:bg-red-950/50 border border-red-300 dark:border-red-800 flex items-center justify-center shrink-0">
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-text-primary">Delete Member Permanently?</h3>
+                <p className="text-xs text-text-secondary">This operation cannot be reversed.</p>
+              </div>
+            </div>
+
+            <p className="text-xs sm:text-sm text-text-secondary leading-relaxed">
+              Are you sure you want to permanently delete <strong className="text-text-primary font-bold">{userToDelete.fullName}</strong> ({userToDelete.email})? All profile data and club records for this user will be removed immediately.
+            </p>
+
+            <div className="flex justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setUserToDelete(null)}
+                className="py-1.5 px-4 rounded-md border border-border-default bg-surface-secondary text-text-primary text-xs font-bold hover:bg-surface-primary transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleDeleteUser}
+                className="py-1.5 px-4 rounded-md border-2 border-border-brutalist bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-[2px_2px_0px_#000] transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                {isDeleting ? "Deleting..." : "Confirm & Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -608,11 +672,15 @@ function ActionCell({
   rowLoading,
   rowErrors,
   onStatusChange,
+  isAdmin,
+  onDeleteClick,
 }: {
   user: MembersData;
   rowLoading: Record<string, boolean>;
   rowErrors: Record<string, string>;
   onStatusChange: (id: string, status: "approved" | "rejected") => void;
+  isAdmin?: boolean;
+  onDeleteClick?: (user: MembersData) => void;
 }) {
   const isLoading = rowLoading[user._id];
   return (
@@ -622,25 +690,47 @@ function ActionCell({
           <button
             disabled={isLoading}
             onClick={() => onStatusChange(user._id, "approved")}
-            className="text-xs px-3 py-1 rounded-lg bg-accent-success text-surface-elevated font-semibold transition disabled:opacity-50 hover:opacity-90 shadow-[1px_1px_0px_0px_var(--border-default)]"
+            className="text-xs px-3 py-1 rounded-lg bg-accent-success text-surface-elevated font-semibold transition disabled:opacity-50 hover:opacity-90 shadow-[1px_1px_0px_0px_var(--border-default)] cursor-pointer"
           >
             {isLoading ? "…" : "Approve"}
           </button>
           <button
             disabled={isLoading}
             onClick={() => onStatusChange(user._id, "rejected")}
-            className="text-xs px-3 py-1 rounded-lg bg-accent-error text-surface-elevated font-semibold transition disabled:opacity-50 hover:opacity-90 shadow-[1px_1px_0px_0px_var(--border-default)]"
+            className="text-xs px-3 py-1 rounded-lg bg-accent-error text-surface-elevated font-semibold transition disabled:opacity-50 hover:opacity-90 shadow-[1px_1px_0px_0px_var(--border-default)] cursor-pointer"
           >
             {isLoading ? "…" : "Reject"}
           </button>
+          {isAdmin && onDeleteClick && (
+            <button
+              type="button"
+              onClick={() => onDeleteClick(user)}
+              className="p-1 rounded text-text-tertiary hover:text-red-600 hover:bg-red-500/10 transition cursor-pointer"
+              title="Permanently delete member"
+            >
+              <Trash2 size={13} />
+            </button>
+          )}
         </div>
       ) : (
-        <Link
-          href={`/dashboard/members/${user._id}`}
-          className="text-xs font-semibold text-text-primary underline hover:text-accent-primary transition"
-        >
-          View Profile
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/dashboard/members/${user._id}`}
+            className="text-xs font-semibold text-text-primary underline hover:text-accent-primary transition"
+          >
+            View Profile
+          </Link>
+          {isAdmin && onDeleteClick && (
+            <button
+              type="button"
+              onClick={() => onDeleteClick(user)}
+              className="p-1 rounded text-text-tertiary hover:text-red-600 hover:bg-red-500/10 transition cursor-pointer"
+              title="Permanently delete member"
+            >
+              <Trash2 size={13} />
+            </button>
+          )}
+        </div>
       )}
       {rowErrors[user._id] && (
         <p className="mt-1 text-xs text-accent-error font-semibold">{rowErrors[user._id]}</p>

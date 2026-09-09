@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" width="1200" height="320">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="50%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#090d16" />
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="320" fill="url(#bg)" />
+
+  <!-- Code Editor Window Preview -->
+  <g transform="translate(60, 45)" opacity="0.85">
+    <rect width="680" height="230" rx="8" fill="#0b1120" stroke="#334155" stroke-width="1.5" />
+    <circle cx="20" cy="18" r="5" fill="#ef4444" />
+    <circle cx="36" cy="18" r="5" fill="#eab308" />
+    <circle cx="52" cy="18" r="5" fill="#22c55e" />
+    <line x1="0" y1="36" x2="680" y2="36" stroke="#1e293b" stroke-width="1" />
+
+    <text x="24" y="68" fill="#38bdf8" font-family="monospace" font-size="13" font-weight="bold">const</text>
+    <text x="75" y="68" fill="#f1f5f9" font-family="monospace" font-size="13">mecDeveloper =</text>
+    <text x="200" y="68" fill="#facc15" font-family="monospace" font-size="13">await</text>
+    <text x="250" y="68" fill="#a78bfa" font-family="monospace" font-size="13">Club.getProfile(id);</text>
+
+    <text x="24" y="96" fill="#38bdf8" font-family="monospace" font-size="13" font-weight="bold">interface</text>
+    <text x="110" y="96" fill="#4ade80" font-family="monospace" font-size="13">ClubMember</text>
+    <text x="205" y="96" fill="#94a3b8" font-family="monospace" font-size="13">{ studentId, department, role, verified };</text>
+
+    <text x="24" y="124" fill="#64748b" font-family="monospace" font-size="12">// MEC Computer Club • Elevating Excellence in Computing</text>
+    <text x="24" y="152" fill="#22c55e" font-family="monospace" font-size="13">console.log(&quot;🚀 Keep Building, Keep Innovating!&quot;);</text>
+  </g>
+
+  <!-- Side Metrics Graphic -->
+  <g transform="translate(860, 60)" opacity="0.8">
+    <rect width="280" height="200" rx="8" fill="#0b1120" stroke="#334155" stroke-width="1.5" />
+    <text x="20" y="40" fill="#94a3b8" font-family="monospace" font-size="11" letter-spacing="2">SYSTEM STATUS</text>
+    <text x="20" y="75" fill="#38bdf8" font-family="monospace" font-size="22" font-weight="bold">OPTIMIZED</text>
+    <line x1="20" y1="95" x2="260" y2="95" stroke="#1e293b" stroke-width="1" />
+    <text x="20" y="125" fill="#22c55e" font-family="monospace" font-size="12">✓ 100% LATENCY ONLINE</text>
+    <text x="20" y="150" fill="#facc15" font-family="monospace" font-size="12">✓ SEC CSE ENGINE 2026</text>
+  </g>
+</svg>

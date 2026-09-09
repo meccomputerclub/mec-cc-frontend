@@ -1,13 +1,15 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Badge } from "./Badge";
+import { Eye, Heart } from "lucide-react";
+import { getOptimizedImageUrl } from "@/data/gallery";
 
 /* ===== Event Card ===== */
 interface EventCardProps {
   title: string;
   description: string;
   date: string;
-  time: string;
+  time?: string;
   location: string;
   type: string;
   status: "upcoming" | "ongoing" | "past";
@@ -28,16 +30,41 @@ export function EventCard({
   slug,
   attendeeCount,
 }: EventCardProps) {
-  const eventDate = new Date(date);
-  const month = eventDate.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
-  const day = eventDate.getDate();
+  const eventDate = date ? new Date(date) : null;
+  const isValidDate = eventDate && !isNaN(eventDate.getTime());
+  const month = isValidDate ? eventDate.toLocaleDateString("en-US", { month: "short" }).toUpperCase() : "TBA";
+  const day = isValidDate ? eventDate.getDate() : "--";
+  const isUpcoming = status === "upcoming";
 
   return (
     <Link
       href={`/events/${slug}`}
-      className="flex flex-col w-full h-full min-h-[230px] bg-surface-elevated border border-border-brutalist dark:border-border-default rounded-xl overflow-hidden transition-all duration-200 hover:shadow-[6px_6px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5 no-underline text-inherit group"
+      className="flex flex-col w-full h-full min-h-[240px] bg-surface-elevated border border-border-brutalist dark:border-border-default rounded-xl overflow-hidden transition-all duration-200 hover:shadow-[6px_6px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5 no-underline text-inherit group"
       id={`event-${slug}`}
     >
+      {/* Top Header Bar with Level/Badge on Top Left */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border-default/60 bg-surface-secondary/40">
+        <div className="inline-flex items-center gap-1.5">
+          <span
+            className={`w-2 h-2 rounded-full ${
+              isUpcoming ? "bg-emerald-500 animate-pulse" : "bg-text-tertiary"
+            }`}
+          />
+          <span
+            className={`font-mono [font-feature-settings:'liga'_0,'calt'_0] text-[0.7rem] font-extrabold tracking-wider uppercase ${
+              isUpcoming
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-text-tertiary"
+            }`}
+          >
+            {isUpcoming ? "UPCOMING" : "PAST EVENT"}
+          </span>
+        </div>
+        <div className="font-mono [font-feature-settings:'liga'_0,'calt'_0] text-[0.65rem] font-bold text-text-secondary bg-surface-secondary py-0.5 px-2 border border-border-brutalist dark:border-border-default rounded">
+          {type ? type.toUpperCase() : "EVENT"}
+        </div>
+      </div>
+
       <div className="flex flex-row items-stretch flex-1">
         <div className="flex flex-col items-center py-4 px-3 min-w-[64px] text-text-primary group-hover:text-accent-primary-hover transition-colors">
           <span className="font-bold text-xs tracking-wider leading-tight">{month}</span>
@@ -47,16 +74,9 @@ export function EventCard({
         <div className="w-[1px] bg-text-primary/15 dark:bg-border-default my-3" />
         
         <div className="flex flex-col p-4 flex-1 gap-2">
-          <div className="flex items-start justify-between mb-1">
-            <div className="font-mono [font-feature-settings:'liga'_0,'calt'_0] text-xs font-bold text-text-primary bg-surface-secondary py-0.5 px-2 border border-border-brutalist dark:border-border-default rounded inline-flex items-center gap-1">
-              <span className="opacity-70">TYPE:</span> {type.toUpperCase()}
-            </div>
-            <Badge variant={status === "upcoming" ? "upcoming" : "past"}>
-              {status}
-            </Badge>
-          </div>
-          
-          <h3 className="font-bold text-xl leading-snug line-clamp-2 overflow-hidden text-text-primary group-hover:text-accent-primary-hover transition-colors min-h-[2.8em] mt-1">{title}</h3>
+          <h3 className="font-bold text-xl leading-snug line-clamp-2 overflow-hidden text-text-primary group-hover:text-accent-primary-hover transition-colors min-h-[2.8em]">
+            {title}
+          </h3>
           
           <div className="flex items-center gap-1 font-mono [font-feature-settings:'liga'_0,'calt'_0] text-xs text-text-tertiary uppercase tracking-wide my-1">
             <span className="inline-flex items-center justify-center opacity-60">
@@ -71,9 +91,11 @@ export function EventCard({
             <div className="font-mono [font-feature-settings:'liga'_0,'calt'_0] text-xs font-bold uppercase text-text-secondary">
               DETAILS →
             </div>
-            <div className="font-mono [font-feature-settings:'liga'_0,'calt'_0] text-xs text-text-primary font-bold">
-              {time} {attendeeCount ? `· ${attendeeCount} ATTENDING` : ""}
-            </div>
+            {attendeeCount ? (
+              <div className="font-mono [font-feature-settings:'liga'_0,'calt'_0] text-xs text-text-primary font-bold">
+                {attendeeCount} ATTENDING
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
@@ -81,20 +103,26 @@ export function EventCard({
   );
 }
 
-/* ===== Project Card ===== */
 interface ProjectCardProps {
+  id?: string;
   title: string;
   description: string;
-  department: string;
-  techStack: string[];
-  team: string[];
-  status: "in-progress" | "completed" | "archived";
+  department?: string;
+  techStack?: string[];
+  team?: string[];
+  status?: "in-progress" | "completed" | "archived";
   slug: string;
-  image: string;
+  image?: string;
   liveUrl?: string;
+  featured?: boolean;
+  onToggleFeatured?: (e: React.MouseEvent) => void;
+  onDelete?: (e: React.MouseEvent) => void;
+  isAdmin?: boolean;
+  canManage?: boolean;
 }
 
 export function ProjectCard({
+  id,
   title,
   description,
   department = "webdev",
@@ -103,6 +131,11 @@ export function ProjectCard({
   status = "in-progress",
   slug,
   liveUrl,
+  featured,
+  onToggleFeatured,
+  onDelete,
+  isAdmin,
+  canManage,
 }: ProjectCardProps) {
   const safeTeam = Array.isArray(team) ? team : [];
   const safeTechStack = Array.isArray(techStack) ? techStack : [];
@@ -112,17 +145,29 @@ export function ProjectCard({
   return (
     <Link
       href={`/projects/${slug}`}
-      className="flex flex-col w-full h-full min-h-[230px] bg-surface-elevated border border-border-brutalist dark:border-border-default rounded-xl overflow-hidden transition-all duration-200 hover:shadow-[6px_6px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5 no-underline text-inherit group"
+      className="flex flex-col w-full h-full min-h-[230px] bg-surface-elevated border border-border-brutalist dark:border-border-default rounded-xl overflow-hidden transition-all duration-200 hover:shadow-[6px_6px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5 no-underline text-inherit group relative"
       id={`project-${slug}`}
     >
       <div className="p-4 flex flex-col gap-2 flex-1 h-full">
-        <div className="flex items-start justify-between mb-1">
-          <div className="font-mono [font-feature-settings:'liga'_0,'calt'_0] text-xs font-bold text-text-primary bg-surface-secondary py-0.5 px-2 border border-border-brutalist dark:border-border-default rounded inline-flex items-center gap-1">
-            <span className="opacity-70">DEPT:</span> {formatDeptShort(department)}
+        <div className="flex items-start justify-between mb-1 gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="font-mono [font-feature-settings:'liga'_0,'calt'_0] text-xs font-bold text-text-primary bg-surface-secondary py-0.5 px-2 border border-border-brutalist dark:border-border-default rounded inline-flex items-center gap-1">
+              <span className="opacity-70">DEPT:</span> {formatDeptShort(department)}
+            </div>
+            {featured && (
+              <span
+                className="font-mono text-[11px] font-extrabold uppercase px-2 py-0.5 rounded border border-amber-500/40 bg-amber-500/15 text-amber-600 dark:text-amber-400 inline-flex items-center gap-1 shadow-sm"
+                title="Highlighted on Home Page"
+              >
+                ★ Featured
+              </span>
+            )}
           </div>
-          <Badge variant={status === "completed" ? "completed" : "pending"}>
-            {status === "in-progress" ? "In Progress" : status}
-          </Badge>
+          <div className="flex items-center gap-1.5 ml-auto">
+            <Badge variant={status === "completed" ? "completed" : "pending"}>
+              {status === "in-progress" ? "In Progress" : status}
+            </Badge>
+          </div>
         </div>
         
         <h3 className="font-bold text-xl leading-snug line-clamp-2 overflow-hidden text-text-primary group-hover:text-accent-primary-hover transition-colors mt-1">{title}</h3>
@@ -143,6 +188,51 @@ export function ProjectCard({
             </span>
           )}
         </div>
+
+        {/* Admin / Creator Action Bar if provided */}
+        {(isAdmin || canManage) && (onToggleFeatured || onDelete) && (
+          <div
+            className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-dashed border-border-default"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+          >
+            {isAdmin && onToggleFeatured ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onToggleFeatured(e);
+                }}
+                className={`text-xs font-mono font-bold px-2.5 py-1 rounded border transition-all inline-flex items-center gap-1 ${
+                  featured
+                    ? "bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/60 hover:bg-amber-500/30"
+                    : "bg-surface-secondary text-text-secondary border-border-default hover:border-accent-primary hover:text-text-primary"
+                }`}
+                title={featured ? "Remove from Home Highlights" : "Highlight on Home Page"}
+              >
+                {featured ? "★ Highlighted (Remove)" : "☆ Feature on Home"}
+              </button>
+            ) : <div />}
+
+            {(canManage || isAdmin) && onDelete && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onDelete(e);
+                }}
+                className="text-xs font-mono text-red-600 dark:text-red-400 hover:bg-red-500/10 px-2 py-1 rounded border border-transparent hover:border-red-500/30 transition-all ml-auto"
+                title="Delete Project"
+              >
+                Delete
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="flex items-center justify-between mt-auto pt-3 border-t border-text-primary/15 dark:border-border-default bg-surface-primary dark:bg-transparent">
           <div className="font-mono [font-feature-settings:'liga'_0,'calt'_0] text-xs font-bold uppercase text-text-secondary">
@@ -186,6 +276,10 @@ interface BlogCardProps {
   readTime: number;
   tags: string[];
   slug: string;
+  image?: string;
+  coverImagePosition?: string;
+  views?: number;
+  likesCount?: number;
 }
 
 export function BlogCard({
@@ -197,6 +291,10 @@ export function BlogCard({
   readTime,
   tags,
   slug,
+  image,
+  coverImagePosition,
+  views,
+  likesCount,
 }: BlogCardProps) {
   const formattedDate = new Date(date).toLocaleDateString("en-US", {
     month: "short",
@@ -210,12 +308,37 @@ export function BlogCard({
       className="flex flex-col w-full h-full min-h-[230px] bg-surface-elevated border border-border-brutalist dark:border-border-default rounded-xl overflow-hidden transition-all duration-200 hover:shadow-[6px_6px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5 no-underline text-inherit group"
       id={`blog-${slug}`}
     >
+      {image && (
+        <div className="w-full h-44 relative overflow-hidden bg-surface-secondary border-b border-border-default">
+          <Image
+            src={getOptimizedImageUrl(image, 700)}
+            alt={title}
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            className="object-cover group-hover:scale-105 transition-transform duration-300"
+            style={{ objectPosition: coverImagePosition || "50% 50%" }}
+          />
+        </div>
+      )}
+
       <div className="p-4 flex flex-col gap-2 flex-1 h-full">
-        <div className="flex items-start justify-between mb-1">
+        <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
           <div className="font-mono [font-feature-settings:'liga'_0,'calt'_0] text-xs font-bold text-text-primary bg-surface-secondary py-0.5 px-2 border border-border-brutalist dark:border-border-default rounded inline-flex items-center gap-1">
             <span className="opacity-70">READ:</span> {readTime} MIN
           </div>
-          <time className="font-mono [font-feature-settings:'liga'_0,'calt'_0] text-xs text-text-tertiary font-bold">{formattedDate}</time>
+          <div className="flex items-center gap-2 font-mono text-xs text-text-tertiary">
+            {views !== undefined && (
+              <span className="flex items-center gap-1 font-semibold" title={`${views} views`}>
+                <Eye size={12} /> {views}
+              </span>
+            )}
+            {likesCount !== undefined && (
+              <span className="flex items-center gap-1 font-semibold" title={`${likesCount} likes`}>
+                <Heart size={12} className={likesCount > 0 ? "fill-red-500/80 text-red-500" : ""} /> {likesCount}
+              </span>
+            )}
+            <time className="font-bold">{formattedDate}</time>
+          </div>
         </div>
         
         <h3 className="font-bold text-xl leading-snug line-clamp-2 overflow-hidden text-text-primary group-hover:text-accent-primary-hover transition-colors mt-1">{title}</h3>

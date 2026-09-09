@@ -2,9 +2,29 @@ import type { Metadata } from "next";
 import { ProfileCard, ProfileGrid } from "@/components/ui/ProfileCard";
 import { getAdvisors } from "@/data/advisors";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export const metadata: Metadata = {
-  title: "Advisor Panel | sudoers",
-  description: "The guiding forces behind MEC Computer Club.",
+  title: "Advisory Board & Faculty Mentors | MEC Computer Club",
+  description:
+    "Meet the honorable faculty advisors, academic mentors, and senior guides of the MEC Computer Club at Murari Chand College, Sylhet.",
+  keywords: [
+    "MEC Computer Club advisors",
+    "Murari Chand College faculty advisors",
+    "MEC computer club mentors",
+    "MEC CSE faculty",
+  ],
+  alternates: {
+    canonical: "https://meccomputerclub.org/advisors",
+  },
+  openGraph: {
+    title: "Advisory Board & Faculty Mentors | MEC Computer Club",
+    description:
+      "Honorable faculty advisors guiding student technology initiatives at Murari Chand College (MEC), Sylhet.",
+    url: "https://meccomputerclub.org/advisors",
+    images: ["/mec-club-photo.jpg"],
+  },
 };
 
 export default async function AdvisorsPage() {
@@ -34,8 +54,12 @@ export default async function AdvisorsPage() {
                 name={advisor.name}
                 role={advisor.role}
                 department={advisor.department}
-                session={advisor.academicPost || (advisor.department ? `Dept. of ${advisor.department}` : "Faculty")}
+                session={
+                  advisor.academicPost ||
+                  (advisor.department ? `Dept. of ${advisor.department}` : "Faculty")
+                }
                 image={advisor.image}
+                imagePosition={advisor.imagePosition}
                 sublabel="FACULTY"
                 category="advisor"
                 socials={advisor.socials}

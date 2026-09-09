@@ -16,6 +16,8 @@ import {
   KeyRound,
   Send,
   RefreshCw,
+  X,
+  AlertTriangle,
 } from "lucide-react";
 import CustomInput from "@/components/ui/shared/CustomInput";
 import { Select } from "@/components/ui/Select";
@@ -50,6 +52,11 @@ const InvitationCodeContent = () => {
   const [filterTab, setFilterTab] = useState<"all" | "available" | "permanent" | "single_use" | "discontinued">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+
+  // In-app Delete Confirmation Modal
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [codeToDelete, setCodeToDelete] = useState<{ id: string; code: string; label?: string; usageCount?: number } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchCodes = useCallback(async () => {
     setFetchingList(true);
@@ -126,20 +133,36 @@ const InvitationCodeContent = () => {
     }
   };
 
-  const handleDeleteCode = async (id: string, codeText: string) => {
-    if (!confirm(`Are you sure you want to permanently remove invitation code "${codeText}"?`)) {
-      return;
-    }
-    setActionLoadingId(id);
+  const openDeleteModal = (inv: any) => {
+    const targetId = inv._id || inv.id || inv.code;
+    setCodeToDelete({
+      id: targetId,
+      code: inv.code,
+      label: inv.label || inv.email,
+      usageCount: inv.usageCount || 0,
+    });
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!codeToDelete) return;
+    setDeleting(true);
+    setActionLoadingId(codeToDelete.id);
     try {
-      const res = await api.delete(`/api/invite/${id}`);
-      if (res.success) {
-        toast.success(`Invitation code "${codeText}" removed.`);
+      const res = await api.delete(`/api/invite/${encodeURIComponent(codeToDelete.id)}`);
+      if (res && (res.success || res.status === 200)) {
+        toast.success(`Invitation code "${codeToDelete.code}" deleted successfully.`);
+        setDeleteModalOpen(false);
+        setCodeToDelete(null);
         fetchCodes();
+      } else {
+        toast.error(res?.message || "Failed to delete invitation code");
       }
     } catch (err: any) {
-      toast.error(err?.message || "Failed to delete code");
+      const msg = err instanceof ApiError ? err.message : err?.message || "Failed to delete invitation code.";
+      toast.error(msg);
     } finally {
+      setDeleting(false);
       setActionLoadingId(null);
     }
   };
@@ -413,7 +436,9 @@ const InvitationCodeContent = () => {
                 <th className="p-3">Registrations</th>
                 <th className="p-3">Status</th>
                 <th className="p-3">Expires</th>
-                <th className="p-3 text-right">Actions</th>
+                <th className="p-3 text-right sticky right-0 bg-surface-secondary z-10 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.08)] whitespace-nowrap">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-default">
@@ -425,7 +450,7 @@ const InvitationCodeContent = () => {
                   const isConsumed = inv.status === "consumed" || inv.effectiveStatus === "consumed";
 
                   return (
-                    <tr key={inv._id || inv.code} className="hover:bg-accent-primary-light transition-colors">
+                    <tr key={inv._id || inv.code} className="hover:bg-accent-primary-light transition-colors group">
                       <td className="p-3">
                         <div className="flex items-center gap-1.5">
                           <code className="font-mono font-semibold text-text-primary text-sm tracking-wide">
@@ -496,7 +521,7 @@ const InvitationCodeContent = () => {
                         {isPermanent ? "Never" : inv.expiresAt ? new Date(inv.expiresAt).toLocaleDateString() : "30 days"}
                       </td>
 
-                      <td className="p-3 text-right">
+                      <td className="p-3 text-right sticky right-0 bg-surface-elevated group-hover:bg-accent-primary-light z-10 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.08)] transition-colors whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
                           {/* Copy URL */}
                           <button
@@ -518,7 +543,7 @@ const InvitationCodeContent = () => {
                           {isAvail ? (
                             <button
                               type="button"
-                              disabled={actionLoadingId === inv._id}
+                              disabled={actionLoadingId === (inv._id || inv.code)}
                               onClick={() => handleToggleStatus(inv._id, inv.status)}
                               className="px-2 py-1 text-xs font-semibold rounded border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 transition"
                               title="Discontinue / Pause Code"
@@ -528,7 +553,7 @@ const InvitationCodeContent = () => {
                           ) : (
                             <button
                               type="button"
-                              disabled={actionLoadingId === inv._id}
+                              disabled={actionLoadingId === (inv._id || inv.code)}
                               onClick={() => handleToggleStatus(inv._id, inv.status)}
                               className="px-2 py-1 text-xs font-semibold rounded border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 transition"
                               title="Make Code Available"
@@ -537,15 +562,16 @@ const InvitationCodeContent = () => {
                             </button>
                           )}
 
-                          {/* Delete */}
+                          {/* Delete Button */}
                           <button
                             type="button"
-                            disabled={actionLoadingId === inv._id}
-                            onClick={() => handleDeleteCode(inv._id, inv.code)}
-                            className="p-1 text-xs text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded border border-rose-200 dark:border-rose-900 transition"
-                            title="Remove Code Permanently"
+                            disabled={actionLoadingId === (inv._id || inv.code)}
+                            onClick={() => openDeleteModal(inv)}
+                            className="px-2.5 py-1 text-xs font-bold rounded border border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800 transition flex items-center gap-1 shadow-sm"
+                            title="Delete Invitation Code Permanently"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                            <span>Delete</span>
                           </button>
                         </div>
                       </td>
@@ -563,6 +589,91 @@ const InvitationCodeContent = () => {
           </table>
         </div>
       </div>
+
+      {/* ── 3. In-App Delete Confirmation Modal ── */}
+      {deleteModalOpen && codeToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div
+            className="bg-surface-primary border-2 border-text-primary dark:border-border-default rounded-xl shadow-[6px_6px_0px_0px_var(--border-default)] p-6 max-w-md w-full space-y-4 relative"
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-900/40 border border-rose-300 dark:border-rose-800 flex items-center justify-center text-rose-600 dark:text-rose-400 flex-shrink-0">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-text-primary">Delete Invitation Code</h3>
+                  <p className="text-xs text-text-secondary">This action is permanent and cannot be undone.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !deleting && setDeleteModalOpen(false)}
+                className="text-text-tertiary hover:text-text-primary p-1 rounded-md transition"
+                disabled={deleting}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3.5 bg-surface-secondary border border-border-default rounded-lg space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Code Key:</span>
+                <code className="px-2.5 py-1 font-mono font-bold text-sm bg-surface-primary border border-border-default rounded text-accent-primary">
+                  {codeToDelete.code}
+                </code>
+              </div>
+              {codeToDelete.label && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-text-secondary">Assigned To:</span>
+                  <span className="font-semibold text-text-primary truncate max-w-[200px]">{codeToDelete.label}</span>
+                </div>
+              )}
+              {typeof codeToDelete.usageCount === "number" && codeToDelete.usageCount > 0 && (
+                <div className="flex items-center justify-between text-xs text-amber-700 dark:text-amber-300 font-semibold pt-1 border-t border-border-default/50">
+                  <span>Past Registrations:</span>
+                  <span>{codeToDelete.usageCount} user(s) registered</span>
+                </div>
+              )}
+            </div>
+
+            <p className="text-xs text-text-secondary leading-relaxed">
+              Deleting will permanently purge this code from the database. Any guest attempting to register with this key will immediately be denied access.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-border-default">
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => setDeleteModalOpen(false)}
+                className="px-4 py-2 text-xs font-bold rounded-lg border border-border-default bg-surface-secondary text-text-primary hover:bg-surface-elevated transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 text-xs font-bold rounded-lg bg-rose-600 hover:bg-rose-700 text-white transition flex items-center gap-1.5 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] disabled:opacity-50"
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete Permanently
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

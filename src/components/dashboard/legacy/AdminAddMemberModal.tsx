@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
@@ -17,6 +17,15 @@ import {
   Shield,
   Briefcase,
   CheckCircle2,
+  Check,
+  Lock,
+  Phone,
+  Mail,
+  Award,
+  Globe,
+  Code2,
+  FileText,
+  KeyRound,
 } from "lucide-react";
 
 interface AdminAddMemberModalProps {
@@ -25,8 +34,77 @@ interface AdminAddMemberModalProps {
   onSuccess: () => void;
 }
 
+const DEPARTMENT_OPTIONS = [
+  { value: "CSE", label: "Computer Science & Engineering (CSE)" },
+  { value: "EEE", label: "Electrical & Electronic Engineering (EEE)" },
+  { value: "CE", label: "Civil Engineering (CE)" },
+];
+
+const ADVISOR_DEPT_OPTIONS = [
+  { value: "CSE", label: "Computer Science & Engineering (CSE)" },
+  { value: "EEE", label: "Electrical & Electronic Engineering (EEE)" },
+  { value: "CE", label: "Civil Engineering (CE)" },
+  { value: "Administration", label: "College Administration" },
+  { value: "Basic Science", label: "Basic Science & Humanities" },
+];
+
+function ordinal(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function getBatchOptions(dept: string, config: Record<string, number>, count = 10) {
+  if (!dept) return [];
+  const d = dept.toUpperCase();
+  const juniorBatch = config[d] || (d === "EEE" ? 14 : d === "CE" ? 8 : 6);
+  const oldest = Math.max(1, juniorBatch - count + 1);
+  const options = [];
+  for (let i = oldest; i <= juniorBatch; i++) {
+    const batchLabel = `${d}-${ordinal(i)}`;
+    options.push({ value: batchLabel, label: batchLabel });
+  }
+  return options;
+}
+
+const SESSION_OPTIONS = [
+  { value: "2019-2020", label: "2019-2020" },
+  { value: "2020-2021", label: "2020-2021" },
+  { value: "2021-2022", label: "2021-2022" },
+  { value: "2022-2023", label: "2022-2023" },
+  { value: "2023-2024", label: "2023-2024" },
+  { value: "2024-2025", label: "2024-2025" },
+];
+
+const PASSING_YEAR_OPTIONS = [
+  { value: "2022", label: "2022" },
+  { value: "2023", label: "2023" },
+  { value: "2024", label: "2024" },
+  { value: "2025", label: "2025" },
+  { value: "2026", label: "2026" },
+  { value: "2027", label: "2027" },
+];
+
+const ADVISOR_STANDING_OPTIONS = [
+  { value: "Chief Patron & Principal", label: "Chief Patron & Principal" },
+  { value: "Chief Advisor", label: "Chief Advisor" },
+  { value: "Faculty Advisor", label: "Faculty Advisor" },
+  { value: "Technical Advisor", label: "Technical Advisor" },
+  { value: "Research Mentor", label: "Research Mentor" },
+];
+
+const ADVISOR_HONORIFICS = [
+  { value: "None", label: "None" },
+  { value: "Dr.", label: "Dr." },
+  { value: "Prof.", label: "Prof." },
+  { value: "Prof. Dr.", label: "Prof. Dr." },
+  { value: "Engr.", label: "Engr." },
+  { value: "Mr.", label: "Mr." },
+  { value: "Ms.", label: "Ms." },
+];
+
 export function AdminAddMemberModal({ isOpen, onClose, onSuccess }: AdminAddMemberModalProps) {
-  const [targetType, setTargetType] = useState<"advisor" | "alumni" | "member">("advisor");
+  const [targetType, setTargetType] = useState<"advisor" | "alumni" | "member">("member");
   const [submitting, setSubmitting] = useState(false);
 
   // Common Fields
@@ -34,8 +112,18 @@ export function AdminAddMemberModal({ isOpen, onClose, onSuccess }: AdminAddMemb
   const [email, setEmail] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [department, setDepartment] = useState("CSE");
+  const [batch, setBatch] = useState("");
+  const [batchConfig, setBatchConfig] = useState<Record<string, number>>({ CSE: 6, EEE: 14, CE: 8 });
+  const [password, setPassword] = useState("mec12345");
   const [bio, setBio] = useState("");
   const [systemRole, setSystemRole] = useState<"member" | "moderator" | "admin">("member");
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/site-settings/public`)
+      .then((r) => r.json())
+      .then((d) => { if (d.success && d.data) setBatchConfig(d.data); })
+      .catch(() => {});
+  }, []);
 
   // Advisor Specific Fields
   const [honorific, setHonorific] = useState("None");
@@ -43,24 +131,27 @@ export function AdminAddMemberModal({ isOpen, onClose, onSuccess }: AdminAddMemb
   const [institutionalPost, setInstitutionalPost] = useState("Assistant Professor");
   const [facultyId, setFacultyId] = useState("");
 
-  // Alumni Specific Fields
-  const [alumniBatch, setAlumniBatch] = useState("1st Batch");
-  const [passingYear, setPassingYear] = useState("2023");
+  // Alumni Specific Fields (matching /register form fields)
+  const [passingYear, setPassingYear] = useState("2024");
   const [formerStudentId, setFormerStudentId] = useState("");
   const [currentCompany, setCurrentCompany] = useState("");
   const [currentJobTitle, setCurrentJobTitle] = useState("");
 
-  // Student / Member Specific Fields
+  // Student / Member Specific Fields (matching /register form fields)
   const [studentId, setStudentId] = useState("");
-  const [session, setSession] = useState("2022-2023");
-  const [batch, setBatch] = useState("6th Batch");
+  const [registrationNumber, setRegistrationNumber] = useState("");
+  const [session, setSession] = useState("2021-2022");
   const [memberCategory, setMemberCategory] = useState<"member" | "executive">("member");
   const [executiveDesignation, setExecutiveDesignation] = useState("Executive Member");
+  const [isGraduated, setIsGraduated] = useState(false);
 
-  // Social Links
+  // Social & Competitive Profiles (matching /register form fields)
+  const [facebook, setFacebook] = useState("");
   const [linkedin, setLinkedin] = useState("");
   const [github, setGithub] = useState("");
-  const [facebook, setFacebook] = useState("");
+  const [discord, setDiscord] = useState("");
+  const [codeforces, setCodeforces] = useState("");
+  const [codechef, setCodechef] = useState("");
 
   // Photo state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -82,6 +173,12 @@ export function AdminAddMemberModal({ isOpen, onClose, onSuccess }: AdminAddMemb
     setPreviewUrl(URL.createObjectURL(file));
   };
 
+  const handleRemovePhoto = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -95,21 +192,35 @@ export function AdminAddMemberModal({ isOpen, onClose, onSuccess }: AdminAddMemb
       return;
     }
 
+    if (targetType === "member" && !registrationNumber.trim()) {
+      toast.error("Registration Number is required for student members.");
+      return;
+    }
+
+    if ((targetType === "member" || targetType === "alumni") && !facebook.trim()) {
+      toast.error("Facebook profile is required (matches club registration standard).");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
       const hasHonorific = honorific && honorific !== "None" && honorific !== "";
       const payload: any = {
         fullName: targetType === "advisor" && hasHonorific ? `${honorific} ${fullName.trim()}` : fullName.trim(),
-        email: email.trim(),
+        email: email.trim().toLowerCase(),
         contactNumber: contactNumber.trim() || "N/A",
         department,
         bio: bio.trim(),
         role: systemRole,
+        password: password.trim() || "mec12345",
         socialLinks: {
+          facebook: facebook.trim(),
           linkedin: linkedin.trim(),
           github: github.trim(),
-          facebook: facebook.trim(),
+          discord: discord.trim(),
+          codeforces: codeforces.trim(),
+          codechef: codechef.trim(),
         },
       };
 
@@ -123,18 +234,23 @@ export function AdminAddMemberModal({ isOpen, onClose, onSuccess }: AdminAddMemb
       } else if (targetType === "alumni") {
         payload.clubRole = "alumni";
         payload.isGraduated = true;
-        payload.passingYear = parseInt(passingYear) || 2023;
-        payload.batch = alumniBatch;
-        payload.session = `${parseInt(passingYear) - 4}-${passingYear}`;
+        payload.passingYear = parseInt(passingYear) || 2024;
+        payload.session = session.trim();
+        payload.batch = batch.trim() || `${department}-Alumni`;
         payload.studentId = formerStudentId.trim() || `ALM-${Date.now().toString().slice(-6)}`;
         payload.designation = currentJobTitle ? `${currentJobTitle} at ${currentCompany || "Industry"}` : "Alumni";
         payload.customRole = payload.designation;
       } else {
         // General Member or Executive
-        payload.clubRole = memberCategory;
+        payload.clubRole = isGraduated ? "alumni" : memberCategory;
+        payload.isGraduated = isGraduated;
+        if (isGraduated) {
+          payload.passingYear = parseInt(passingYear) || new Date().getFullYear();
+        }
         payload.studentId = studentId.trim();
-        payload.session = session;
-        payload.batch = batch;
+        payload.registrationNumber = registrationNumber.trim();
+        payload.session = session.trim();
+        payload.batch = batch.trim() || `${department}-Batch`;
         payload.designation = memberCategory === "executive" ? executiveDesignation : "General Member";
         payload.customRole = payload.designation;
       }
@@ -149,12 +265,12 @@ export function AdminAddMemberModal({ isOpen, onClose, onSuccess }: AdminAddMemb
 
       if (res.success) {
         toast.success(
-          `${targetType === "advisor" ? "Advisor" : targetType === "alumni" ? "Alumni" : "Member"} registered & verified successfully!`
+          `${targetType === "advisor" ? "Advisor" : targetType === "alumni" ? "Alumni" : "Member"} registered & approved successfully!`
         );
         onSuccess();
         onClose();
       } else {
-        toast.error(res.message || "Failed to create member");
+        toast.error(res.message || "Failed to register profile");
       }
     } catch (err: any) {
       const msg = err instanceof ApiError ? err.message : err?.message || "Failed to create profile";
@@ -166,168 +282,196 @@ export function AdminAddMemberModal({ isOpen, onClose, onSuccess }: AdminAddMemb
 
   return (
     <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.75)",
-        backdropFilter: "blur(4px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-        padding: "var(--space-4)",
-      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150"
       onClick={onClose}
     >
       <div
-        style={{
-          backgroundColor: "var(--surface-elevated)",
-          border: "2px solid var(--border-brutalist)",
-          borderRadius: "var(--radius-lg)",
-          boxShadow: "8px 8px 0px var(--border-brutalist)",
-          maxWidth: "680px",
-          width: "100%",
-          maxHeight: "90vh",
-          overflowY: "auto",
-          padding: "var(--space-6)",
-          position: "relative",
-          fontFamily: "var(--font-body)",
-        }}
+        className="bg-surface-elevated border-2 border-text-primary dark:border-border-default rounded-2xl shadow-[8px_8px_0px_0px_var(--text-primary)] dark:shadow-[8px_8px_0px_0px_var(--border-default)] max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 relative font-sans"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "var(--space-5)" }}>
+        {/* Scoped CSS Styles */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          .adm-tab-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 20px;
+            background: var(--surface-secondary);
+            padding: 6px;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-default);
+          }
+          .adm-tab-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 12px;
+            border-radius: var(--radius-md);
+            border: 1.5px solid transparent;
+            background: transparent;
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 150ms ease;
+            user-select: none;
+          }
+          .adm-tab-btn:hover {
+            background: var(--surface-primary);
+            color: var(--text-primary);
+          }
+          .adm-tab-btn--active {
+            background-color: var(--accent-primary-light) !important;
+            color: var(--text-primary) !important;
+            font-weight: 700 !important;
+            border-color: var(--text-primary) !important;
+            box-shadow: 2px 2px 0px 0px var(--text-primary) !important;
+          }
+          .dark .adm-tab-btn--active {
+            background-color: color-mix(in srgb, var(--accent-primary) 25%, var(--surface-primary)) !important;
+            color: #FFFFFF !important;
+            font-weight: 700 !important;
+            border-color: var(--border-default) !important;
+            box-shadow: 2px 2px 0px 0px var(--border-default) !important;
+          }
+          .adm-form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+          }
+          .adm-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+          }
+          .adm-required {
+            color: var(--accent-error);
+            font-weight: 700;
+          }
+          .adm-input,
+          .adm-textarea {
+            width: 100%;
+            padding: 9px 12px;
+            border: 1.5px solid var(--text-primary);
+            border-radius: var(--radius-md);
+            background: var(--surface-primary);
+            font-family: inherit;
+            font-size: 13px;
+            color: var(--text-primary);
+            box-shadow: 2px 2px 0px 0px var(--text-primary);
+            transition: all 150ms ease;
+            outline: none;
+          }
+          .dark .adm-input,
+          .dark .adm-textarea {
+            border-color: var(--border-default);
+            box-shadow: 2px 2px 0px 0px var(--border-default);
+          }
+          .adm-input:focus,
+          .adm-textarea:focus {
+            border-color: var(--accent-primary) !important;
+            box-shadow: 3px 3px 0px 0px var(--accent-primary) !important;
+            transform: translate(-1px, -1px);
+          }
+          .adm-section-card {
+            background: var(--surface-secondary);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+          }
+          .adm-section-title {
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            border-bottom: 1px solid var(--border-default);
+            padding-bottom: 8px;
+            margin-bottom: 2px;
+          }
+        ` }} />
+
+        {/* ── Modal Header ── */}
+        <div className="flex justify-between items-start mb-5 pb-3 border-b border-border-default">
           <div>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "var(--accent-primary)", fontSize: "11px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>
+            <div className="inline-flex items-center gap-1.5 text-accent-primary text-xs font-black uppercase tracking-wider mb-1">
               <UserPlus size={14} /> Admin Direct Entry
             </div>
-            <h2 style={{ fontFamily: "var(--font-heading)", fontSize: "22px", fontWeight: 800, margin: 0 }}>
+            <h2 className="text-2xl font-black text-text-primary tracking-tight">
               Direct Register &amp; Approve Profile
             </h2>
-            <p style={{ fontSize: "var(--text-xs)", color: "var(--text-secondary)", margin: "4px 0 0" }}>
-              Create an official profile immediately without requiring an invitation key or candidate verification gate.
+            <p className="text-xs text-text-secondary mt-1">
+              Instantly create a fully verified club profile without requiring an invitation key clearance.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            style={{
-              background: "none",
-              border: "1px solid var(--border-default)",
-              borderRadius: "var(--radius-sm)",
-              padding: "4px",
-              cursor: "pointer",
-              color: "var(--text-secondary)",
-            }}
+            className="p-1.5 rounded-lg border border-border-default hover:bg-surface-secondary text-text-secondary hover:text-text-primary transition"
+            title="Close dialog"
           >
             <X size={18} />
           </button>
         </div>
 
-        {/* ── Role Track Switcher ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", marginBottom: "var(--space-5)" }}>
+        {/* ── Role Track Switcher (Tabs) ── */}
+        <div className="adm-tab-grid">
           <button
             type="button"
-            onClick={() => setTargetType("advisor")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "6px",
-              padding: "10px 8px",
-              borderRadius: "var(--radius-md)",
-              border: targetType === "advisor" ? "2px solid var(--border-brutalist)" : "1px solid var(--border-default)",
-              background: targetType === "advisor" ? "var(--accent-primary-light)" : "var(--surface-secondary)",
-              color: targetType === "advisor" ? "var(--text-primary)" : "var(--text-secondary)",
-              fontFamily: "var(--font-body)",
-              fontWeight: 700,
-              fontSize: "13px",
-              cursor: "pointer",
-              boxShadow: targetType === "advisor" ? "2px 2px 0 var(--border-brutalist)" : "none",
-              transition: "all 0.15s ease",
-            }}
+            onClick={() => setTargetType("member")}
+            className={`adm-tab-btn ${targetType === "member" ? "adm-tab-btn--active" : ""}`}
           >
-            <GraduationCap size={15} /> Advisor Panel
+            <Users size={16} />
+            <span>Member / Exec</span>
+            {targetType === "member" && <Check size={14} className="ml-1 shrink-0" />}
           </button>
 
           <button
             type="button"
             onClick={() => setTargetType("alumni")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "6px",
-              padding: "10px 8px",
-              borderRadius: "var(--radius-md)",
-              border: targetType === "alumni" ? "2px solid var(--border-brutalist)" : "1px solid var(--border-default)",
-              background: targetType === "alumni" ? "var(--accent-primary-light)" : "var(--surface-secondary)",
-              color: targetType === "alumni" ? "var(--text-primary)" : "var(--text-secondary)",
-              fontFamily: "var(--font-body)",
-              fontWeight: 700,
-              fontSize: "13px",
-              cursor: "pointer",
-              boxShadow: targetType === "alumni" ? "2px 2px 0 var(--border-brutalist)" : "none",
-              transition: "all 0.15s ease",
-            }}
+            className={`adm-tab-btn ${targetType === "alumni" ? "adm-tab-btn--active" : ""}`}
           >
-            <Building2 size={15} /> Alumni Network
+            <Building2 size={16} />
+            <span>Alumni Network</span>
+            {targetType === "alumni" && <Check size={14} className="ml-1 shrink-0" />}
           </button>
 
           <button
             type="button"
-            onClick={() => setTargetType("member")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "6px",
-              padding: "10px 8px",
-              borderRadius: "var(--radius-md)",
-              border: targetType === "member" ? "2px solid var(--border-brutalist)" : "1px solid var(--border-default)",
-              background: targetType === "member" ? "var(--accent-primary-light)" : "var(--surface-secondary)",
-              color: targetType === "member" ? "var(--text-primary)" : "var(--text-secondary)",
-              fontFamily: "var(--font-body)",
-              fontWeight: 700,
-              fontSize: "13px",
-              cursor: "pointer",
-              boxShadow: targetType === "member" ? "2px 2px 0 var(--border-brutalist)" : "none",
-              transition: "all 0.15s ease",
-            }}
+            onClick={() => setTargetType("advisor")}
+            className={`adm-tab-btn ${targetType === "advisor" ? "adm-tab-btn--active" : ""}`}
           >
-            <Users size={15} /> Member / Exec
+            <GraduationCap size={16} />
+            <span>Advisor Panel</span>
+            {targetType === "advisor" && <Check size={14} className="ml-1 shrink-0" />}
           </button>
         </div>
 
         {/* ── Form Body ── */}
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-          {/* Photo & Main Identification */}
-          <div style={{ display: "flex", gap: "var(--space-4)", alignItems: "center" }}>
-            {/* Photo Avatar Preview */}
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Photo & Identity Header */}
+          <div className="flex gap-4 items-center p-3.5 bg-surface-secondary border border-border-default rounded-xl">
             <div
-              style={{
-                width: "80px",
-                height: "80px",
-                minWidth: "80px",
-                borderRadius: "var(--radius-md)",
-                border: "2px solid var(--border-brutalist)",
-                background: "var(--surface-secondary)",
-                position: "relative",
-                overflow: "hidden",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
+              className="w-20 h-20 min-w-[80px] rounded-xl border-2 border-text-primary dark:border-border-default bg-surface-primary relative overflow-hidden cursor-pointer flex items-center justify-center shadow-[2px_2px_0px_0px_var(--text-primary)] dark:shadow-[2px_2px_0px_0px_var(--border-default)] group hover:border-accent-primary transition"
               onClick={() => fileInputRef.current?.click()}
-              title="Click to upload portrait"
+              title="Click to upload member portrait"
             >
               {previewUrl ? (
-                <Image src={previewUrl} alt="Preview" fill style={{ objectFit: "cover" }} />
+                <Image src={previewUrl} alt="Preview" fill className="object-cover" />
               ) : (
-                <div style={{ textAlign: "center", color: "var(--text-tertiary)", fontSize: "10px", fontWeight: 700, fontFamily: "var(--font-body)" }}>
-                  <Upload size={18} style={{ margin: "0 auto 2px", display: "block" }} />
-                  Photo
+                <div className="text-center text-text-tertiary text-[11px] font-bold">
+                  <Upload size={18} className="mx-auto mb-1 text-text-secondary group-hover:text-accent-primary transition" />
+                  Portrait
                 </div>
               )}
             </div>
@@ -335,327 +479,715 @@ export function AdminAddMemberModal({ isOpen, onClose, onSuccess }: AdminAddMemb
               type="file"
               ref={fileInputRef}
               accept="image/*"
-              style={{ display: "none" }}
+              className="hidden"
               onChange={handlePhotoSelect}
             />
 
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-              {targetType === "advisor" ? (
-                <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: "8px" }}>
-                  <div className="jc-form-group">
-                    <label>Title</label>
+            <div className="flex-1 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-text-primary">Member Portrait Photo</span>
+                {previewUrl && (
+                  <button
+                    type="button"
+                    onClick={handleRemovePhoto}
+                    className="text-xs text-rose-600 hover:text-rose-700 font-bold"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+              <p className="text-[11px] text-text-secondary">
+                Upload a square passport-style portrait (PNG, JPG, or WebP up to 5MB).
+              </p>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-2.5 py-1 text-xs font-bold rounded border border-border-default bg-surface-primary hover:bg-surface-elevated text-text-primary transition shadow-xs"
+              >
+                {previewUrl ? "Change Photo" : "Upload Photo"}
+              </button>
+            </div>
+          </div>
+
+          {/* ══════════════════════════════════════════════════════════
+              TRACK 1: STUDENT MEMBER / EXECUTIVE (Matches /register)
+              ══════════════════════════════════════════════════════════ */}
+          {targetType === "member" && (
+            <div className="space-y-4">
+              <div className="adm-section-card">
+                <div className="adm-section-title">
+                  <Users size={14} /> 01. Academic &amp; Student Identity
+                </div>
+
+                <div className="adm-form-group">
+                  <label className="adm-label">
+                    Full Name <span className="adm-required">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Tawhid Ahmmed"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="adm-input"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="adm-form-group">
+                    <label className="adm-label">
+                      Student ID <span className="adm-required">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. 210321"
+                      value={studentId}
+                      onChange={(e) => setStudentId(e.target.value)}
+                      className="adm-input"
+                    />
+                  </div>
+                  <div className="adm-form-group">
+                    <label className="adm-label">
+                      Registration Number <span className="adm-required">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. 1356"
+                      value={registrationNumber}
+                      onChange={(e) => setRegistrationNumber(e.target.value)}
+                      className="adm-input"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="adm-form-group">
+                    <label className="adm-label">
+                      Department <span className="adm-required">*</span>
+                    </label>
                     <Select
-                      value={honorific}
-                      onChange={setHonorific}
+                      value={department}
+                      onChange={(val) => {
+                        setDepartment(val);
+                        setBatch("");
+                      }}
+                      options={DEPARTMENT_OPTIONS}
+                    />
+                  </div>
+
+                  <div className="adm-form-group">
+                    <label className="adm-label">
+                      Batch <span className="adm-required">*</span>
+                    </label>
+                    <Select
+                      value={batch}
+                      onChange={setBatch}
+                      options={getBatchOptions(department, batchConfig)}
+                      placeholder="Select batch…"
+                    />
+                  </div>
+
+                  <div className="adm-form-group">
+                    <label className="adm-label">
+                      Session <span className="adm-required">*</span>
+                    </label>
+                    <Select
+                      value={session}
+                      onChange={setSession}
+                      options={SESSION_OPTIONS}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="adm-form-group">
+                    <label className="adm-label">
+                      Contact Phone <span className="adm-required">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      placeholder="01XXXXXXXXX"
+                      value={contactNumber}
+                      onChange={(e) => setContactNumber(e.target.value)}
+                      className="adm-input"
+                    />
+                  </div>
+
+                  <div className="adm-form-group">
+                    <label className="adm-label">
+                      Institutional Email <span className="adm-required">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="name@std.mec.edu.bd"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="adm-input"
+                    />
+                  </div>
+                </div>
+
+                {/* Standing / Role Selection */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="adm-form-group">
+                    <label className="adm-label">
+                      Club Standing <span className="adm-required">*</span>
+                    </label>
+                    <Select
+                      value={memberCategory}
+                      onChange={(v) => setMemberCategory(v as any)}
                       options={[
-                        { value: "None", label: "None" },
-                        { value: "Dr.", label: "Dr." },
-                        { value: "Prof.", label: "Prof." },
-                        { value: "Prof. Dr.", label: "Prof. Dr." },
-                        { value: "Engr.", label: "Engr." },
-                        { value: "Mr.", label: "Mr." },
-                        { value: "Ms.", label: "Ms." },
+                        { value: "member", label: "General Member" },
+                        { value: "executive", label: "Executive Panel" },
                       ]}
                     />
                   </div>
-                  <div className="jc-form-group">
-                    <label>Full Name *</label>
+
+                  {memberCategory === "executive" ? (
+                    <div className="adm-form-group">
+                      <label className="adm-label">
+                        Executive Designation <span className="adm-required">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Joint Secretary / Assistant General Secretary"
+                        value={executiveDesignation}
+                        onChange={(e) => setExecutiveDesignation(e.target.value)}
+                        className="adm-input"
+                      />
+                    </div>
+                  ) : (
+                    <div className="adm-form-group">
+                      <label className="adm-label">Account Initial Password</label>
+                      <input
+                        type="text"
+                        placeholder="Default: mec12345"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="adm-input"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Graduated Checkbox Card (matches /register) */}
+                <div className="flex items-center justify-between p-3 bg-surface-primary border border-border-default rounded-xl shadow-xs">
+                  <label htmlFor="adm-isGraduated" className="flex items-center gap-2.5 cursor-pointer font-bold text-xs text-text-primary select-none">
+                    <input
+                      id="adm-isGraduated"
+                      type="checkbox"
+                      checked={isGraduated}
+                      onChange={(e) => setIsGraduated(e.target.checked)}
+                      className="w-4 h-4 rounded border-border-default text-accent-primary focus:ring-accent-primary accent-accent-primary cursor-pointer"
+                    />
+                    <span>Has this student graduated? (Mark as Alumni)</span>
+                  </label>
+                  {isGraduated && (
+                    <div className="w-28">
+                      <Select
+                        value={passingYear}
+                        onChange={setPassingYear}
+                        options={PASSING_YEAR_OPTIONS}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Social & Competitive Profiles */}
+              <div className="adm-section-card">
+                <div className="adm-section-title">
+                  <Globe size={14} /> 02. Social &amp; Competitive Profiles
+                </div>
+
+                <div className="adm-form-group">
+                  <label className="adm-label">
+                    Facebook Profile <span className="adm-required">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="https://facebook.com/username or username"
+                    value={facebook}
+                    onChange={(e) => setFacebook(e.target.value)}
+                    className="adm-input"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="adm-form-group">
+                    <label className="adm-label">LinkedIn Profile (optional)</label>
+                    <input
+                      type="text"
+                      placeholder="linkedin.com/in/username"
+                      value={linkedin}
+                      onChange={(e) => setLinkedin(e.target.value)}
+                      className="adm-input"
+                    />
+                  </div>
+                  <div className="adm-form-group">
+                    <label className="adm-label">GitHub Profile (optional)</label>
+                    <input
+                      type="text"
+                      placeholder="github.com/username"
+                      value={github}
+                      onChange={(e) => setGithub(e.target.value)}
+                      className="adm-input"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="adm-form-group">
+                    <label className="adm-label">Codeforces Handle (optional)</label>
+                    <input
+                      type="text"
+                      placeholder="Codeforces handle"
+                      value={codeforces}
+                      onChange={(e) => setCodeforces(e.target.value)}
+                      className="adm-input"
+                    />
+                  </div>
+                  <div className="adm-form-group">
+                    <label className="adm-label">Discord Handle (optional)</label>
+                    <input
+                      type="text"
+                      placeholder="@username"
+                      value={discord}
+                      onChange={(e) => setDiscord(e.target.value)}
+                      className="adm-input"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════
+              TRACK 2: ALUMNI NETWORK (Matches /register)
+              ══════════════════════════════════════════════════════════ */}
+          {targetType === "alumni" && (
+            <div className="space-y-4">
+              <div className="adm-section-card">
+                <div className="adm-section-title">
+                  <Building2 size={14} /> 01. Alumni Academic &amp; Career Details
+                </div>
+
+                <div className="adm-form-group">
+                  <label className="adm-label">
+                    Full Name <span className="adm-required">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Md. Nasir Ahmed"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="adm-input"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="adm-form-group">
+                    <label className="adm-label">
+                      Department <span className="adm-required">*</span>
+                    </label>
+                    <Select
+                      value={department}
+                      onChange={(val) => {
+                        setDepartment(val);
+                        setBatch("");
+                      }}
+                      options={DEPARTMENT_OPTIONS}
+                    />
+                  </div>
+
+                  <div className="adm-form-group">
+                    <label className="adm-label">
+                      Batch <span className="adm-required">*</span>
+                    </label>
+                    <Select
+                      value={batch}
+                      onChange={setBatch}
+                      options={getBatchOptions(department, batchConfig)}
+                      placeholder="Select batch…"
+                    />
+                  </div>
+
+                  <div className="adm-form-group">
+                    <label className="adm-label">
+                      Session <span className="adm-required">*</span>
+                    </label>
+                    <Select
+                      value={session}
+                      onChange={setSession}
+                      options={SESSION_OPTIONS}
+                    />
+                  </div>
+
+                  <div className="adm-form-group">
+                    <label className="adm-label">
+                      Passing Year <span className="adm-required">*</span>
+                    </label>
+                    <Select
+                      value={passingYear}
+                      onChange={setPassingYear}
+                      options={PASSING_YEAR_OPTIONS}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="adm-form-group">
+                    <label className="adm-label">Former Student ID (optional)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 190301 (optional)"
+                      value={formerStudentId}
+                      onChange={(e) => setFormerStudentId(e.target.value)}
+                      className="adm-input"
+                    />
+                  </div>
+                  <div className="adm-form-group">
+                    <label className="adm-label">Academic Session</label>
+                    <Select
+                      value={session}
+                      onChange={setSession}
+                      options={SESSION_OPTIONS}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="adm-form-group">
+                    <label className="adm-label">Current Company / Organization</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Google, Brain Station 23, Therap"
+                      value={currentCompany}
+                      onChange={(e) => setCurrentCompany(e.target.value)}
+                      className="adm-input"
+                    />
+                  </div>
+                  <div className="adm-form-group">
+                    <label className="adm-label">Job Title / Role</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Software Engineer / Tech Lead"
+                      value={currentJobTitle}
+                      onChange={(e) => setCurrentJobTitle(e.target.value)}
+                      className="adm-input"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="adm-form-group">
+                    <label className="adm-label">
+                      Contact Email <span className="adm-required">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="name@company.com or personal"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="adm-input"
+                    />
+                  </div>
+                  <div className="adm-form-group">
+                    <label className="adm-label">
+                      Contact Phone <span className="adm-required">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      placeholder="01XXXXXXXXX"
+                      value={contactNumber}
+                      onChange={(e) => setContactNumber(e.target.value)}
+                      className="adm-input"
+                    />
+                  </div>
+                </div>
+
+                <div className="adm-form-group">
+                  <label className="adm-label">Account Initial Password</label>
+                  <input
+                    type="text"
+                    placeholder="Default: mec12345"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="adm-input"
+                  />
+                </div>
+              </div>
+
+              {/* Professional & Social Profiles */}
+              <div className="adm-section-card">
+                <div className="adm-section-title">
+                  <Briefcase size={14} /> 02. Professional &amp; Social Profiles
+                </div>
+
+                <div className="adm-form-group">
+                  <label className="adm-label">
+                    Facebook Profile <span className="adm-required">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="https://facebook.com/username or username"
+                    value={facebook}
+                    onChange={(e) => setFacebook(e.target.value)}
+                    className="adm-input"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="adm-form-group">
+                    <label className="adm-label">LinkedIn Profile (optional)</label>
+                    <input
+                      type="text"
+                      placeholder="linkedin.com/in/username"
+                      value={linkedin}
+                      onChange={(e) => setLinkedin(e.target.value)}
+                      className="adm-input"
+                    />
+                  </div>
+                  <div className="adm-form-group">
+                    <label className="adm-label">GitHub Profile (optional)</label>
+                    <input
+                      type="text"
+                      placeholder="github.com/username"
+                      value={github}
+                      onChange={(e) => setGithub(e.target.value)}
+                      className="adm-input"
+                    />
+                  </div>
+                </div>
+
+                <div className="adm-form-group">
+                  <label className="adm-label">Career Summary / Advice for Juniors</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Brief background, tech stack, career journey, or advice..."
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    className="adm-textarea"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════
+              TRACK 3: ADVISOR PANEL (Preserved as requested)
+              ══════════════════════════════════════════════════════════ */}
+          {targetType === "advisor" && (
+            <div className="space-y-4">
+              <div className="adm-section-card">
+                <div className="adm-section-title">
+                  <GraduationCap size={14} /> 01. Faculty Advisor Designation &amp; Identity
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-[130px_1fr] gap-3">
+                  <div className="adm-form-group">
+                    <label className="adm-label">Title / Honorific</label>
+                    <Select
+                      value={honorific}
+                      onChange={setHonorific}
+                      options={ADVISOR_HONORIFICS}
+                    />
+                  </div>
+                  <div className="adm-form-group">
+                    <label className="adm-label">
+                      Full Name <span className="adm-required">*</span>
+                    </label>
                     <input
                       type="text"
                       required
                       placeholder="e.g. Abu Sayed"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
+                      className="adm-input"
                     />
                   </div>
                 </div>
-              ) : (
-                <div className="jc-form-group">
-                  <label>Full Name *</label>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="adm-form-group">
+                    <label className="adm-label">
+                      Academic Department <span className="adm-required">*</span>
+                    </label>
+                    <Select
+                      value={department}
+                      onChange={setDepartment}
+                      options={ADVISOR_DEPT_OPTIONS}
+                    />
+                  </div>
+
+                  <div className="adm-form-group">
+                    <label className="adm-label">
+                      Club Advisor Standing <span className="adm-required">*</span>
+                    </label>
+                    <Select
+                      value={advisorDesignation}
+                      onChange={setAdvisorDesignation}
+                      options={ADVISOR_STANDING_OPTIONS}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="adm-form-group">
+                    <label className="adm-label">Institutional Designation</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Head of CSE Dept. / Associate Professor"
+                      value={institutionalPost}
+                      onChange={(e) => setInstitutionalPost(e.target.value)}
+                      className="adm-input"
+                    />
+                  </div>
+                  <div className="adm-form-group">
+                    <label className="adm-label">Faculty / Employee ID (optional)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. FAC-CSE-01"
+                      value={facultyId}
+                      onChange={(e) => setFacultyId(e.target.value)}
+                      className="adm-input"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="adm-form-group">
+                    <label className="adm-label">
+                      Institutional Email <span className="adm-required">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="faculty@mec.edu.bd"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="adm-input"
+                    />
+                  </div>
+                  <div className="adm-form-group">
+                    <label className="adm-label">Contact Phone</label>
+                    <input
+                      type="tel"
+                      placeholder="01XXXXXXXXX"
+                      value={contactNumber}
+                      onChange={(e) => setContactNumber(e.target.value)}
+                      className="adm-input"
+                    />
+                  </div>
+                </div>
+
+                <div className="adm-form-group">
+                  <label className="adm-label">Account Initial Password</label>
                   <input
                     type="text"
-                    required
-                    placeholder={targetType === "alumni" ? "e.g. Sabbir Hossain" : "e.g. Faisal Ahmed"}
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Default: mec12345"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="adm-input"
                   />
                 </div>
-              )}
+              </div>
 
-              <div className="jc-form-group">
-                <label>Institutional Email *</label>
-                <input
-                  type="email"
-                  required
-                  placeholder={targetType === "advisor" ? "faculty@mec.edu.bd" : "member@student.mec.edu.bd"}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+              <div className="adm-section-card">
+                <div className="adm-section-title">
+                  <Globe size={14} /> 02. Professional Links &amp; Welcome Message
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="adm-form-group">
+                    <label className="adm-label">LinkedIn Profile</label>
+                    <input
+                      type="text"
+                      placeholder="linkedin.com/in/username"
+                      value={linkedin}
+                      onChange={(e) => setLinkedin(e.target.value)}
+                      className="adm-input"
+                    />
+                  </div>
+                  <div className="adm-form-group">
+                    <label className="adm-label">Facebook Profile</label>
+                    <input
+                      type="text"
+                      placeholder="facebook.com/username"
+                      value={facebook}
+                      onChange={(e) => setFacebook(e.target.value)}
+                      className="adm-input"
+                    />
+                  </div>
+                </div>
+
+                <div className="adm-form-group">
+                  <label className="adm-label">Bio / Advisor Note (Optional)</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Research interests, welcome message, or department note..."
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    className="adm-textarea"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Privilege Clearance ── */}
+          <div className="adm-form-group p-3 bg-surface-secondary border border-border-default rounded-xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="adm-label">
+                  <Shield size={14} className="text-accent-primary" /> Web Portal Role Clearance
+                </label>
+                <p className="text-[11px] text-text-secondary">
+                  Determines permission level inside the administrative dashboard.
+                </p>
+              </div>
+              <div className="w-48">
+                <Select
+                  value={systemRole}
+                  onChange={(v) => setSystemRole(v as any)}
+                  options={[
+                    { value: "member", label: "Standard Member" },
+                    { value: "moderator", label: "Platform Moderator" },
+                    { value: "admin", label: "Administrator" },
+                  ]}
                 />
               </div>
             </div>
           </div>
 
-          {/* ── Advisor Specific Track ── */}
-          {targetType === "advisor" && (
-            <div style={{ background: "var(--surface-secondary)", padding: "var(--space-4)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-default)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
-                <div className="jc-form-group">
-                  <label>Club Advisor Standing *</label>
-                  <Select
-                    value={advisorDesignation}
-                    onChange={setAdvisorDesignation}
-                    options={[
-                      { value: "Chief Patron & Principal", label: "Chief Patron & Principal" },
-                      { value: "Chief Advisor", label: "Chief Advisor" },
-                      { value: "Faculty Advisor", label: "Faculty Advisor" },
-                      { value: "Technical Advisor", label: "Technical Advisor" },
-                      { value: "Research Mentor", label: "Research Mentor" },
-                    ]}
-                  />
-                </div>
-
-                <div className="jc-form-group">
-                  <label>Academic Department *</label>
-                  <Select
-                    value={department}
-                    onChange={setDepartment}
-                    options={[
-                      { value: "CSE", label: "Computer Science & Eng. (CSE)" },
-                      { value: "EEE", label: "Electrical & Electronic (EEE)" },
-                      { value: "CE", label: "Civil Engineering (CE)" },
-                      { value: "Administration", label: "Administration" },
-                      { value: "Basic Science", label: "Basic Science & Humanities" },
-                    ]}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
-                <div className="jc-form-group">
-                  <label>Official Institutional Post</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Head of CSE Dept."
-                    value={institutionalPost}
-                    onChange={(e) => setInstitutionalPost(e.target.value)}
-                  />
-                </div>
-
-                <div className="jc-form-group">
-                  <label>Faculty / Employee ID (Optional)</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. FAC-CSE-01"
-                    value={facultyId}
-                    onChange={(e) => setFacultyId(e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── Alumni Specific Track ── */}
-          {targetType === "alumni" && (
-            <div style={{ background: "var(--surface-secondary)", padding: "var(--space-4)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-default)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "var(--space-3)" }}>
-                <div className="jc-form-group">
-                  <label>Department *</label>
-                  <Select
-                    value={department}
-                    onChange={setDepartment}
-                    options={[
-                      { value: "CSE", label: "CSE" },
-                      { value: "EEE", label: "EEE" },
-                      { value: "CE", label: "CE" },
-                    ]}
-                  />
-                </div>
-
-                <div className="jc-form-group">
-                  <label>Graduation Batch *</label>
-                  <Select
-                    value={alumniBatch}
-                    onChange={setAlumniBatch}
-                    options={[
-                      { value: "1st Batch", label: "1st Batch (2019-23)" },
-                      { value: "2nd Batch", label: "2nd Batch (2020-24)" },
-                      { value: "3rd Batch", label: "3rd Batch (2021-25)" },
-                      { value: "4th Batch", label: "4th Batch (2022-26)" },
-                    ]}
-                  />
-                </div>
-
-                <div className="jc-form-group">
-                  <label>Graduation Year *</label>
-                  <Select
-                    value={passingYear}
-                    onChange={setPassingYear}
-                    options={[
-                      { value: "2023", label: "2023" },
-                      { value: "2024", label: "2024" },
-                      { value: "2025", label: "2025" },
-                      { value: "2026", label: "2026" },
-                    ]}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
-                <div className="jc-form-group">
-                  <label>Current Company / Organization</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Google / TechCorp"
-                    value={currentCompany}
-                    onChange={(e) => setCurrentCompany(e.target.value)}
-                  />
-                </div>
-
-                <div className="jc-form-group">
-                  <label>Current Job Title / Role</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Software Engineer"
-                    value={currentJobTitle}
-                    onChange={(e) => setCurrentJobTitle(e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── Student / Member Specific Track ── */}
-          {targetType === "member" && (
-            <div style={{ background: "var(--surface-secondary)", padding: "var(--space-4)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-default)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
-                <div className="jc-form-group">
-                  <label>Student ID *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. 210344"
-                    value={studentId}
-                    onChange={(e) => setStudentId(e.target.value)}
-                  />
-                </div>
-
-                <div className="jc-form-group">
-                  <label>Department *</label>
-                  <Select
-                    value={department}
-                    onChange={setDepartment}
-                    options={[
-                      { value: "CSE", label: "Computer Science & Eng. (CSE)" },
-                      { value: "EEE", label: "Electrical & Electronic (EEE)" },
-                      { value: "CE", label: "Civil Engineering (CE)" },
-                    ]}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "var(--space-3)" }}>
-                <div className="jc-form-group">
-                  <label>Session *</label>
-                  <Select
-                    value={session}
-                    onChange={setSession}
-                    options={[
-                      { value: "2020-2021", label: "2020-2021" },
-                      { value: "2021-2022", label: "2021-2022" },
-                      { value: "2022-2023", label: "2022-2023" },
-                      { value: "2023-2024", label: "2023-2024" },
-                      { value: "2024-2025", label: "2024-2025" },
-                    ]}
-                  />
-                </div>
-
-                <div className="jc-form-group">
-                  <label>Batch *</label>
-                  <Select
-                    value={batch}
-                    onChange={setBatch}
-                    options={[
-                      { value: "5th Batch", label: "5th Batch" },
-                      { value: "6th Batch", label: "6th Batch" },
-                      { value: "7th Batch", label: "7th Batch" },
-                      { value: "8th Batch", label: "8th Batch" },
-                    ]}
-                  />
-                </div>
-
-                <div className="jc-form-group">
-                  <label>Standing *</label>
-                  <Select
-                    value={memberCategory}
-                    onChange={(v) => setMemberCategory(v as any)}
-                    options={[
-                      { value: "member", label: "General Member" },
-                      { value: "executive", label: "Executive Panel" },
-                    ]}
-                  />
-                </div>
-              </div>
-
-              {memberCategory === "executive" && (
-                <div className="jc-form-group">
-                  <label>Executive Designation *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Assistant General Secretary"
-                    value={executiveDesignation}
-                    onChange={(e) => setExecutiveDesignation(e.target.value)}
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Social Links & Bio */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-3)" }}>
-            <div className="jc-form-group">
-              <label>LinkedIn URL / Username</label>
-              <input
-                type="text"
-                placeholder="linkedin.com/in/username"
-                value={linkedin}
-                onChange={(e) => setLinkedin(e.target.value)}
-              />
-            </div>
-
-            <div className="jc-form-group">
-              <label>Website Privilege Clearance</label>
-              <Select
-                value={systemRole}
-                onChange={(v) => setSystemRole(v as any)}
-                options={[
-                  { value: "member", label: "Standard Member" },
-                  { value: "moderator", label: "Platform Moderator" },
-                  { value: "admin", label: "Administrator" },
-                ]}
-              />
-            </div>
-          </div>
-
-          <div className="jc-form-group">
-            <label>Bio / Profile Note (Optional)</label>
-            <textarea
-              rows={2}
-              placeholder="Short bio, research interests, or welcome message..."
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              style={{ resize: "vertical" }}
-            />
-          </div>
-
-          {/* Footer Actions */}
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-3)", marginTop: "var(--space-3)", paddingTop: "var(--space-3)", borderTop: "1px solid var(--border-default)" }}>
-            <Button type="button" variant="outline" size="md" onClick={onClose} disabled={submitting}>
+          {/* ── Footer Actions ── */}
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-border-default">
+            <Button
+              type="button"
+              variant="outline"
+              size="md"
+              onClick={onClose}
+              disabled={submitting}
+            >
               Cancel
             </Button>
-            <Button type="submit" size="md" disabled={submitting}>
-              <Sparkles size={14} style={{ marginRight: "6px" }} />
-              {submitting ? "Registering & Approving..." : "Direct Create & Approve Profile"}
+            <Button
+              type="submit"
+              size="md"
+              disabled={submitting}
+            >
+              <Sparkles size={14} className="mr-1.5" />
+              {submitting ? "Direct Creating Profile..." : "Direct Register & Approve"}
             </Button>
           </div>
         </form>

@@ -36,26 +36,32 @@ export default function CreateProjectPage() {
 
   const [form, setForm] = useState({
     title: "", description: "", status: "planning",
+    department: "webdev",
     startDate: "", endDate: "",
     githubLink: "", liveDemoLink: "",
+    imageUrl: "",
     requiredSkills: "", teamMemberIds: "",
+    featured: false,
   });
 
-  const set = (k: keyof typeof form, v: string) => setForm((p) => ({ ...p, [k]: v }));
+  const set = (k: keyof typeof form, v: any) => setForm((p) => ({ ...p, [k]: v }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setError(null);
     try {
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/projects`, {
+      await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/projects`, {
         title: form.title,
         description: form.description,
+        department: form.department,
         status: form.status,
         startDate: form.startDate || undefined,
         endDate: form.endDate || undefined,
         githubLink: form.githubLink || undefined,
         liveDemoLink: form.liveDemoLink || undefined,
+        imageUrl: form.imageUrl || undefined,
+        featured: form.featured,
         requiredSkills: form.requiredSkills ? form.requiredSkills.split(",").map((s) => s.trim()).filter(Boolean) : [],
         teamMembers: form.teamMemberIds ? form.teamMemberIds.split(",").map((s) => s.trim()).filter(Boolean) : [],
       }, { withCredentials: true });
@@ -122,6 +128,10 @@ export default function CreateProjectPage() {
             </Field>
           </div>
 
+          <Field label="Cover Image URL" hint="URL to preview banner or screenshot">
+            <Input icon={Globe} type="text" placeholder="https://... or /images/projects/..." value={form.imageUrl} onChange={(e) => set("imageUrl", e.target.value)} />
+          </Field>
+
           <Field label="Required Skills" hint="Comma-separated, e.g. React, Node.js, MongoDB">
             <Input icon={Tag} placeholder="React, Node.js, MongoDB" value={form.requiredSkills} onChange={(e) => set("requiredSkills", e.target.value)} />
           </Field>
@@ -129,6 +139,25 @@ export default function CreateProjectPage() {
           <Field label="Team Member IDs" hint="Comma-separated MongoDB ObjectIds of team members">
             <Input icon={Users} placeholder="6821c7d2e780b09d2c51d64e, ..." value={form.teamMemberIds} onChange={(e) => set("teamMemberIds", e.target.value)} />
           </Field>
+
+          <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.featured}
+                onChange={(e) => set("featured", e.target.checked)}
+                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              />
+              <div>
+                <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 block">
+                  ★ Highlight on Home Page
+                </span>
+                <span className="text-xs text-slate-500 block">
+                  Designates this project to appear in the &quot;Successfully Deployed Projects&quot; showcase on the home page.
+                </span>
+              </div>
+            </label>
+          </div>
         </div>
       </form>
     </div>

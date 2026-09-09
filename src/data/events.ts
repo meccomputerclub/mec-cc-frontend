@@ -129,20 +129,34 @@ function mapBackendEvent(e: any): Event {
     endDate: e.endDate ? new Date(e.endDate).toISOString().split("T")[0] : undefined,
     time: e.eventTime || e.time || "15:00 - 17:00",
     location: e.location || "MEC Campus",
+    onlineLink: e.onlineLink || undefined,
     type: e.category || e.type || "workshop",
     department: e.department || "General",
-    image: e.coverImageUrl || e.bannerImageUrl || "/images/events/web-hacking-ctf.jpg",
+    image: e.coverImageUrl || e.bannerImageUrl || "/images/events/free-fire.jpg",
     speakers: e.organizer ? [e.organizer] : (e.speakers || []),
     status: isUpcoming ? "upcoming" : "past",
     registrationUrl: e.registrationLink || e.registrationUrl || undefined,
+    registrationType: e.registrationType || "individual",
+    teamSize: e.teamSize || { min: 1, max: 4 },
+    registrationDeadline: e.registrationDeadline ? new Date(e.registrationDeadline).toISOString().split("T")[0] : undefined,
+    registrationFee: e.registrationFee ?? 0,
+    maxParticipants: e.maxParticipants,
+    prizePool: e.prizePool,
+    rewards: e.rewards || [],
+    schedule: e.schedule || [],
+    rules: e.rules || [],
+    sponsors: e.eventSponsors || [],
+    customHtmlSection: e.customHtmlSection,
     attendeeCount: e.participants?.length ?? (Array.isArray(e.attendees) ? e.attendees.length : (typeof e.attendeeCount === "number" ? e.attendeeCount : 0)),
     tags: e.tags || [],
+    linkedForm: e.linkedForm?._id ? String(e.linkedForm._id) : (e.linkedForm ? String(e.linkedForm) : (e.forms && e.forms[0]?._id ? String(e.forms[0]._id) : (e.forms && e.forms[0] ? String(e.forms[0]) : undefined))),
+    media: Array.isArray(e.media) ? e.media : [],
   };
 }
 
 export async function getUpcomingEvents(): Promise<Event[]> {
   try {
-    const res = await fetch(`${API_URL}/api/events`, { cache: "no-store" });
+    const res = await fetch(`${API_URL}/api/events`, { next: { revalidate: 60 } });
     if (res.ok) {
       const data = await res.json();
       const backendEvents: any[] = data.data || data.events || [];
@@ -160,7 +174,7 @@ export async function getUpcomingEvents(): Promise<Event[]> {
 
 export async function getPastEvents(): Promise<Event[]> {
   try {
-    const res = await fetch(`${API_URL}/api/events`, { cache: "no-store" });
+    const res = await fetch(`${API_URL}/api/events`, { next: { revalidate: 60 } });
     if (res.ok) {
       const data = await res.json();
       const backendEvents: any[] = data.data || data.events || [];
@@ -176,10 +190,41 @@ export async function getPastEvents(): Promise<Event[]> {
   return events.filter(isEventPast);
 }
 
+export async function getHomeEvents(limit = 5): Promise<Event[]> {
+  try {
+    const res = await fetch(`${API_URL}/api/events`, { next: { revalidate: 60 } });
+    if (res.ok) {
+      const data = await res.json();
+      const backendEvents: any[] = data.data || data.events || [];
+      if (backendEvents && backendEvents.length > 0) {
+        const mapped = backendEvents.map(mapBackendEvent);
+        const upcoming = mapped.filter(isEventUpcoming).sort((a, b) => {
+          const da = new Date(a.date).getTime() || 0;
+          const db = new Date(b.date).getTime() || 0;
+          return da - db;
+        });
+        const past = mapped.filter(isEventPast).sort((a, b) => {
+          const da = new Date(a.date).getTime() || 0;
+          const db = new Date(b.date).getTime() || 0;
+          return db - da;
+        });
+        const combined = [...upcoming, ...past].slice(0, limit);
+        if (combined.length > 0) return combined;
+      }
+    }
+  } catch (err) {
+    console.warn("Could not fetch backend events for home, using static fallback:", err);
+  }
+
+  const upcoming = events.filter(isEventUpcoming);
+  const past = events.filter(isEventPast);
+  return [...upcoming, ...past].slice(0, limit);
+}
+
 export async function getEventBySlug(slug: string): Promise<Event | undefined> {
   // 1. Try backend lookup first
   try {
-    const res = await fetch(`${API_URL}/api/events/${slug}`, { cache: "no-store" });
+    const res = await fetch(`${API_URL}/api/events/${slug}`, { next: { revalidate: 60 } });
     if (res.ok) {
       const data = await res.json();
       if (data && data.data) {

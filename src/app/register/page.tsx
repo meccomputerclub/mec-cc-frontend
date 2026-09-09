@@ -25,7 +25,11 @@ import {
   GraduationCap,
   Building2,
   Users,
+  Move,
+  ZoomIn,
 } from "lucide-react";
+import { compressImage } from "@/lib/imageCompressor";
+import "./register.css";
 
 /* ── Auto-link builders ── */
 export const toSocialUrl = (
@@ -101,19 +105,31 @@ const ADVISOR_DEPT_OPTIONS = [
   { value: "Basic Science", label: "Basic Science & Humanities" },
 ];
 
-const ALUMNI_BATCH_OPTIONS = [
-  { value: "1st Batch", label: "1st Batch (2019-2023)" },
-  { value: "2nd Batch", label: "2nd Batch (2020-2024)" },
-  { value: "3rd Batch", label: "3rd Batch (2021-2025)" },
-  { value: "4th Batch", label: "4th Batch (2022-2026)" },
-];
+/** Returns ordinal suffix: 1 → "1st", 2 → "2nd", 3 → "3rd", 4 → "4th", etc. */
+function ordinal(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
 
-const ALUMNI_YEAR_OPTIONS = [
-  { value: "2023", label: "Class of 2023" },
-  { value: "2024", label: "Class of 2024" },
-  { value: "2025", label: "Class of 2025" },
-  { value: "2026", label: "Class of 2026" },
-];
+/**
+ * Builds batch select options for a department.
+ * Shows the most recent `count` batches (default 10), from oldest up to juniorBatch.
+ * e.g. CSE juniorBatch=6 → ["CSE-1st", "CSE-2nd", ..., "CSE-6th"]
+ */
+function getBatchOptions(dept: string, config: Record<string, number>, count = 10) {
+  if (!dept) return [];
+  const d = dept.toUpperCase();
+  const juniorBatch = config[d] || (d === "EEE" ? 14 : d === "CE" ? 8 : 6);
+  const oldest = Math.max(1, juniorBatch - count + 1);
+  const options = [];
+  for (let i = oldest; i <= juniorBatch; i++) {
+    const batchLabel = `${d}-${ordinal(i)}`;
+    options.push({ value: batchLabel, label: batchLabel });
+  }
+  return options;
+}
+
 
 const ADVISOR_HONORIFICS = [
   { value: "None", label: "None" },
@@ -231,9 +247,62 @@ interface LiveCardProps {
   photoUrl: string | null;
   initial: string;
   socials: { icon: React.ReactNode; label: string; url: string }[];
+  photoPosX?: number;
+  photoPosY?: number;
+  photoZoom?: number;
+  onPositionChange?: (x: number, y: number) => void;
 }
 
-function LiveCardPreview({ roleType, name, subTitle, designation, photoUrl, initial, socials }: LiveCardProps) {
+function LiveCardPreview({
+  roleType,
+  name,
+  subTitle,
+  designation,
+  photoUrl,
+  initial,
+  socials,
+  photoPosX = 50,
+  photoPosY = 50,
+  photoZoom = 100,
+  onPositionChange,
+}: LiveCardProps) {
+  const photoBoxRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef({ x: 0, y: 0, posX: 50, posY: 50 });
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!photoUrl || !onPositionChange) return;
+    e.preventDefault();
+    isDraggingRef.current = true;
+    dragStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      posX: photoPosX,
+      posY: photoPosY,
+    };
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!isDraggingRef.current || !photoBoxRef.current) return;
+      const rect = photoBoxRef.current.getBoundingClientRect();
+      const dx = moveEvent.clientX - dragStartRef.current.x;
+      const dy = moveEvent.clientY - dragStartRef.current.y;
+
+      const nextX = Math.min(100, Math.max(0, dragStartRef.current.posX - (dx / rect.width) * 100));
+      const nextY = Math.min(100, Math.max(0, dragStartRef.current.posY - (dy / rect.height) * 100));
+
+      onPositionChange(Math.round(nextX), Math.round(nextY));
+    };
+
+    const handleMouseUp = () => {
+      isDraggingRef.current = false;
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  };
+
   return (
     <div className="jc-preview-card">
       {/* Top Corner Ribbon */}
@@ -254,7 +323,12 @@ function LiveCardPreview({ roleType, name, subTitle, designation, photoUrl, init
       )}
 
       {/* Photo */}
-      <div className="jc-preview-card__photo">
+      <div
+        ref={photoBoxRef}
+        onMouseDown={handleMouseDown}
+        className="jc-preview-card__photo"
+        style={{ cursor: photoUrl && onPositionChange ? "grab" : "default", userSelect: "none" }}
+      >
         {photoUrl ? (
           <div style={{ width: "100%", height: "100%", overflow: "hidden", position: "relative" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -263,13 +337,38 @@ function LiveCardPreview({ roleType, name, subTitle, designation, photoUrl, init
               alt="preview"
               draggable={false}
               style={{
-                width: "100%",
-                height: "100%",
+                width: `${photoZoom}%`,
+                height: `${photoZoom}%`,
                 objectFit: "cover",
+                objectPosition: `${photoPosX}% ${photoPosY}%`,
                 position: "absolute",
-                inset: 0,
+                left: "50%",
+                top: "50%",
+                transform: "translate(-50%, -50%)",
               }}
             />
+            {onPositionChange && (
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: "6px",
+                  right: "6px",
+                  background: "rgba(0,0,0,0.65)",
+                  color: "#fff",
+                  padding: "2px 6px",
+                  borderRadius: "4px",
+                  fontSize: "9px",
+                  fontFamily: "var(--font-mono)",
+                  pointerEvents: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+              >
+                <Move size={10} />
+                <span>Drag to align</span>
+              </div>
+            )}
           </div>
         ) : (
           <span className="jc-preview-card__initial">{initial || "?"}</span>
@@ -280,7 +379,7 @@ function LiveCardPreview({ roleType, name, subTitle, designation, photoUrl, init
       <div className="jc-preview-card__content">
         <p className="jc-preview-card__name">{name || "Your Full Name"}</p>
         <p className="jc-preview-card__batch" style={{ color: "var(--accent-primary)", fontWeight: 700 }}>
-          {subTitle || (roleType === "advisor" ? "Faculty Advisor" : roleType === "alumni" ? "CSE, 1st Batch" : "CSE (5th Batch)")}
+          {subTitle || (roleType === "advisor" ? "Faculty Advisor" : roleType === "alumni" ? "Alumni Network Member" : "CSE (5th Batch)")}
         </p>
         <p className="jc-preview-card__role">
           {designation || (roleType === "advisor" ? "Distinguished Advisor" : roleType === "alumni" ? "Alumni Network Member" : "Club Member")}
@@ -315,11 +414,12 @@ function RegisterContent() {
     initialRoleParam && ["member", "alumni", "advisor"].includes(initialRoleParam.toLowerCase())
   );
 
-  const [stage, setStage] = useState<1 | 2 | 3>(isValidRoleParam ? 2 : 1);
+  const [stage, setStage] = useState<1 | 2 | 3>(1);
   const [inviteCode, setInviteCode] = useState(initialUrlCode);
   const [codeVerified, setCodeVerified] = useState(false);
-  const [codeChecking, setCodeChecking] = useState(false);
+  const [codeChecking, setCodeChecking] = useState(Boolean(initialUrlCode));
   const [gateError, setGateError] = useState<string | null>(null);
+  const [emailLocked, setEmailLocked] = useState(false);
 
   // Role Type is locked to the specific invited role
   const [formRole, setFormRole] = useState<"member" | "alumni" | "advisor">(
@@ -339,12 +439,18 @@ function RegisterContent() {
   // Member Fields
   const [studentId, setStudentId] = useState("");
   const [registrationNumber, setRegistrationNumber] = useState("");
+  const [session, setSession] = useState("");
+  const [department, setDepartment] = useState("CSE");
   const [batch, setBatch] = useState("");
+  const [batchConfig, setBatchConfig] = useState<Record<string, number>>({ CSE: 6, EEE: 14, CE: 8 });
+  const [isGraduated, setIsGraduated] = useState<boolean>(
+    Boolean(isValidRoleParam && initialRoleParam.toLowerCase() === "alumni")
+  );
 
   // Alumni Fields
   const [alumniDepartment, setAlumniDepartment] = useState("CSE");
-  const [alumniBatch, setAlumniBatch] = useState("1st Batch");
-  const [passingYear, setPassingYear] = useState("2023");
+  const [alumniBatch, setAlumniBatch] = useState("");
+  const [passingYear, setPassingYear] = useState("");
   const [formerStudentId, setFormerStudentId] = useState("");
   const [currentCompany, setCurrentCompany] = useState("");
   const [currentJobTitle, setCurrentJobTitle] = useState("");
@@ -358,9 +464,9 @@ function RegisterContent() {
   const [researchInterests, setResearchInterests] = useState("");
 
   // Socials
+  const [facebook, setFacebook] = useState("");
   const [github, setGithub] = useState("");
   const [linkedin, setLinkedin] = useState("");
-  const [facebook, setFacebook] = useState("");
   const [discord, setDiscord] = useState("");
   const [codeforces, setCodeforces] = useState("");
   const [codechef, setCodechef] = useState("");
@@ -369,6 +475,10 @@ function RegisterContent() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [photoPosX, setPhotoPosX] = useState<number>(50);
+  const [photoPosY, setPhotoPosY] = useState<number>(50);
+  const [photoZoom, setPhotoZoom] = useState<number>(100);
+  const [compressingPhoto, setCompressingPhoto] = useState<boolean>(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Status & submission
@@ -383,11 +493,20 @@ function RegisterContent() {
   const [emailVerifying, setEmailVerifying] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
 
-  // Initialize role if provided in URL
+  // Fetch batch config from public API on mount
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/site-settings/public`)
+      .then((r) => r.json())
+      .then((d) => { if (d.success && d.data) setBatchConfig(d.data); })
+      .catch(() => {/* use defaults */});
+  }, []);
+
+  // Initialize role if provided in URL (DO NOT advance stage without clearance verification)
   useEffect(() => {
     if (initialRoleParam && ["member", "alumni", "advisor"].includes(initialRoleParam.toLowerCase())) {
-      setFormRole(initialRoleParam.toLowerCase() as any);
-      setStage(2);
+      const role = initialRoleParam.toLowerCase() as any;
+      setFormRole(role);
+      if (role === "alumni") setIsGraduated(true);
     }
   }, [initialRoleParam]);
 
@@ -402,6 +521,7 @@ function RegisterContent() {
     const targetCode = (codeToTest || inviteCode).trim();
     if (!targetCode) {
       setGateError("Please enter your invitation access key.");
+      setCodeChecking(false);
       return;
     }
 
@@ -412,18 +532,26 @@ function RegisterContent() {
       const res = await api.post("/api/invite/verify", { code: targetCode });
       if (res.success) {
         setCodeVerified(true);
+        setInviteCode(targetCode);
         if (res.data?.email) {
           setEmail(res.data.email);
+          setEmailLocked(true);
         }
         if (res.data?.role && ["member", "alumni", "advisor"].includes(res.data.role.toLowerCase())) {
-          setFormRole(res.data.role.toLowerCase() as any);
+          const role = res.data.role.toLowerCase() as any;
+          setFormRole(role);
+          if (role === "alumni") setIsGraduated(true);
         }
-        toast.success("Invitation key verified! Access granted.");
+        toast.success("Invitation clearance verified! Form unlocked.");
         setStage(2);
       } else {
+        setCodeVerified(false);
+        setStage(1);
         setGateError(res.message || "Invalid or expired invitation code.");
       }
     } catch (err: any) {
+      setCodeVerified(false);
+      setStage(1);
       const msg = err instanceof ApiError ? err.message : err?.message || "Invalid or expired invitation code.";
       setGateError(msg);
       toast.error(msg);
@@ -432,39 +560,43 @@ function RegisterContent() {
     }
   };
 
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      setPhotoError("Photo exceeds maximum 5MB size limit.");
-      setSelectedFile(null);
-      setPhotoUrl(null);
-      if (fileRef.current) fileRef.current.value = "";
+    if (!file.type.startsWith("image/")) {
+      setPhotoError("Please select a valid image file (JPEG, PNG, WEBP).");
       return;
     }
 
-    const url = URL.createObjectURL(file);
-    const img = new window.Image();
-    img.onload = () => {
-      if (Math.abs(img.naturalWidth - img.naturalHeight) > 1) {
-        setPhotoError("Photo MUST be exactly squared (1:1 aspect ratio). Please crop your photo before uploading.");
-        setSelectedFile(null);
-        setPhotoUrl(null);
-        if (fileRef.current) fileRef.current.value = "";
-      } else {
-        setPhotoError(null);
-        setPhotoUrl(url);
-        setSelectedFile(file);
-      }
-    };
-    img.onerror = () => {
-      setPhotoError("Invalid image file.");
-      setSelectedFile(null);
-      setPhotoUrl(null);
+    setCompressingPhoto(true);
+
+    try {
+      // Silent compression - no popup toast
+      const result = await compressImage(file, {
+        maxSizeMB: 1.0,
+        maxWidthOrHeight: 1200,
+      });
+
+      setPhotoError(null);
+      setSelectedFile(result.file);
+      setPhotoUrl(result.previewUrl);
+      setPhotoPosX(50);
+      setPhotoPosY(50);
+      setPhotoZoom(100);
+    } catch (err: any) {
+      console.error("Compression error:", err);
+      // Fallback
+      setPhotoError(null);
+      setSelectedFile(file);
+      setPhotoUrl(URL.createObjectURL(file));
+      setPhotoPosX(50);
+      setPhotoPosY(50);
+      setPhotoZoom(100);
+    } finally {
+      setCompressingPhoto(false);
       if (fileRef.current) fileRef.current.value = "";
-    };
-    img.src = url;
+    }
   };
 
   const handleSubmitRegistration = async (e: React.FormEvent) => {
@@ -472,18 +604,56 @@ function RegisterContent() {
     setFormError(null);
 
     if (!selectedFile) {
-      setFormError("Profile photo is required (must be 1:1 square).");
+      setFormError("Profile photo is required.");
       toast.error("Please upload a profile photo.");
+      return;
+    }
+
+    if (!facebook.trim()) {
+      setFormError("Facebook profile is required.");
+      toast.error("Please enter your Facebook profile.");
+      return;
+    }
+
+    if (!contactNumber.trim()) {
+      setFormError("Contact phone number is required.");
+      toast.error("Please enter your contact phone number.");
+      return;
+    }
+
+    if ((formRole === "member" || formRole === "alumni" || isGraduated) && !session.trim()) {
+      setFormError("Academic session is required.");
+      toast.error("Please enter your academic session.");
+      return;
+    }
+
+    if (formRole === "member" && !batch.trim()) {
+      setFormError("Batch is required.");
+      toast.error("Please select your batch.");
+      return;
+    }
+
+    if (formRole === "alumni" && !alumniBatch.trim()) {
+      setFormError("Batch is required.");
+      toast.error("Please select your batch.");
+      return;
+    }
+
+    if ((isGraduated || formRole === "alumni") && !passingYear.toString().trim()) {
+      setFormError("Passing year is required for graduates.");
+      toast.error("Please enter your passing year.");
       return;
     }
 
     if (password.length < 6) {
       setFormError("Password must be at least 6 characters long.");
+      toast.error("Password must be at least 6 characters long.");
       return;
     }
 
     if (password !== confirmPassword) {
       setFormError("Passwords do not match.");
+      toast.error("Passwords do not match. Please recheck.");
       return;
     }
 
@@ -491,14 +661,29 @@ function RegisterContent() {
 
     try {
       const hasHonorific = honorific && honorific !== "None" && honorific !== "";
+      const effectiveRole =
+        formRole === "advisor"
+          ? "advisor"
+          : isGraduated || formRole === "alumni"
+          ? "alumni"
+          : "member";
+
+      const companyTitleText = [currentJobTitle.trim(), currentCompany.trim()].filter(Boolean).join(" at ");
+
       const payload: any = {
         fullName: formRole === "advisor" && hasHonorific ? `${honorific} ${fullName.trim()}` : fullName.trim(),
         email: email.trim(),
         password,
-        contactNumber: contactNumber.trim() || "N/A",
+        contactNumber: contactNumber.trim(),
         address: address.trim() || "MEC Campus",
-        bio: bio.trim() || (formRole === "advisor" ? researchInterests : formRole === "alumni" ? `${currentJobTitle} at ${currentCompany}` : `MEC Computer Club Member (${batch})`),
-        clubRole: formRole,
+        bio: bio.trim() || (
+          formRole === "advisor"
+            ? researchInterests
+            : effectiveRole === "alumni"
+            ? companyTitleText || "MEC Alumni"
+            : `MEC Computer Club Member (${session})`
+        ),
+        clubRole: effectiveRole,
         facebook: facebook.trim() ? toFbUrl(facebook) : "",
         github: github.trim() ? toGithubUrl(github) : "",
         linkedin: linkedin.trim() ? toLiUrl(linkedin) : "",
@@ -515,28 +700,33 @@ function RegisterContent() {
         payload.customRole = advisorStanding.trim() || institutionalPost.trim() || "Faculty Advisor";
         payload.session = institutionalPost.trim() || (advisorDepartment ? `Dept. of ${advisorDepartment}` : "Faculty");
         payload.batch = "Faculty";
-      } else if (formRole === "alumni") {
-        payload.department = alumniDepartment;
-        payload.formerStudentId = formerStudentId.trim() || `ALM-${Date.now().toString().slice(-6)}`;
-        payload.studentId = payload.formerStudentId;
-        payload.batch = alumniBatch;
-        payload.passingYear = parseInt(passingYear) || 2023;
-        payload.session = `${parseInt(passingYear) - 4}-${passingYear}`;
+      } else if (effectiveRole === "alumni") {
+        const effectiveDept = (formRole === "alumni" ? alumniDepartment : department) || "CSE";
+        const chosenBatch = (formRole === "alumni" ? alumniBatch : batch) || `${effectiveDept}-Alumni`;
+        payload.department = effectiveDept;
+        // Ignore accidental email autofill by password managers in studentId
+        const cleanFormerId = formerStudentId.trim().includes("@") ? "" : formerStudentId.trim();
+        payload.studentId = cleanFormerId || `ALM-${Date.now().toString().slice(-4)}${Math.floor(10 + Math.random() * 90)}`;
+        payload.formerStudentId = payload.studentId;
+        payload.registrationNumber = registrationNumber.trim() || "";
+        payload.session = session.trim();
+        payload.batch = chosenBatch;
+        payload.passingYear = parseInt(passingYear) || new Date().getFullYear();
         payload.isGraduated = true;
-        payload.designation = currentJobTitle ? `${currentJobTitle} at ${currentCompany || "Industry"}` : "Alumni";
+        payload.designation = companyTitleText || "Alumni";
         payload.customRole = payload.designation;
       } else {
         // Student member
-        const detectedDept = (batch.match(/(CSE|EEE|CE|ME)/i)?.[1] || "CSE").toUpperCase();
-        payload.department = detectedDept;
+        payload.department = department || "CSE";
         payload.studentId = studentId.trim();
         payload.registrationNumber = registrationNumber.trim();
-        payload.session = batch.trim();
+        payload.session = session.trim();
         payload.batch = batch.trim();
         payload.isGraduated = false;
         payload.designation = "General Member";
       }
 
+      payload.imagePosition = `${photoPosX}% ${photoPosY}%`;
       payload.inviteCode = inviteCode.trim();
 
       const formData = new FormData();
@@ -562,12 +752,31 @@ function RegisterContent() {
         });
         toast.success("Application submitted successfully!");
       } else {
-        setFormError(res.message || "Registration failed.");
+        const errorMsg = res.message || "Registration failed. Please review your information.";
+        setFormError(errorMsg);
+        toast.error(errorMsg, { duration: 5000 });
       }
     } catch (err: any) {
-      const msg = err instanceof ApiError ? err.message : err?.message || "Failed to submit registration.";
+      let msg = "Failed to submit registration.";
+      if (err instanceof ApiError) {
+        if (err.data?.errors && typeof err.data.errors === "object") {
+          const detailList = Object.entries(err.data.errors)
+            .map(([field, error]) => `${field}: ${error}`)
+            .join("; ");
+          msg = `${err.data.message || err.message}: ${detailList}`;
+        } else if (err.data?.message) {
+          msg = err.data.message;
+        } else {
+          msg = err.message;
+        }
+      } else if (err?.message === "Failed to fetch" || err?.name === "TypeError") {
+        msg = "Unable to reach server. Please check that the server is running and your connection is active.";
+      } else if (err?.message) {
+        msg = err.message;
+      }
+
       setFormError(msg);
-      toast.error(msg);
+      toast.error(msg, { duration: 6000 });
     } finally {
       setSubmitting(false);
     }
@@ -595,28 +804,47 @@ function RegisterContent() {
 
   const initial = fullName.trim().charAt(0).toUpperCase();
 
+  const effectiveRole =
+    formRole === "advisor"
+      ? "advisor"
+      : isGraduated || formRole === "alumni"
+      ? "alumni"
+      : "member";
+
   const previewSocials = [
+    facebook && { icon: <IconFB />, label: "Facebook", url: toFbUrl(facebook) },
     email && { icon: <IconMail />, label: "Email", url: `mailto:${email}` },
     github && { icon: <IconGH />, label: "GitHub", url: toGithubUrl(github) },
     linkedin && { icon: <IconLI />, label: "LinkedIn", url: toLiUrl(linkedin) },
     discord && { icon: <IconDiscord />, label: `Discord: @${discord}`, url: `https://discord.com` },
-    facebook && { icon: <IconFB />, label: "Facebook", url: toFbUrl(facebook) },
     codeforces && { icon: <IconCF />, label: "Codeforces", url: toCfUrl(codeforces) },
     codechef && { icon: <IconCC />, label: "CodeChef", url: toCodechefUrl(codechef) },
   ].filter(Boolean) as { icon: React.ReactNode; label: string; url: string }[];
 
+  const regSnippet = registrationNumber.trim() ? `Reg: ${registrationNumber.trim()}` : "";
+  const sessionSnippet = session.trim() ? `Session: ${session.trim()}` : "";
+  const companyTitleText = [currentJobTitle.trim(), currentCompany.trim()].filter(Boolean).join(" at ");
+
   const previewSubTitle =
-    formRole === "advisor"
+    effectiveRole === "advisor"
       ? institutionalPost || (advisorDepartment ? `Dept. of ${advisorDepartment}` : "Faculty Advisor")
-      : formRole === "alumni"
-      ? `${alumniDepartment}, ${alumniBatch}`
-      : batch || "Batch: CSE 5th";
+      : effectiveRole === "alumni"
+      ? [
+          alumniDepartment ? `${alumniDepartment}` : "",
+          session.trim() ? `Session: ${session.trim()}` : "",
+          passingYear.trim() ? `Class of ${passingYear.trim()}` : "",
+        ]
+          .filter(Boolean)
+          .join(" • ") || "Alumni Network Member"
+      : [sessionSnippet || "Student Member", regSnippet]
+          .filter(Boolean)
+          .join(" • ");
 
   const previewDesignation =
-    formRole === "advisor"
+    effectiveRole === "advisor"
       ? advisorStanding
-      : formRole === "alumni"
-      ? currentJobTitle ? `${currentJobTitle} at ${currentCompany || "Industry"}` : "Alumni Network Member"
+      : effectiveRole === "alumni"
+      ? companyTitleText || "Alumni Network Member"
       : "Club Member";
 
   const renderedFullName =
@@ -625,125 +853,12 @@ function RegisterContent() {
       : fullName || "Your Full Name";
 
   return (
-    <section className="section reg-page">
-      <style dangerouslySetInnerHTML={{
-        __html: `
-          .reg-page { padding-top: var(--space-7); padding-bottom: var(--space-9); min-height: 85vh; display: flex; flex-direction: column; justify-content: center; }
-          .reg-header { text-align: center; margin-bottom: var(--space-7); }
-          .reg-header h1 { font-size: clamp(2.2rem, 4.5vw, 3.2rem); font-weight: 800; letter-spacing: -0.03em; margin: var(--space-2) 0 var(--space-3); background: linear-gradient(135deg, var(--text-primary) 30%, var(--accent-primary) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-          .reg-header p { font-size: var(--text-lg); color: var(--text-secondary); max-width: 580px; margin: 0 auto; }
-          .reg-gate-container { max-width: 600px; margin: 0 auto; width: 100%; }
-          .reg-gate-card { background: var(--surface-elevated); border: 1px solid var(--border-brutalist); border-radius: var(--radius-xl); padding: var(--space-7); box-shadow: 6px 6px 0 var(--border-brutalist); position: relative; overflow: hidden; }
-          .dark .reg-gate-card { box-shadow: 6px 6px 0 var(--accent-primary); border-color: rgba(255, 255, 255, 0.15); }
-          .reg-gate-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 600; background: rgba(239, 68, 68, 0.1); color: var(--accent-error); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: var(--radius-full); margin-bottom: var(--space-4); }
-          .reg-gate-badge.verified { background: rgba(16, 185, 129, 0.1); color: var(--accent-success); border-color: rgba(16, 185, 129, 0.2); }
-          .reg-gate-icon-wrap { width: 64px; height: 64px; border-radius: var(--radius-lg); background: var(--surface-secondary); border: 1px solid var(--border-default); display: flex; align-items: center; justify-content: center; color: var(--accent-primary); margin-bottom: var(--space-4); }
-          .reg-gate-title { font-size: var(--text-2xl); font-weight: 800; margin-bottom: var(--space-2); }
-          .reg-gate-desc { color: var(--text-secondary); font-size: var(--text-sm); line-height: 1.6; margin-bottom: var(--space-6); }
-          .reg-gate-input-group { display: flex; gap: var(--space-3); margin-bottom: var(--space-5); }
-          .reg-gate-input { flex: 1; font-family: var(--font-mono); font-size: var(--text-lg); letter-spacing: 0.15em; text-transform: uppercase; text-align: center; font-weight: 700; padding: var(--space-3) var(--space-4); border: 2px solid var(--border-default); border-radius: var(--radius-md); background: var(--surface-primary); color: var(--text-primary); }
-          .reg-gate-input:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 3px rgba(132, 204, 22, 0.2); }
-          .reg-gate-fallback { margin-top: var(--space-6); padding-top: var(--space-5); border-top: 1px dashed var(--border-default); display: flex; flex-direction: column; gap: var(--space-3); background: var(--surface-secondary); padding: var(--space-4); border-radius: var(--radius-lg); }
-          .reg-gate-fallback-title { font-size: var(--text-sm); font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 6px; }
-          .reg-gate-fallback-desc { font-size: var(--text-xs); color: var(--text-secondary); line-height: 1.5; margin: 0; }
-          .reg-gate-fallback-btn { align-self: flex-start; font-size: var(--text-xs); font-weight: 600; color: var(--accent-text-on-surface); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
-          .dark .reg-gate-fallback-btn { color: var(--accent-primary-hover); }
-          .reg-layout { display: grid; grid-template-columns: 1fr 360px; gap: var(--space-6); align-items: start; }
-          @media (max-width: 990px) { .reg-layout { grid-template-columns: 1fr; } .reg-preview-panel { order: -1; } }
-          .reg-form { display: flex; flex-direction: column; gap: var(--space-5); }
-          .reg-form-section { background: var(--surface-elevated); border: 1px solid var(--border-brutalist); border-radius: var(--radius-lg); padding: var(--space-5); box-shadow: 4px 4px 0 var(--border-brutalist); display: flex; flex-direction: column; gap: var(--space-4); }
-          .dark .reg-form-section { box-shadow: 4px 4px 0 var(--border-default); }
-          .reg-section-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-default); padding-bottom: var(--space-3); margin-bottom: var(--space-2); }
-          .reg-section-title { font-size: var(--text-lg); font-weight: 700; display: flex; align-items: center; gap: var(--space-2); margin: 0; }
-          .reg-section-num { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--accent-primary); background: var(--surface-secondary); padding: 2px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-default); }
-          .reg-verified-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(16, 185, 129, 0.1); color: var(--accent-success); border: 1px solid rgba(16, 185, 129, 0.2); padding: 4px 10px; border-radius: var(--radius-full); font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 600; }
-          .reg-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
-          .reg-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-4); }
-          @media (max-width: 640px) { .reg-grid-2, .reg-grid-3 { grid-template-columns: 1fr; } }
-          .reg-form-group { display: flex; flex-direction: column; gap: 6px; }
-          .reg-form-group label { font-size: var(--text-xs); font-weight: 600; color: var(--text-secondary); display: flex; align-items: center; gap: 4px; }
-          .reg-required { color: var(--accent-error); }
-          .reg-input, .reg-textarea, .reg-select { width: 100%; padding: 10px var(--space-3); font-size: var(--text-sm); border: 1px solid var(--border-brutalist); border-radius: var(--radius-md); background: var(--surface-primary); color: var(--text-primary); box-shadow: 2px 2px 0 var(--border-brutalist); transition: all var(--transition-base); }
-          .dark .reg-input, .dark .reg-textarea, .dark .reg-select { box-shadow: 2px 2px 0 var(--border-default); }
-          .reg-input:focus, .reg-textarea:focus, .reg-select:focus { outline: none; border-color: var(--accent-primary); box-shadow: 3px 3px 0 var(--accent-primary); }
-          .reg-input[disabled] { background: var(--surface-secondary); color: var(--text-secondary); cursor: not-allowed; opacity: 0.8; }
-          .reg-prefix-input { display: flex; align-items: stretch; border: 1px solid var(--border-brutalist); border-radius: var(--radius-md); background: var(--surface-primary); box-shadow: 2px 2px 0 var(--border-brutalist); overflow: hidden; transition: all var(--transition-base); }
-          .dark .reg-prefix-input { box-shadow: 2px 2px 0 var(--border-default); }
-          .reg-prefix-input:focus-within { box-shadow: 3px 3px 0 var(--accent-primary); border-color: var(--accent-primary); }
-          .reg-prefix-base { padding: 8px var(--space-2) 8px var(--space-3); font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary); background: var(--surface-secondary); border-right: 1px solid var(--border-default); white-space: nowrap; display: flex; align-items: center; user-select: none; }
-          .reg-prefix-input input { flex: 1; min-width: 0; padding: 8px var(--space-3); border: none !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; font-size: var(--text-sm); color: var(--text-primary); }
-          .reg-prefix-input input:focus { outline: none; }
-          .reg-photo-row { display: flex; align-items: center; gap: var(--space-4); }
-          .reg-photo-btn { width: 96px; height: 96px; border-radius: 14px; border: 2px dashed var(--border-brutalist); background: var(--surface-secondary); position: relative; overflow: hidden; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: all var(--transition-base); flex-shrink: 0; box-shadow: 2px 2px 0 var(--border-brutalist); }
-          .dark .reg-photo-btn { border-color: var(--border-default); box-shadow: 2px 2px 0 var(--border-default); }
-          .reg-photo-btn:hover { border-color: var(--accent-primary); box-shadow: 3px 3px 0 var(--accent-primary); transform: translateY(-2px); }
-          .reg-photo-btn img { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; }
-          .reg-photo-hint { font-size: var(--text-xs); color: var(--text-secondary); line-height: 1.5; }
-          .reg-preview-sticky { position: sticky; top: 100px; display: flex; flex-direction: column; gap: var(--space-4); }
-          .reg-preview-title { font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: var(--tracking-wider); color: var(--text-tertiary); display: flex; align-items: center; justify-content: space-between; }
-          .reg-preview-card-wrap { width: 100%; max-width: 280px; margin: 0 auto; }
-          .reg-preview-meta-panel { background: var(--surface-elevated); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--text-xs); box-shadow: 2px 2px 0 var(--border-brutalist); }
-          .dark .reg-preview-meta-panel { box-shadow: 2px 2px 0 var(--border-default); }
-          .reg-preview-meta-item { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--border-default); }
-          .reg-preview-meta-item:last-child { border-bottom: none; }
-          .reg-preview-meta-lbl { color: var(--text-secondary); }
-          .reg-preview-meta-val { font-weight: 600; font-family: var(--font-mono); color: var(--text-primary); }
-          .reg-status-container { max-width: 650px; margin: 0 auto; width: 100%; }
-          .reg-status-card { background: var(--surface-elevated); border: 1px solid var(--border-brutalist); border-radius: var(--radius-xl); padding: var(--space-7); box-shadow: 6px 6px 0 var(--border-brutalist); }
-          .dark .reg-status-card { box-shadow: 6px 6px 0 var(--accent-primary); }
-          .reg-stepper { display: flex; flex-direction: column; gap: var(--space-5); margin: var(--space-6) 0; position: relative; }
-          .reg-step-item { display: flex; align-items: flex-start; gap: var(--space-4); position: relative; }
-          .reg-step-item:not(:last-child)::after { content: ""; position: absolute; left: 17px; top: 36px; bottom: -20px; width: 2px; background: var(--border-default); }
-          .reg-step-item.completed:not(:last-child)::after { background: var(--accent-success); }
-          .reg-step-icon { width: 36px; height: 36px; border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-weight: 700; font-size: var(--text-xs); flex-shrink: 0; border: 2px solid var(--border-default); background: var(--surface-secondary); color: var(--text-secondary); z-index: 1; }
-          .reg-step-item.completed .reg-step-icon { border-color: var(--accent-success); background: var(--accent-success); color: #fff; }
-          .reg-step-item.active .reg-step-icon { border-color: var(--accent-primary); background: var(--surface-elevated); color: var(--accent-primary); box-shadow: 0 0 0 3px rgba(132, 204, 22, 0.2); }
-          .reg-step-content { flex: 1; }
-          .reg-step-title { font-size: var(--text-sm); font-weight: 700; margin: 0 0 4px; }
-          .reg-step-desc { font-size: var(--text-xs); color: var(--text-secondary); line-height: 1.5; margin: 0; }
-          .reg-otp-box { margin-top: var(--space-3); display: flex; gap: var(--space-2); }
-          .reg-otp-input { max-width: 180px; font-family: var(--font-mono); font-size: var(--text-base); font-weight: 700; letter-spacing: 0.2em; text-align: center; padding: 8px var(--space-3); border: 2px solid var(--border-default); border-radius: var(--radius-md); background: var(--surface-primary); }
-          .reg-otp-input:focus { outline: none; border-color: var(--accent-primary); }
-          .reg-admin-notice { background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: var(--radius-lg); padding: var(--space-4); display: flex; gap: var(--space-3); align-items: flex-start; color: var(--text-primary); font-size: var(--text-xs); line-height: 1.6; }
-          .dark .reg-admin-notice { background: rgba(245, 158, 11, 0.12); }
-          .jc-preview-card { background: var(--surface-elevated); border: 1px solid var(--border-brutalist); border-radius: var(--radius-lg); overflow: hidden; box-shadow: 5px 5px 0 var(--accent-primary); position: relative; }
-          .jc-preview-card__photo { width: 100%; aspect-ratio: 1 / 1; background: var(--surface-secondary); border-bottom: 1px solid var(--border-brutalist); overflow: hidden; position: relative; }
-          .jc-preview-card__placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-family: var(--font-heading); font-size: 5rem; font-weight: var(--weight-bold); color: var(--accent-primary); background-image: radial-gradient(var(--border-default) 1px, transparent 1px); background-size: 16px 16px; background-color: var(--surface-secondary); user-select: none; }
-          .jc-preview-card__content { padding: var(--space-3); position: relative; text-align: center; background-color: var(--surface-elevated); }
-          .jc-preview-card__name { font-family: var(--font-heading); font-size: var(--text-base); font-weight: var(--weight-bold); letter-spacing: var(--tracking-tight); line-height: var(--leading-tight); color: var(--text-primary); margin: 0 0 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-          .jc-preview-card__batch { font-family: var(--font-body); font-size: var(--text-xs); font-weight: var(--weight-semibold); color: var(--accent-text-on-surface); margin: 0 0 2px; }
-          .dark .jc-preview-card__batch { color: var(--accent-primary-hover); }
-          .jc-preview-card__role { font-family: var(--font-body); font-size: var(--text-sm); color: var(--text-secondary); margin: 0; }
-          .jc-preview-card__social-footer { display: flex; align-items: stretch; border-top: 1px solid var(--border-brutalist); background: var(--surface-primary); }
-          .dark .jc-preview-card__social-footer { border-top-color: var(--border-default); background: transparent; }
-          .jc-preview-card__social-cell { flex: 1; display: flex; align-items: center; justify-content: center; padding: 10px 0; color: var(--text-tertiary); text-decoration: none; position: relative; }
-          .jc-preview-card__social-cell:hover { color: var(--accent-primary-hover); background: var(--accent-primary-light); }
-          .jc-preview-card__social-sep { position: absolute; left: 0; top: 18%; height: 64%; width: 1px; background: var(--border-brutalist); opacity: 0.15; }
-          .dark .jc-preview-card__social-sep { background: var(--border-default); opacity: 1; }
-          .jc-photo-controls { background: var(--surface-elevated); border: 1px solid var(--border-brutalist); border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); box-shadow: 3px 3px 0 var(--border-brutalist); }
-          .dark .jc-photo-controls { box-shadow: 3px 3px 0 var(--border-default); }
-          .jc-photo-controls__title { font-size: var(--text-xs); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: var(--tracking-wider); color: var(--text-tertiary); margin: 0 0 var(--space-1); font-family: var(--font-mono); }
-          .jc-photo-controls__row { display: grid; grid-template-columns: 70px 1fr 38px; align-items: center; gap: var(--space-2); }
-          .jc-photo-controls__row label { font-size: var(--text-xs); color: var(--text-secondary); white-space: nowrap; }
-          .jc-photo-controls__row > span { font-size: var(--text-xs); color: var(--text-tertiary); font-family: var(--font-mono); text-align: right; }
-          .jc-slider-wrap { position: relative; display: flex; align-items: center; }
-          .jc-slider-wrap .jc-slider { width: 100%; }
-          .jc-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; background: var(--border-default); border-radius: 2px; outline: none; cursor: pointer; }
-          .jc-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; background: var(--accent-primary); border: 2px solid var(--border-brutalist); border-radius: 50%; cursor: pointer; }
-          .jc-slider-mark { position: absolute; bottom: -6px; width: 2px; height: 6px; background: var(--border-default); border-radius: 1px; transform: translateX(-50%); pointer-events: none; }
-          .jc-slider-mark--active { background: var(--accent-primary); height: 8px; bottom: -7px; }
-          .jc-photo-controls__reset { background: none; border: 1px solid var(--border-default); border-radius: var(--radius-sm); font-size: var(--text-xs); color: var(--text-tertiary); cursor: pointer; padding: 4px 10px; font-family: inherit; align-self: flex-start; }
-          .jc-photo-controls__reset:hover { border-color: var(--accent-primary-hover); color: var(--accent-primary-hover); }
-          .jc-preview-hint { font-size: var(--text-xs); color: var(--text-tertiary); text-align: center; margin: 0; line-height: var(--leading-relaxed); }
-          .jc-draft-indicator { font-size: 0.8rem; color: var(--color-success, #22c55e); opacity: 0; transition: opacity 0.3s ease; }
-          .jc-draft-indicator--visible { opacity: 1; }
-        `
-      }} />
+    <section className={`section reg-page ${!codeVerified || stage !== 2 ? "stage-gate" : ""}`} style={{ paddingBottom: stage === 2 && codeVerified ? "var(--space-3)" : undefined }}>
       <div className="container">
         {/* ══════════════════════════════════════════════════════════
             STAGE 1: INVITATION ACCESS KEY GATE
             ══════════════════════════════════════════════════════════ */}
-        {stage === 1 && (
+        {(!codeVerified || stage === 1) && stage !== 3 && (
           <div className="reg-gate-container">
             <div className="reg-gate-card">
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
@@ -755,7 +870,7 @@ function RegisterContent() {
                 </div>
                 <h1 className="reg-gate-title">Enter Invitation Access Key</h1>
                 <p className="reg-gate-desc" style={{ marginBottom: "var(--space-5)" }}>
-                  Please enter the clearance access key dispatched to your email to unlock your specific registration form.
+                  Please enter the clearance access key dispatched to your email or issued by MEC Computer Club to unlock registration.
                 </p>
 
                 {gateError && (
@@ -765,46 +880,55 @@ function RegisterContent() {
                   </div>
                 )}
 
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handleVerifyInvite();
-                  }}
-                  style={{ width: "100%" }}
-                >
-                  <div style={{ display: "flex", gap: "var(--space-3)", width: "100%", flexDirection: "column" }}>
-                    <input
-                      type="text"
-                      placeholder="e.g. 6-digit code or access key"
-                      value={inviteCode}
-                      onChange={(e) => setInviteCode(e.target.value)}
-                      required
-                      autoFocus
-                      style={{
-                        width: "100%",
-                        padding: "14px var(--space-4)",
-                        border: "1px solid var(--border-brutalist)",
-                        borderRadius: "var(--radius-md)",
-                        background: "var(--surface-primary)",
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "var(--text-md)",
-                        letterSpacing: "0.1em",
-                        textAlign: "center",
-                        color: "var(--text-primary)",
-                        boxShadow: "3px 3px 0 var(--border-brutalist)",
-                      }}
-                    />
-                    <Button
-                      type="submit"
-                      size="lg"
-                      disabled={codeChecking || !inviteCode.trim()}
-                      style={{ width: "100%", marginTop: "var(--space-2)" }}
-                    >
-                      <KeyRound size={16} style={{ marginRight: "6px" }} />
-                      {codeChecking ? "Verifying Access Key..." : "Unlock Application Form"}
-                    </Button>
+                {codeChecking ? (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "var(--space-6) 0" }}>
+                    <div style={{ width: 32, height: 32, border: "3px solid var(--accent-primary)", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite", marginBottom: "var(--space-3)" }} />
+                    <p style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>
+                      Verifying invitation access key clearance...
+                    </p>
                   </div>
-                </form>
+                ) : (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleVerifyInvite();
+                    }}
+                    style={{ width: "100%" }}
+                  >
+                    <div style={{ display: "flex", gap: "var(--space-3)", width: "100%", flexDirection: "column" }}>
+                      <input
+                        type="text"
+                        placeholder="e.g. 6-digit code or access key"
+                        value={inviteCode}
+                        onChange={(e) => setInviteCode(e.target.value)}
+                        required
+                        autoFocus
+                        style={{
+                          width: "100%",
+                          padding: "14px var(--space-4)",
+                          border: "1px solid var(--border-brutalist)",
+                          borderRadius: "var(--radius-md)",
+                          background: "var(--surface-primary)",
+                          fontFamily: "var(--font-mono)",
+                          fontSize: "var(--text-md)",
+                          letterSpacing: "0.1em",
+                          textAlign: "center",
+                          color: "var(--text-primary)",
+                          boxShadow: "3px 3px 0 var(--border-brutalist)",
+                        }}
+                      />
+                      <Button
+                        type="submit"
+                        size="lg"
+                        disabled={codeChecking || !inviteCode.trim()}
+                        style={{ width: "100%", marginTop: "var(--space-2)" }}
+                      >
+                        <KeyRound size={16} style={{ marginRight: "6px" }} />
+                        Unlock Application Form
+                      </Button>
+                    </div>
+                  </form>
+                )}
               </div>
             </div>
           </div>
@@ -813,8 +937,8 @@ function RegisterContent() {
         {/* ══════════════════════════════════════════════════════════
             STAGE 2: DEDICATED SPECIFIC FORM (NO 3-ROLE SWITCHER TABS)
             ══════════════════════════════════════════════════════════ */}
-        {stage === 2 && (
-          <div className="jc-page" style={{ paddingTop: 0 }}>
+        {codeVerified && stage === 2 && (
+          <div className="jc-page" style={{ paddingTop: 0, paddingBottom: 0 }}>
             {/* Header tailored specifically to the locked role */}
             <div className="jc-header">
               <span className="kicker">
@@ -840,9 +964,9 @@ function RegisterContent() {
               </p>
             </div>
 
-            <div className="jc-layout">
+            <div className="jc-layout" style={{ marginBottom: 0 }}>
               {/* ── Left Column: Dedicated Form ── */}
-              <form className="jc-form" onSubmit={handleSubmitRegistration} noValidate>
+              <form className="jc-form" onSubmit={handleSubmitRegistration} noValidate autoComplete="off">
                 {formError && (
                   <div className="jc-error-msg">
                     <AlertCircle size={16} style={{ display: "inline", verticalAlign: "text-bottom", marginRight: "4px" }} />
@@ -868,14 +992,30 @@ function RegisterContent() {
                           type="button"
                           className="jc-photo-upload-btn"
                           onClick={() => fileRef.current?.click()}
+                          disabled={compressingPhoto}
                           aria-label="Upload profile picture"
                         >
                           {photoUrl ? (
-                            <Image src={photoUrl} alt="profile" fill style={{ objectFit: "cover" }} unoptimized />
+                            <Image
+                              src={photoUrl}
+                              alt="profile"
+                              fill
+                              style={{ objectFit: "cover", objectPosition: `${photoPosX}% ${photoPosY}%` }}
+                              unoptimized
+                            />
                           ) : (
                             <div className="jc-photo-upload-btn__inner">
-                              <Upload size={22} style={{ color: "var(--text-primary)" }} />
-                              <span>Upload Photo</span>
+                              {compressingPhoto ? (
+                                <>
+                                  <RefreshCw size={22} className="animate-spin" style={{ color: "var(--accent-primary)" }} />
+                                  <span>Compressing...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Upload size={22} style={{ color: "var(--text-primary)" }} />
+                                  <span>Upload Photo</span>
+                                </>
+                              )}
                             </div>
                           )}
                         </button>
@@ -893,8 +1033,8 @@ function RegisterContent() {
                           <div style={{ fontSize: "12px", color: "var(--accent-primary)", fontWeight: 700 }}>
                             <p>Requirements:</p>
                             <ul style={{ paddingLeft: "1.2rem", marginTop: "0.2rem", listStyleType: "disc" }}>
-                              <li>Photo MUST be exactly squared (1:1 aspect ratio).</li>
-                              <li>Max size 5MB (PNG/JPG/WEBP).</li>
+                              <li>PNG, JPG, or WEBP (automatically compressed).</li>
+                              <li>Drag on the live card to position your portrait.</li>
                             </ul>
                           </div>
                           {photoError && (
@@ -986,6 +1126,7 @@ function RegisterContent() {
                         <div className="jc-form-group">
                           <label htmlFor="email">
                             Institutional Email Address <span className="jc-required">*</span>
+                            {emailLocked && <span style={{ fontSize: "11px", color: "var(--accent-primary)", marginLeft: "6px" }}>🔒 Assigned by invitation</span>}
                           </label>
                           <input
                             id="email"
@@ -993,16 +1134,22 @@ function RegisterContent() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
+                            readOnly={emailLocked}
+                            title={emailLocked ? "Assigned by your invitation clearance key" : undefined}
+                            style={emailLocked ? { backgroundColor: "var(--surface-secondary)", cursor: "not-allowed", opacity: 0.9 } : undefined}
                             placeholder="name@mec.edu.bd"
                           />
                         </div>
                         <div className="jc-form-group">
-                          <label htmlFor="contactNumber">Contact Phone Number</label>
+                          <label htmlFor="contactNumber">
+                            Contact Phone Number <span className="jc-required">*</span>
+                          </label>
                           <input
                             id="contactNumber"
                             type="tel"
                             value={contactNumber}
                             onChange={(e) => setContactNumber(e.target.value)}
+                            required
                             placeholder="01XXXXXXXXX"
                           />
                         </div>
@@ -1072,14 +1219,28 @@ function RegisterContent() {
                         <span className="jc-form__section-num">02</span> Professional &amp; Connect Profiles
                       </h2>
 
+                      {/* Facebook is first and mandatory */}
+                      <div className="jc-form-group">
+                        <label htmlFor="facebook">
+                          <IconFB /> Facebook Profile <span className="jc-required">*</span>
+                        </label>
+                        <input
+                          id="facebook"
+                          type="text"
+                          value={facebook}
+                          onChange={(e) => setFacebook(e.target.value)}
+                          required
+                          placeholder="https://facebook.com/username or username"
+                        />
+                      </div>
+
                       <PrefixInput
                         id="linkedin"
                         name="linkedin"
                         icon={<IconLI />}
                         label="LinkedIn Profile"
-                        required
                         prefix="linkedin.com/in/"
-                        placeholder="username"
+                        placeholder="username (optional)"
                         value={linkedin}
                         onChange={(e) => setLinkedin(e.target.value)}
                         generatedUrl={toLiUrl(linkedin)}
@@ -1091,24 +1252,11 @@ function RegisterContent() {
                         icon={<IconGH />}
                         label="GitHub Profile"
                         prefix="github.com/"
-                        placeholder="username"
+                        placeholder="username (optional)"
                         value={github}
                         onChange={(e) => setGithub(e.target.value)}
                         generatedUrl={toGithubUrl(github)}
                       />
-
-                      <div className="jc-form-group">
-                        <label htmlFor="facebook">
-                          <IconFB /> Facebook Profile
-                        </label>
-                        <input
-                          id="facebook"
-                          type="url"
-                          value={facebook}
-                          onChange={(e) => setFacebook(e.target.value)}
-                          placeholder="https://facebook.com/username"
-                        />
-                      </div>
                     </div>
                   </>
                 )}
@@ -1131,14 +1279,30 @@ function RegisterContent() {
                           type="button"
                           className="jc-photo-upload-btn"
                           onClick={() => fileRef.current?.click()}
+                          disabled={compressingPhoto}
                           aria-label="Upload profile picture"
                         >
                           {photoUrl ? (
-                            <Image src={photoUrl} alt="profile" fill style={{ objectFit: "cover" }} unoptimized />
+                            <Image
+                              src={photoUrl}
+                              alt="profile"
+                              fill
+                              style={{ objectFit: "cover", objectPosition: `${photoPosX}% ${photoPosY}%` }}
+                              unoptimized
+                            />
                           ) : (
                             <div className="jc-photo-upload-btn__inner">
-                              <Upload size={22} style={{ color: "var(--text-primary)" }} />
-                              <span>Upload Photo</span>
+                              {compressingPhoto ? (
+                                <>
+                                  <RefreshCw size={22} className="animate-spin" style={{ color: "var(--accent-primary)" }} />
+                                  <span>Compressing...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Upload size={22} style={{ color: "var(--text-primary)" }} />
+                                  <span>Upload Photo</span>
+                                </>
+                              )}
                             </div>
                           )}
                         </button>
@@ -1156,8 +1320,8 @@ function RegisterContent() {
                           <div style={{ fontSize: "12px", color: "var(--accent-primary)", fontWeight: 700 }}>
                             <p>Requirements:</p>
                             <ul style={{ paddingLeft: "1.2rem", marginTop: "0.2rem", listStyleType: "disc" }}>
-                              <li>Photo MUST be exactly squared (1:1 aspect ratio).</li>
-                              <li>Max size 5MB (PNG/JPG/WEBP).</li>
+                              <li>PNG, JPG, or WEBP (automatically compressed).</li>
+                              <li>Drag on the live card to position your portrait.</li>
                             </ul>
                           </div>
                           {photoError && (
@@ -1203,72 +1367,101 @@ function RegisterContent() {
                           <Select
                             id="alumniDepartment"
                             value={alumniDepartment}
-                            onChange={setAlumniDepartment}
+                            onChange={(val) => {
+                              setAlumniDepartment(val);
+                              setAlumniBatch("");
+                            }}
                             options={DEPARTMENT_OPTIONS}
                           />
                         </div>
                         <div className="jc-form-group">
                           <label htmlFor="alumniBatch">
-                            Graduating Batch <span className="jc-required">*</span>
+                            Batch <span className="jc-required">*</span>
                           </label>
                           <Select
                             id="alumniBatch"
                             value={alumniBatch}
                             onChange={setAlumniBatch}
-                            options={ALUMNI_BATCH_OPTIONS}
+                            options={getBatchOptions(alumniDepartment, batchConfig)}
+                            placeholder="Select batch…"
                           />
                         </div>
                       </div>
 
                       <div className="jc-form__row--2">
                         <div className="jc-form-group">
-                          <label htmlFor="passingYear">
-                            Passing Year <span className="jc-required">*</span>
+                          <label htmlFor="session">
+                            Session <span className="jc-required">*</span>
                           </label>
-                          <Select
-                            id="passingYear"
-                            value={passingYear}
-                            onChange={setPassingYear}
-                            options={ALUMNI_YEAR_OPTIONS}
+                          <input
+                            id="session"
+                            name="session"
+                            autoComplete="off"
+                            data-lpignore="true"
+                            type="text"
+                            value={session}
+                            onChange={(e) => setSession(e.target.value)}
+                            required
+                            placeholder="e.g. 2019-2020"
                           />
                         </div>
                         <div className="jc-form-group">
-                          <label htmlFor="formerStudentId">Former Student ID</label>
+                          <label htmlFor="passingYear">
+                            Passing Year <span className="jc-required">*</span>
+                          </label>
                           <input
-                            id="formerStudentId"
-                            type="text"
-                            value={formerStudentId}
-                            onChange={(e) => setFormerStudentId(e.target.value)}
-                            placeholder="e.g. 190301"
+                            id="passingYear"
+                            name="passingYear"
+                            type="number"
+                            min="1990"
+                            max={new Date().getFullYear() + 2}
+                            value={passingYear}
+                            onChange={(e) => setPassingYear(e.target.value)}
+                            required
+                            placeholder="e.g. 2024"
                           />
                         </div>
+                      </div>
+
+                      <div className="jc-form-group">
+                        <label htmlFor="formerStudentId">Former Student ID (optional)</label>
+                        <input
+                          id="formerStudentId"
+                          name="alumniFormerStudentId"
+                          autoComplete="new-password"
+                          data-lpignore="true"
+                          data-1p-ignore="true"
+                          data-form-type="other"
+                          type="text"
+                          value={formerStudentId}
+                          onChange={(e) => setFormerStudentId(e.target.value)}
+                          placeholder="e.g. 190301 (leave blank to auto-generate)"
+                        />
                       </div>
 
                       <div className="jc-form__row--2">
                         <div className="jc-form-group">
                           <label htmlFor="currentCompany">
-                            Current Company / Organization <span className="jc-required">*</span>
+                            Current Company / Organization
                           </label>
                           <input
                             id="currentCompany"
                             type="text"
                             value={currentCompany}
                             onChange={(e) => setCurrentCompany(e.target.value)}
-                            required
-                            placeholder="e.g. Google, Brain Station 23, Therap"
+                            placeholder="e.g. Google, Brain Station 23, Therap (optional)"
                           />
                         </div>
                         <div className="jc-form-group">
                           <label htmlFor="currentJobTitle">
-                            Job Title / Designation <span className="jc-required">*</span>
+                            Job Title / Designation
                           </label>
                           <input
                             id="currentJobTitle"
                             type="text"
                             value={currentJobTitle}
                             onChange={(e) => setCurrentJobTitle(e.target.value)}
-                            required
-                            placeholder="e.g. Software Engineer / Tech Lead"
+                            placeholder="e.g. Software Engineer / Tech Lead (optional)"
                           />
                         </div>
                       </div>
@@ -1277,6 +1470,7 @@ function RegisterContent() {
                         <div className="jc-form-group">
                           <label htmlFor="email">
                             Contact Email <span className="jc-required">*</span>
+                            {emailLocked && <span style={{ fontSize: "11px", color: "var(--accent-primary)", marginLeft: "6px" }}>🔒 Assigned by invitation</span>}
                           </label>
                           <input
                             id="email"
@@ -1284,16 +1478,22 @@ function RegisterContent() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
+                            readOnly={emailLocked}
+                            title={emailLocked ? "Assigned by your invitation clearance key" : undefined}
+                            style={emailLocked ? { backgroundColor: "var(--surface-secondary)", cursor: "not-allowed", opacity: 0.9 } : undefined}
                             placeholder="name@company.com or personal"
                           />
                         </div>
                         <div className="jc-form-group">
-                          <label htmlFor="contactNumber">Contact Phone Number</label>
+                          <label htmlFor="contactNumber">
+                            Contact Phone Number <span className="jc-required">*</span>
+                          </label>
                           <input
                             id="contactNumber"
                             type="tel"
                             value={contactNumber}
                             onChange={(e) => setContactNumber(e.target.value)}
+                            required
                             placeholder="01XXXXXXXXX"
                           />
                         </div>
@@ -1345,14 +1545,28 @@ function RegisterContent() {
                         <span className="jc-form__section-num">02</span> Professional &amp; Social Profiles
                       </h2>
 
+                      {/* Facebook is first and mandatory */}
+                      <div className="jc-form-group">
+                        <label htmlFor="facebook">
+                          <IconFB /> Facebook Profile <span className="jc-required">*</span>
+                        </label>
+                        <input
+                          id="facebook"
+                          type="text"
+                          value={facebook}
+                          onChange={(e) => setFacebook(e.target.value)}
+                          required
+                          placeholder="https://facebook.com/username or username"
+                        />
+                      </div>
+
                       <PrefixInput
                         id="linkedin"
                         name="linkedin"
                         icon={<IconLI />}
                         label="LinkedIn Profile"
-                        required
                         prefix="linkedin.com/in/"
-                        placeholder="username"
+                        placeholder="username (optional)"
                         value={linkedin}
                         onChange={(e) => setLinkedin(e.target.value)}
                         generatedUrl={toLiUrl(linkedin)}
@@ -1364,7 +1578,7 @@ function RegisterContent() {
                         icon={<IconGH />}
                         label="GitHub Profile"
                         prefix="github.com/"
-                        placeholder="username"
+                        placeholder="username (optional)"
                         value={github}
                         onChange={(e) => setGithub(e.target.value)}
                         generatedUrl={toGithubUrl(github)}
@@ -1376,24 +1590,11 @@ function RegisterContent() {
                         icon={<IconCF />}
                         label="Codeforces Handle"
                         prefix="codeforces.com/"
-                        placeholder="handle"
+                        placeholder="handle (optional)"
                         value={codeforces}
                         onChange={(e) => setCodeforces(e.target.value)}
                         generatedUrl={toCfUrl(codeforces)}
                       />
-
-                      <div className="jc-form-group">
-                        <label htmlFor="facebook">
-                          <IconFB /> Facebook Profile
-                        </label>
-                        <input
-                          id="facebook"
-                          type="url"
-                          value={facebook}
-                          onChange={(e) => setFacebook(e.target.value)}
-                          placeholder="https://facebook.com/username"
-                        />
-                      </div>
                     </div>
                   </>
                 )}
@@ -1416,18 +1617,30 @@ function RegisterContent() {
                           type="button"
                           className="jc-photo-upload-btn"
                           onClick={() => fileRef.current?.click()}
+                          disabled={compressingPhoto}
                           aria-label="Upload profile picture"
                         >
                           {photoUrl ? (
-                            <Image src={photoUrl} alt="profile" fill style={{ objectFit: "cover" }} unoptimized />
+                            <Image
+                              src={photoUrl}
+                              alt="profile"
+                              fill
+                              style={{ objectFit: "cover", objectPosition: `${photoPosX}% ${photoPosY}%` }}
+                              unoptimized
+                            />
                           ) : (
                             <div className="jc-photo-upload-btn__inner">
-                              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                                <polyline points="17 8 12 3 7 8" />
-                                <line x1="12" y1="3" x2="12" y2="15" />
-                              </svg>
-                              <span>Upload Photo</span>
+                              {compressingPhoto ? (
+                                <>
+                                  <RefreshCw size={22} className="animate-spin" style={{ color: "var(--accent-primary)" }} />
+                                  <span>Compressing...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Upload size={22} style={{ color: "var(--text-primary)" }} />
+                                  <span>Upload Photo</span>
+                                </>
+                              )}
                             </div>
                           )}
                         </button>
@@ -1445,8 +1658,8 @@ function RegisterContent() {
                           <div style={{ fontWeight: "bold", fontSize: "0.85rem", color: "var(--accent-primary)" }}>
                             <p>Important requirements:</p>
                             <ul style={{ paddingLeft: "1.2rem", marginTop: "0.2rem", listStyleType: "disc" }}>
-                              <li>Photo MUST be exactly squared (1:1 aspect ratio).</li>
-                              <li>File size must be under 5MB.</li>
+                              <li>PNG, JPG, or WEBP (automatically compressed).</li>
+                              <li>Drag on the live card to position your portrait.</li>
                             </ul>
                           </div>
                           {photoError && (
@@ -1474,6 +1687,8 @@ function RegisterContent() {
                         </label>
                         <input
                           id="fullName"
+                          name="fullName"
+                          autoComplete="name"
                           type="text"
                           value={fullName}
                           onChange={(e) => setFullName(e.target.value)}
@@ -1489,6 +1704,11 @@ function RegisterContent() {
                           </label>
                           <input
                             id="studentId"
+                            name="studentId"
+                            autoComplete="off"
+                            data-lpignore="true"
+                            data-1p-ignore="true"
+                            data-form-type="other"
                             type="text"
                             value={studentId}
                             onChange={(e) => setStudentId(e.target.value)}
@@ -1502,6 +1722,11 @@ function RegisterContent() {
                           </label>
                           <input
                             id="registrationNumber"
+                            name="registrationNumber"
+                            autoComplete="off"
+                            data-lpignore="true"
+                            data-1p-ignore="true"
+                            data-form-type="other"
                             type="text"
                             value={registrationNumber}
                             onChange={(e) => setRegistrationNumber(e.target.value)}
@@ -1513,31 +1738,185 @@ function RegisterContent() {
 
                       <div className="jc-form__row--2">
                         <div className="jc-form-group">
-                          <label htmlFor="batch">
-                            Batch <span className="jc-required">*</span>
+                          <label htmlFor="memberDepartment">
+                            Department <span className="jc-required">*</span>
                           </label>
-                          <input
-                            id="batch"
-                            type="text"
-                            value={batch}
-                            onChange={(e) => setBatch(e.target.value)}
-                            required
-                            placeholder="e.g. CSE, 5th"
+                          <Select
+                            id="memberDepartment"
+                            value={department}
+                            onChange={(val) => {
+                              setDepartment(val);
+                              setBatch(""); // reset batch when department changes
+                            }}
+                            options={DEPARTMENT_OPTIONS}
                           />
                         </div>
                         <div className="jc-form-group">
-                          <label htmlFor="email">
-                            Email <span className="jc-required">*</span>
+                          <label htmlFor="memberBatch">
+                            Batch <span className="jc-required">*</span>
                           </label>
-                          <input
-                            id="email"
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                            placeholder="name@std.mec.edu.bd"
+                          <Select
+                            id="memberBatch"
+                            value={batch}
+                            onChange={setBatch}
+                            options={getBatchOptions(department, batchConfig)}
+                            placeholder="Select batch…"
                           />
                         </div>
+                      </div>
+
+                      <div className="jc-form__row--2">
+                        <div className="jc-form-group">
+                          <label htmlFor="session">
+                            Academic Session <span className="jc-required">*</span>
+                          </label>
+                          <input
+                            id="session"
+                            name="session"
+                            autoComplete="off"
+                            data-lpignore="true"
+                            type="text"
+                            value={session}
+                            onChange={(e) => setSession(e.target.value)}
+                            required
+                            placeholder="e.g. 2021-2022"
+                          />
+                        </div>
+                        <div className="jc-form-group">
+                          <label htmlFor="contactNumber">
+                            Contact Number <span className="jc-required">*</span>
+                          </label>
+                          <input
+                            id="contactNumber"
+                            name="contactNumber"
+                            autoComplete="tel"
+                            type="tel"
+                            value={contactNumber}
+                            onChange={(e) => setContactNumber(e.target.value)}
+                            required
+                            placeholder="01XXXXXXXXX"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Graduated Checkbox Card */}
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "var(--space-2)",
+                          padding: "14px 16px",
+                          border: "1px solid var(--border-brutalist)",
+                          borderRadius: "var(--radius-md)",
+                          background: isGraduated ? "var(--surface-secondary)" : "var(--surface-primary)",
+                          boxShadow: isGraduated ? "3px 3px 0 var(--border-brutalist)" : "2px 2px 0 var(--border-brutalist)",
+                          marginBottom: "var(--space-4)",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <label
+                          htmlFor="isGraduatedMember"
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "10px",
+                            cursor: "pointer",
+                            fontWeight: 700,
+                            fontSize: "0.95rem",
+                            color: "var(--text-primary)",
+                            margin: 0,
+                            userSelect: "none",
+                          }}
+                        >
+                          <input
+                            id="isGraduatedMember"
+                            type="checkbox"
+                            checked={isGraduated}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setIsGraduated(checked);
+                              if (checked && !passingYear) {
+                                setPassingYear(new Date().getFullYear().toString());
+                              }
+                            }}
+                            style={{
+                              width: "18px",
+                              height: "18px",
+                              accentColor: "var(--accent-primary)",
+                              cursor: "pointer",
+                            }}
+                          />
+                          <span>Are you graduated?</span>
+                          <span
+                            style={{
+                              marginLeft: "auto",
+                              fontSize: "0.75rem",
+                              padding: "2px 8px",
+                              background: isGraduated ? "var(--accent-primary)" : "var(--surface-tertiary)",
+                              color: isGraduated ? "#ffffff" : "var(--text-secondary)",
+                              borderRadius: "var(--radius-sm)",
+                              fontWeight: 800,
+                              textTransform: "uppercase",
+                              letterSpacing: "0.05em",
+                            }}
+                          >
+                            {isGraduated ? "Role: Alumni" : "Role: Member"}
+                          </span>
+                        </label>
+
+                        {isGraduated && (
+                          <div className="jc-form-group" style={{ marginTop: "12px" }}>
+                            <label htmlFor="passingYear" style={{ fontWeight: 700, color: "var(--text-primary)" }}>
+                              Passing Year <span className="jc-required">*</span>
+                            </label>
+                            <input
+                              id="passingYear"
+                              name="passingYear"
+                              type="number"
+                              min="1990"
+                              max={new Date().getFullYear() + 2}
+                              value={passingYear}
+                              onChange={(e) => setPassingYear(e.target.value)}
+                              required={isGraduated}
+                              placeholder="e.g. 2023"
+                              style={{
+                                width: "100%",
+                                padding: "10px 14px",
+                                border: "1px solid var(--border-brutalist)",
+                                borderRadius: "var(--radius-md)",
+                                background: "var(--surface-primary)",
+                                color: "var(--text-primary)",
+                                fontSize: "var(--text-sm)",
+                                fontWeight: 600,
+                                boxShadow: "2px 2px 0 var(--border-brutalist)",
+                                display: "block",
+                              }}
+                            />
+                            <span style={{ fontSize: "0.8rem", color: "var(--text-tertiary)", marginTop: "2px" }}>
+                              Your profile will be designated as Alumni in the club directory.
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="jc-form-group">
+                        <label htmlFor="email">
+                          Email <span className="jc-required">*</span>
+                          {emailLocked && <span style={{ fontSize: "11px", color: "var(--accent-primary)", marginLeft: "6px" }}>🔒 Assigned by invitation</span>}
+                        </label>
+                        <input
+                          id="email"
+                          name="email"
+                          autoComplete="email"
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          required
+                          readOnly={emailLocked}
+                          title={emailLocked ? "Assigned by your invitation clearance key" : undefined}
+                          style={emailLocked ? { backgroundColor: "var(--surface-secondary)", cursor: "not-allowed", opacity: 0.9 } : undefined}
+                          placeholder="name@std.mec.edu.bd"
+                        />
                       </div>
 
                       <div className="jc-form__row--2">
@@ -1547,6 +1926,8 @@ function RegisterContent() {
                           </label>
                           <input
                             id="password"
+                            name="password"
+                            autoComplete="new-password"
                             type={showPassword ? "text" : "password"}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
@@ -1560,6 +1941,8 @@ function RegisterContent() {
                           </label>
                           <input
                             id="confirmPassword"
+                            name="confirmPassword"
+                            autoComplete="new-password"
                             type={showPassword ? "text" : "password"}
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
@@ -1575,42 +1958,71 @@ function RegisterContent() {
                         <span className="jc-form__section-num">02</span> Social &amp; Competitive Profiles
                       </h2>
 
+                      {/* Facebook is first and mandatory */}
                       <div className="jc-form-group">
-                        <label htmlFor="linkedin">
-                          <IconLI /> LinkedIn <span className="jc-required">*</span>
+                        <label htmlFor="facebook">
+                          <IconFB /> Facebook Profile <span className="jc-required">*</span>
                         </label>
                         <input
-                          id="linkedin"
-                          type="url"
-                          value={linkedin}
-                          onChange={(e) => setLinkedin(e.target.value)}
+                          id="facebook"
+                          name="facebook"
+                          autoComplete="off"
+                          type="text"
+                          value={facebook}
+                          onChange={(e) => setFacebook(e.target.value)}
                           required
-                          placeholder="https://linkedin.com/in/username"
+                          placeholder="https://facebook.com/username or username"
                         />
                       </div>
 
+                      {/* Other profiles are optional */}
                       <PrefixInput
-                        id="github"
-                        name="github"
-                        icon={<IconGH />}
-                        label="GitHub"
-                        required
-                        prefix="github.com/"
-                        placeholder="username"
-                        value={github}
-                        onChange={(e) => setGithub(e.target.value)}
-                        generatedUrl={toGithubUrl(github)}
+                        id="linkedin"
+                        name="linkedin"
+                        icon={<IconLI />}
+                        label="LinkedIn Profile"
+                        prefix="linkedin.com/in/"
+                        placeholder="username (optional)"
+                        value={linkedin}
+                        onChange={(e) => setLinkedin(e.target.value)}
+                        generatedUrl={toLiUrl(linkedin)}
                       />
 
+                      {/* Merged GitHub and Discord in one line on desktop */}
+                      <div className="jc-form__row--2">
+                        <PrefixInput
+                          id="github"
+                          name="github"
+                          icon={<IconGH />}
+                          label="GitHub Profile"
+                          prefix="github.com/"
+                          placeholder="username (optional)"
+                          value={github}
+                          onChange={(e) => setGithub(e.target.value)}
+                          generatedUrl={toGithubUrl(github)}
+                        />
+
+                        <PrefixInput
+                          id="discord"
+                          name="discord"
+                          icon={<IconDiscord />}
+                          label="Discord Handle"
+                          prefix="@"
+                          placeholder="username (optional)"
+                          value={discord}
+                          onChange={(e) => setDiscord(e.target.value)}
+                        />
+                      </div>
+
+                      {/* Codeforces and CodeChef in one line */}
                       <div className="jc-form__row--2">
                         <PrefixInput
                           id="codeforces"
                           name="codeforces"
                           icon={<IconCF />}
-                          label="Codeforces"
-                          required
+                          label="Codeforces Handle"
                           prefix="codeforces.com/"
-                          placeholder="handle"
+                          placeholder="handle (optional)"
                           value={codeforces}
                           onChange={(e) => setCodeforces(e.target.value)}
                           generatedUrl={toCfUrl(codeforces)}
@@ -1619,38 +2031,12 @@ function RegisterContent() {
                           id="codechef"
                           name="codechef"
                           icon={<IconCC />}
-                          label="CodeChef"
-                          required
+                          label="CodeChef Handle"
                           prefix="codechef.com/"
-                          placeholder="username"
+                          placeholder="handle (optional)"
                           value={codechef}
                           onChange={(e) => setCodechef(e.target.value)}
                           generatedUrl={toCodechefUrl(codechef)}
-                        />
-                      </div>
-
-                      <PrefixInput
-                        id="discord"
-                        name="discord"
-                        icon={<IconDiscord />}
-                        label="Discord"
-                        required
-                        prefix="@"
-                        placeholder="username"
-                        value={discord}
-                        onChange={(e) => setDiscord(e.target.value)}
-                      />
-
-                      <div className="jc-form-group">
-                        <label htmlFor="facebook">
-                          <IconFB /> Facebook
-                        </label>
-                        <input
-                          id="facebook"
-                          type="url"
-                          value={facebook}
-                          onChange={(e) => setFacebook(e.target.value)}
-                          placeholder="https://facebook.com/username"
                         />
                       </div>
                     </div>
@@ -1662,9 +2048,9 @@ function RegisterContent() {
                   <Button type="submit" size="lg" disabled={submitting} aria-busy={submitting}>
                     {submitting
                       ? "Submitting Application…"
-                      : formRole === "advisor"
+                      : effectiveRole === "advisor"
                       ? "Complete Advisor Induction →"
-                      : formRole === "alumni"
+                      : effectiveRole === "alumni"
                       ? "Register to Alumni Network →"
                       : "Submit Application →"}
                   </Button>
@@ -1680,14 +2066,109 @@ function RegisterContent() {
                   </div>
 
                   <LiveCardPreview
-                    roleType={formRole}
+                    roleType={effectiveRole}
                     name={renderedFullName}
                     subTitle={previewSubTitle}
                     designation={previewDesignation}
                     photoUrl={photoUrl}
                     initial={initial}
                     socials={previewSocials}
+                    photoPosX={photoPosX}
+                    photoPosY={photoPosY}
+                    photoZoom={photoZoom}
+                    onPositionChange={(x, y) => {
+                      setPhotoPosX(x);
+                      setPhotoPosY(y);
+                    }}
                   />
+
+                  {photoUrl && (
+                    <div className="jc-photo-controls">
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <p className="jc-photo-controls__title" style={{ margin: 0 }}>Adjust Photo</p>
+                        <span style={{ fontSize: "11px", color: "var(--accent-primary)", fontWeight: 700, fontFamily: "var(--font-mono)" }}>
+                          {photoPosX}% X, {photoPosY}% Y
+                        </span>
+                      </div>
+
+                      <div className="jc-photo-controls__row">
+                        <label>Vertical</label>
+                        <div className="jc-slider-wrap">
+                          <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            value={photoPosY}
+                            onChange={(e) => setPhotoPosY(Number(e.target.value))}
+                            className="jc-slider"
+                            aria-label="Vertical position"
+                          />
+                          <div
+                            className={`jc-slider-mark ${photoPosY === 50 ? "jc-slider-mark--active" : ""}`}
+                            style={{ left: "50%" }}
+                          />
+                        </div>
+                        <span>{photoPosY}%</span>
+                      </div>
+
+                      <div className="jc-photo-controls__row">
+                        <label>Horizontal</label>
+                        <div className="jc-slider-wrap">
+                          <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            value={photoPosX}
+                            onChange={(e) => setPhotoPosX(Number(e.target.value))}
+                            className="jc-slider"
+                            aria-label="Horizontal position"
+                          />
+                          <div
+                            className={`jc-slider-mark ${photoPosX === 50 ? "jc-slider-mark--active" : ""}`}
+                            style={{ left: "50%" }}
+                          />
+                        </div>
+                        <span>{photoPosX}%</span>
+                      </div>
+
+                      <div className="jc-photo-controls__row">
+                        <label>Zoom</label>
+                        <div className="jc-slider-wrap">
+                          <input
+                            type="range"
+                            min={100}
+                            max={200}
+                            value={photoZoom}
+                            onChange={(e) => setPhotoZoom(Number(e.target.value))}
+                            className="jc-slider"
+                            aria-label="Zoom photo"
+                          />
+                          <div
+                            className={`jc-slider-mark ${photoZoom === 100 ? "jc-slider-mark--active" : ""}`}
+                            style={{ left: "0%" }}
+                          />
+                        </div>
+                        <span>{photoZoom}%</span>
+                      </div>
+
+                      <div style={{ display: "flex", gap: "6px", marginTop: "2px" }}>
+                        <button
+                          type="button"
+                          className="jc-photo-controls__reset"
+                          onClick={() => { setPhotoPosX(50); setPhotoPosY(50); setPhotoZoom(100); }}
+                        >
+                          Reset Center
+                        </button>
+                        <button
+                          type="button"
+                          className="jc-photo-controls__reset"
+                          onClick={() => { setPhotoPosY(15); }}
+                        >
+                          Focus Top
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   <p className="jc-preview-hint">
                     This is how your profile card will be rendered across the club network.

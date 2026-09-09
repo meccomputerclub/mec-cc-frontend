@@ -1,8 +1,12 @@
 export interface Partner {
+  id?: string;
   name: string;
   type: string;
   desc: string;
   logoPlaceholder: string;
+  logoUrl?: string;
+  website?: string;
+  isActive?: boolean;
 }
 
 export const partners: Partner[] = [
@@ -47,12 +51,28 @@ export async function getPartners(): Promise<Partner[]> {
       const data = await res.json();
       const backendSponsors: any[] = data.data || data.sponsors || [];
       if (backendSponsors && backendSponsors.length > 0) {
-        const mapped = backendSponsors.map((s: any) => ({
-          name: s.name,
-          type: s.tier || "Partner",
-          desc: s.description || "Official partner of MEC Computer Club.",
-          logoPlaceholder: s.name.slice(0, 2).toUpperCase(),
-        }));
+        const mapped: Partner[] = backendSponsors.map((s: any) => {
+          let displayType = s.tier || "";
+          if (!displayType) {
+            if (s.contributionType === "service") displayType = "Service Partner";
+            else if (s.contributionType === "in_kind") displayType = "Event Partner";
+            else if (s.contributionType === "monetary") displayType = "Official Sponsor";
+            else displayType = "Partner";
+          }
+
+          return {
+            id: String(s._id || s.id),
+            name: s.name,
+            type: displayType,
+            desc: s.notes || s.description || "Official partner of MEC Computer Club.",
+            logoPlaceholder: (s.name || "SP").slice(0, 2).toUpperCase(),
+            logoUrl: s.logoUrl || undefined,
+            website: s.website || undefined,
+            isActive: s.isActive !== false,
+          };
+        });
+
+        // Backend sponsors first, followed by static fallback partners
         return [...mapped, ...partners];
       }
     }

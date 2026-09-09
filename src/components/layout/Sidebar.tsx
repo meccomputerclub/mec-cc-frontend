@@ -2,8 +2,11 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "next-themes";
+import { useAccent } from "@/components/AccentProvider";
 import toast from "react-hot-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import {
@@ -26,6 +29,17 @@ export function Sidebar({ type }: SidebarProps) {
   const router = useRouter();
   const { logout, user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const { resolvedTheme } = useTheme();
+  const { currentVibe } = useAccent();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const logoSrc = mounted
+    ? `/logo-${currentVibe || "lime"}-${resolvedTheme === "dark" ? "dark" : "light"}.png`
+    : "/logo-lime-light.png";
 
   const handleLogout = async () => {
     await logout();
@@ -76,11 +90,18 @@ export function Sidebar({ type }: SidebarProps) {
           isOpen ? "translate-x-0" : "max-md:-translate-x-full"
         }`}
       >
-        <div className="h-16 flex items-center px-4 border-b border-border-default">
-          <Link href="/" className="font-bold text-xl text-text-primary no-underline flex items-center gap-2">
-            <span>MEC CC</span>
+        <div className="h-16 flex items-center justify-between px-4 border-b border-border-default">
+          <Link href="/" className="flex items-center gap-2 no-underline hover:opacity-85 transition-opacity" aria-label="MEC Computer Club — Home">
+            <Image
+              src={logoSrc}
+              alt="MEC Computer Club Logo"
+              width={160}
+              height={40}
+              priority
+              className="h-9 w-auto object-contain"
+            />
             {type === "admin" && (
-              <span className="bg-accent-primary-light text-accent-primary-text font-mono text-[0.65rem] py-0.5 px-1.5 rounded-sm font-bold">
+              <span className="bg-accent-primary-light text-accent-primary-text font-mono text-[0.65rem] py-0.5 px-1.5 rounded-sm font-bold ml-1">
                 ADMIN
               </span>
             )}

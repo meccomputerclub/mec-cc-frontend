@@ -31,7 +31,12 @@ export function CertificatesTab({ user, certificates }: CertificatesTabProps) {
       {certificates.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {certificates.map((cert, idx) => {
-            const credId = cert.credentialId || cert._id || `CERT-${idx + 1}`;
+            const credId = cert.certificateId || cert.credentialId || cert._id || `CERT-${idx + 1}`;
+            const certTitle = cert.name || cert.title || cert.associatedEvent?.title || "Certificate of Participation";
+            const eventName = cert.associatedEvent?.title || "";
+            const certType = cert.type ? cert.type.toUpperCase() : (cert.category || "OFFICIAL");
+            const recipient = cert.recipientName || cert.recipient?.fullName || user.fullName;
+
             return (
               <div
                 key={cert._id || idx}
@@ -42,23 +47,29 @@ export function CertificatesTab({ user, certificates }: CertificatesTabProps) {
                     <ShieldCheck size={11} /> Verified
                   </span>
                   <span className="inline-flex items-center gap-1 py-0.5 px-2 rounded-sm font-mono text-[10px] font-extrabold uppercase tracking-wider bg-surface-elevated text-text-secondary border border-border-default">
-                    {cert.category || "Achievement"}
+                    {certType}
                   </span>
                 </div>
 
                 <h3 className="font-heading text-base font-extrabold text-text-primary m-0 leading-snug">
-                  {cert.title || cert.eventName || "Certificate of Excellence"}
+                  {certTitle}
                 </h3>
+
+                {eventName && eventName !== certTitle && (
+                  <p className="text-xs text-accent-primary font-semibold m-0 -mt-1">
+                    {eventName}
+                  </p>
+                )}
 
                 <div className="flex flex-col gap-1 text-xs text-text-secondary">
                   <div>
-                    <strong className="font-bold text-text-primary">Recipient:</strong> {cert.recipientName || user.fullName}
+                    <strong className="font-bold text-text-primary">Recipient:</strong> {recipient}
                   </div>
                   <div>
                     <strong className="font-bold text-text-primary">Issued:</strong> {cert.issueDate ? new Date(cert.issueDate).toLocaleDateString() : "Active"}
                   </div>
                   <div className="flex items-center gap-1.5 font-mono text-[11px] text-text-tertiary">
-                    <span>ID: {credId}</span>
+                    <span className="font-bold text-text-primary">ID: {credId}</span>
                     <button
                       type="button"
                       onClick={() => copyCredentialId(credId)}
@@ -75,7 +86,7 @@ export function CertificatesTab({ user, certificates }: CertificatesTabProps) {
                   <Button size="sm" variant="outline" onClick={() => setSelectedCert(cert)}>
                     View Certificate
                   </Button>
-                  <Button href={`/verify?certificate=${credId}`} variant="ghost" size="sm">
+                  <Button href={`/verify?certificate=${encodeURIComponent(credId)}`} variant="ghost" size="sm">
                     Verify Link <ExternalLink size={12} style={{ marginLeft: "4px" }} />
                   </Button>
                 </div>
@@ -112,40 +123,45 @@ export function CertificatesTab({ user, certificates }: CertificatesTabProps) {
               </button>
             </div>
 
-            <div className="py-6 px-4 bg-surface-secondary rounded-xl border-2 border-border-default relative">
-              <div className="w-12 h-12 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-3">
+            <div className="py-6 px-4 bg-white text-slate-900 rounded-xl border-2 border-slate-900 relative shadow-sm">
+              <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 flex items-center justify-center mx-auto mb-3">
                 <Award size={24} />
               </div>
-              <h2 className="text-xl font-extrabold text-text-primary m-0 mb-1">
-                {selectedCert.title || "Certificate of Excellence"}
+              <h2 className="text-xl font-extrabold text-slate-900 m-0 mb-1">
+                {selectedCert.name || selectedCert.title || selectedCert.associatedEvent?.title || "Certificate of Excellence"}
               </h2>
-              <p className="text-text-secondary text-sm m-0 mb-4">
-                Awarded by <strong className="font-bold text-text-primary">MEC Computer Club</strong>
+              <p className="text-slate-600 text-sm m-0 mb-4">
+                Awarded by <strong className="font-bold text-slate-900">MEC Computer Club</strong>
               </p>
 
-              <div className="border-t border-b border-dashed border-border-default py-4 my-4">
-                <p className="text-xs text-text-tertiary uppercase font-bold tracking-wider m-0">Proudly Presented To</p>
-                <h3 className="text-2xl font-black text-accent-primary my-1">
-                  {selectedCert.recipientName || user.fullName}
+              <div className="border-t border-b border-dashed border-slate-300 py-4 my-4">
+                <p className="text-xs text-slate-400 uppercase font-bold tracking-wider m-0">Proudly Presented To</p>
+                <h3 className="text-2xl font-black text-[#0F766E] my-1">
+                  {selectedCert.recipientName || selectedCert.recipient?.fullName || user.fullName}
                 </h3>
-                <p className="text-xs text-text-secondary m-0">
-                  Student ID: {user.studentId} • {user.department || "CSE"}
+                <p className="text-xs text-slate-600 m-0">
+                  Student ID: <strong className="text-slate-900">{user.studentId}</strong> • Dept. of {user.department || "CSE"}
                 </p>
               </div>
 
-              <p className="text-xs text-text-secondary m-0 mb-2">
+              <p className="text-xs text-slate-500 m-0 mb-2">
                 Issued on: {selectedCert.issueDate ? new Date(selectedCert.issueDate).toLocaleDateString() : new Date().toLocaleDateString()}
               </p>
-              <code className="text-[11px] font-mono bg-surface-elevated px-2 py-0.5 rounded border border-border-default text-text-primary">
-                ID: {selectedCert.credentialId || selectedCert._id}
+              <code className="text-[11px] font-mono bg-slate-100 px-2 py-0.5 rounded border border-slate-300 text-slate-900">
+                ID: {selectedCert.certificateId || selectedCert.credentialId || selectedCert._id}
               </code>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 mt-5 justify-center">
-              <Button href={`/verify?certificate=${selectedCert.credentialId || selectedCert._id}`} size="md">
+            <div className="flex flex-col sm:flex-row gap-3 mt-5 justify-center flex-wrap">
+              <Button href={`/verify?certificate=${encodeURIComponent(selectedCert.certificateId || selectedCert.credentialId || selectedCert._id)}`} size="md">
                 Open Public Verify Page ↗
               </Button>
-              <Button variant="outline" size="md" onClick={() => copyCredentialId(selectedCert.credentialId || selectedCert._id)}>
+              {selectedCert.digitalUrl && (
+                <Button href={selectedCert.digitalUrl} target="_blank" rel="noopener noreferrer" variant="secondary" size="md">
+                  Digital Asset ↗
+                </Button>
+              )}
+              <Button variant="outline" size="md" onClick={() => copyCredentialId(selectedCert.certificateId || selectedCert.credentialId || selectedCert._id)}>
                 Copy Credential ID
               </Button>
             </div>

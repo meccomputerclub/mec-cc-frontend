@@ -8,11 +8,32 @@ export interface CoverPreset {
 
 export const coverPresets: CoverPreset[] = [
   {
+    id: "mec-emerald",
+    name: "MEC Emerald Circuit",
+    category: "Official Club Branding",
+    url: "/covers/cover-mec-emerald.svg",
+    description: "Signature MEC emerald & mint cyber tracks with binary telemetry nodes.",
+  },
+  {
+    id: "minimal-code",
+    name: "Developer Syntax IDE",
+    category: "Clean Code & Software",
+    url: "/covers/cover-minimal-code.svg",
+    description: "Dark carbon code editor with real TypeScript types, prompt lines, and system diagnostics.",
+  },
+  {
     id: "terminal-matrix",
     name: "Terminal Core Matrix",
     category: "Cyberpunk Terminal",
     url: "/covers/cover-terminal-matrix.svg",
     description: "Linux kernel architecture, memory allocation, and glowing green code streams.",
+  },
+  {
+    id: "deep-space",
+    name: "Nebula Hex Mesh",
+    category: "Modern Gradient",
+    url: "/covers/cover-deep-space.svg",
+    description: "Deep violet & magenta hexagonal cosmic mesh with glowing starfield constellations.",
   },
   {
     id: "circuit-blueprint",

@@ -20,7 +20,14 @@ import {
   ExternalLink,
   Copy,
   Code2,
+  Globe,
+  Briefcase,
+  Calendar,
+  MapPin,
+  Phone,
+  Pencil,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 import { formatDeptSession } from "@/lib/formatters";
 import { staticExecutives } from "@/data/executives";
 import { staticAdvisors } from "@/data/advisors";
@@ -65,6 +72,7 @@ export default function MemberProfilePage() {
   const params = useParams();
   const router = useRouter();
   const id = (params?.id as string) || "";
+  const { user: currentUser } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [member, setMember] = useState<any>(null);
@@ -284,6 +292,7 @@ export default function MemberProfilePage() {
             fill
             sizes="100vw"
             className="w-full h-full object-cover"
+            style={{ objectPosition: member.coverPosition || "50% 50%" }}
           />
         ) : (
           <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.15)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
@@ -297,14 +306,29 @@ export default function MemberProfilePage() {
           >
             <ArrowLeft size={14} /> Back
           </button>
-          <button
-            type="button"
-            onClick={handleShare}
-            className="inline-flex items-center gap-1.5 py-1.5 px-3.5 bg-surface-elevated text-text-primary border-2 border-border-brutalist dark:border-border-default rounded-md shadow-[2px_2px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_var(--border-default)] text-xs font-bold transition-all hover:shadow-[3px_3px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5 cursor-pointer"
-            title="Share profile link"
-          >
-            <Share2 size={14} /> Share Profile
-          </button>
+          <div className="flex items-center gap-2">
+            {currentUser &&
+              (currentUser.role === "admin" ||
+                currentUser.role === "moderator" ||
+                currentUser.role === "executive") &&
+              (member._id || id) && (
+                <Link
+                  href={`/dashboard/members/${member._id || id}`}
+                  className="inline-flex items-center gap-1.5 py-1.5 px-3.5 bg-accent-primary text-accent-primary-text border-2 border-border-brutalist dark:border-border-default rounded-md shadow-[2px_2px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_var(--border-default)] text-xs font-bold transition-all hover:shadow-[3px_3px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5"
+                  title="Manage and edit member details in dashboard"
+                >
+                  <Pencil size={13} /> Edit Member
+                </Link>
+              )}
+            <button
+              type="button"
+              onClick={handleShare}
+              className="inline-flex items-center gap-1.5 py-1.5 px-3.5 bg-surface-elevated text-text-primary border-2 border-border-brutalist dark:border-border-default rounded-md shadow-[2px_2px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_var(--border-default)] text-xs font-bold transition-all hover:shadow-[3px_3px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5 cursor-pointer"
+              title="Share profile link"
+            >
+              <Share2 size={14} /> Share Profile
+            </button>
+          </div>
         </div>
       </div>
 
@@ -321,6 +345,7 @@ export default function MemberProfilePage() {
                   fill
                   sizes="130px"
                   className="w-full h-full object-cover"
+                  style={{ objectPosition: member.imagePosition || "50% 50%" }}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center font-bold text-3xl text-text-primary bg-surface-secondary">
@@ -444,6 +469,16 @@ export default function MemberProfilePage() {
                 <Mail size={14} /> {member.email}
               </a>
             )}
+            {member.website && (
+              <a
+                href={member.website.startsWith("http") ? member.website : `https://${member.website}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-md border border-border-brutalist dark:border-border-default bg-accent-primary-light/50 dark:bg-accent-primary/20 text-text-primary text-xs font-bold hover:bg-accent-primary-light transition-colors"
+              >
+                <Globe size={14} className="text-accent-primary" /> Portfolio Website <ExternalLink size={12} className="opacity-60" />
+              </a>
+            )}
           </div>
         </div>
 
@@ -460,15 +495,35 @@ export default function MemberProfilePage() {
                 <span className="text-text-primary font-bold text-right">{member.department || "Computer Science & Eng."}</span>
               </div>
               <div className="flex justify-between items-center text-xs sm:text-sm pb-2 border-b border-dashed border-border-default">
-                <span className="text-text-secondary font-semibold">Session</span>
-                <span className="text-text-primary font-bold text-right">{sessionDisplay}</span>
+                <span className="text-text-secondary font-semibold">Batch</span>
+                <span className="text-text-primary font-bold text-right">
+                  {member.batch
+                    ? member.batch.toLowerCase().includes("batch")
+                      ? member.batch
+                      : `${member.batch} Batch`
+                    : "N/A"}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs sm:text-sm pb-2 border-b border-dashed border-border-default">
+                <span className="text-text-secondary font-semibold">Academic Session</span>
+                <span className="text-text-primary font-bold text-right">{member.session || "N/A"}</span>
               </div>
               {member.studentId && (
                 <div className="flex justify-between items-center text-xs sm:text-sm pb-2 border-b border-dashed border-border-default">
                   <span className="text-text-secondary font-semibold">Student ID</span>
-                  <span className="text-text-primary font-bold text-right">{member.studentId}</span>
+                  <span className="text-text-primary font-mono font-bold text-right">{member.studentId}</span>
                 </div>
               )}
+              <div className="flex justify-between items-center text-xs sm:text-sm pb-2 border-b border-dashed border-border-default">
+                <span className="text-text-secondary font-semibold">Graduation Status</span>
+                <span className="text-text-primary font-bold text-right">
+                  {member.isGraduated
+                    ? member.passingYear
+                      ? `Graduated (Class of ${member.passingYear})`
+                      : "Graduated Alumni"
+                    : "Undergraduate Student"}
+                </span>
+              </div>
               <div className="flex justify-between items-center text-xs sm:text-sm pb-2 border-b border-dashed border-border-default">
                 <span className="text-text-secondary font-semibold">Club Standing</span>
                 <span className="text-text-primary font-bold text-right">
@@ -478,13 +533,73 @@ export default function MemberProfilePage() {
               <div className="flex justify-between items-center text-xs sm:text-sm pb-2 border-b border-dashed border-border-default">
                 <span className="text-text-secondary font-semibold">Platform Privilege</span>
                 <span className="text-text-primary font-bold text-right">
-                  {isAdmin ? "Administrator" : isMod ? "Moderator" : "Standard"}
+                  {isAdmin ? "Administrator" : isMod ? "Moderator" : "Standard Member"}
                 </span>
               </div>
+              {member.email && (
+                <div className="flex justify-between items-center text-xs sm:text-sm pb-2 border-b border-dashed border-border-default">
+                  <span className="text-text-secondary font-semibold flex items-center gap-1.5">
+                    <Mail size={13} /> Email
+                  </span>
+                  <div className="flex items-center gap-1.5 text-right">
+                    <a
+                      href={`mailto:${member.email}`}
+                      className="text-text-primary font-semibold hover:text-accent-primary underline transition-colors"
+                    >
+                      {member.email}
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => copyText(member.email, "Email address")}
+                      className="text-text-secondary hover:text-accent-primary p-0.5 cursor-pointer"
+                      title="Copy email"
+                    >
+                      <Copy size={12} />
+                    </button>
+                  </div>
+                </div>
+              )}
+              {member.contactNumber && (
+                <div className="flex justify-between items-center text-xs sm:text-sm pb-2 border-b border-dashed border-border-default">
+                  <span className="text-text-secondary font-semibold flex items-center gap-1.5">
+                    <Phone size={13} /> Contact
+                  </span>
+                  <div className="flex items-center gap-1.5 text-right">
+                    <a
+                      href={`tel:${member.contactNumber}`}
+                      className="text-text-primary font-semibold hover:text-accent-primary transition-colors"
+                    >
+                      {member.contactNumber}
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => copyText(member.contactNumber, "Contact number")}
+                      className="text-text-secondary hover:text-accent-primary p-0.5 cursor-pointer"
+                      title="Copy contact number"
+                    >
+                      <Copy size={12} />
+                    </button>
+                  </div>
+                </div>
+              )}
               {member.address && (
-                <div className="flex justify-between items-center text-xs sm:text-sm">
-                  <span className="text-text-secondary font-semibold">Campus / City</span>
+                <div className="flex justify-between items-center text-xs sm:text-sm pb-2 border-b border-dashed border-border-default">
+                  <span className="text-text-secondary font-semibold flex items-center gap-1.5">
+                    <MapPin size={13} /> Campus / City
+                  </span>
                   <span className="text-text-primary font-bold text-right">{member.address}</span>
+                </div>
+              )}
+              {member.createdAt && (
+                <div className="flex justify-between items-center text-xs sm:text-sm">
+                  <span className="text-text-secondary font-semibold">Member Since</span>
+                  <span className="text-text-primary font-semibold text-right">
+                    {new Date(member.createdAt).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </span>
                 </div>
               )}
             </div>
@@ -626,6 +741,134 @@ export default function MemberProfilePage() {
               </div>
             </div>
           </div>
+
+          {/* Card 4: Technical Skills & Tech Stack */}
+          {Array.isArray(member.skills) && member.skills.length > 0 && (
+            <div className="bg-surface-elevated border-2 border-border-brutalist dark:border-border-default rounded-xl shadow-[4px_4px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_var(--border-default)] p-5 sm:p-6 md:col-span-2">
+              <h2 className="flex items-center gap-2 text-sm sm:text-base font-extrabold text-text-primary uppercase tracking-wider mb-4 pb-3 border-b border-border-default">
+                <Sparkles size={16} className="text-accent-primary" /> Technical Skills &amp; Stack
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {member.skills.map((skill: string) => (
+                  <span
+                    key={skill}
+                    className="inline-flex items-center px-3 py-1.5 text-xs font-mono font-bold bg-surface-secondary border border-border-brutalist dark:border-border-default rounded-md shadow-[2px_2px_0px_var(--border-default)] text-text-primary hover:border-accent-primary transition-all"
+                  >
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Card 5: Professional Experience (Career Ladder) */}
+          {Array.isArray(member.experiences) && member.experiences.length > 0 && (
+            <div className="bg-surface-elevated border-2 border-border-brutalist dark:border-border-default rounded-xl shadow-[4px_4px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_var(--border-default)] p-5 sm:p-6 md:col-span-2">
+              <h2 className="flex items-center gap-2 text-sm sm:text-base font-extrabold text-text-primary uppercase tracking-wider mb-5 pb-3 border-b border-border-default">
+                <Briefcase size={16} className="text-accent-primary" /> Professional Experience
+              </h2>
+              <div className="relative pl-6 sm:pl-8 space-y-6 before:content-[''] before:absolute before:left-2 sm:before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-border-default">
+                {member.experiences.map((exp: any, i: number) => (
+                  <div key={i} className="relative group">
+                    {/* Node Dot */}
+                    <div className="absolute -left-6 sm:-left-8 top-1 w-4 h-4 rounded-full bg-surface-elevated border-2 border-accent-primary flex items-center justify-center">
+                      <div className="w-1.5 h-1.5 rounded-full bg-accent-primary" />
+                    </div>
+                    <div className="p-4 bg-surface-secondary border border-border-default rounded-lg">
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-sm sm:text-base font-extrabold text-text-primary m-0">
+                            {exp.jobTitle}
+                          </h3>
+                          <span className="text-xs sm:text-sm font-semibold text-text-secondary">
+                            @ {exp.companyName}
+                          </span>
+                        </div>
+                        {exp.isCurrent && (
+                          <span className="text-[10px] font-mono font-extrabold uppercase px-2 py-0.5 rounded bg-accent-primary text-accent-primary-text shadow-[1px_1px_0px_black]">
+                            Current Role
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-text-tertiary mb-2 font-mono">
+                        <span className="flex items-center gap-1">
+                          <Calendar size={12} /> {exp.startDate} – {exp.isCurrent ? "Present" : exp.endDate || "Present"}
+                        </span>
+                        {exp.location && (
+                          <span className="flex items-center gap-1 font-body">
+                            <MapPin size={12} /> {exp.location}
+                          </span>
+                        )}
+                      </div>
+                      {exp.description && (
+                        <p className="text-xs text-text-secondary font-body mt-1 leading-relaxed whitespace-pre-line m-0">
+                          {exp.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Card 6: Higher Education & Academics */}
+          {Array.isArray(member.education) && member.education.length > 0 && (
+            <div className="bg-surface-elevated border-2 border-border-brutalist dark:border-border-default rounded-xl shadow-[4px_4px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_var(--border-default)] p-5 sm:p-6 md:col-span-2">
+              <h2 className="flex items-center gap-2 text-sm sm:text-base font-extrabold text-text-primary uppercase tracking-wider mb-5 pb-3 border-b border-border-default">
+                <GraduationCap size={16} className="text-accent-primary" /> Higher Education &amp; Academic Milestones
+              </h2>
+              <div className="relative pl-6 sm:pl-8 space-y-6 before:content-[''] before:absolute before:left-2 sm:before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-border-default">
+                {member.education.map((edu: any, i: number) => (
+                  <div key={i} className="relative group">
+                    {/* Node Dot */}
+                    <div className="absolute -left-6 sm:-left-8 top-1 w-4 h-4 rounded-full bg-surface-elevated border-2 border-accent-primary flex items-center justify-center">
+                      <div className="w-1.5 h-1.5 rounded-full bg-accent-primary" />
+                    </div>
+                    <div className="p-4 bg-surface-secondary border border-border-default rounded-lg">
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-sm sm:text-base font-extrabold text-text-primary m-0">
+                            {edu.degree}
+                          </h3>
+                          <span className="text-xs sm:text-sm font-semibold text-text-secondary">
+                            at {edu.institution}
+                          </span>
+                        </div>
+                        {edu.isCurrent && (
+                          <span className="text-[10px] font-mono font-extrabold uppercase px-2 py-0.5 rounded bg-accent-primary text-accent-primary-text shadow-[1px_1px_0px_black]">
+                            Currently Pursuing
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-text-tertiary mb-2">
+                        {edu.fieldOfStudy && (
+                          <span className="font-semibold text-text-secondary">
+                            Major: {edu.fieldOfStudy}
+                          </span>
+                        )}
+                        {(edu.startDate || edu.endDate) && (
+                          <span className="flex items-center gap-1 font-mono">
+                            <Calendar size={12} /> {edu.startDate || ""} – {edu.isCurrent ? "Present" : edu.endDate || "Present"}
+                          </span>
+                        )}
+                        {edu.location && (
+                          <span className="flex items-center gap-1 font-body">
+                            <MapPin size={12} /> {edu.location}
+                          </span>
+                        )}
+                      </div>
+                      {edu.description && (
+                        <p className="text-xs text-text-secondary font-body mt-1 leading-relaxed whitespace-pre-line m-0">
+                          {edu.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

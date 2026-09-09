@@ -45,10 +45,7 @@ const navItems = [
       { label: "Roadmaps", href: "/cp-hub/roadmaps" },
       { label: "Resources", href: "/cp-hub/resources" },
       { label: "Problem Sets", href: "/cp-hub/problem-sets" },
-      { label: "Sheet Tracker", href: "/cp-hub/sheet-tracker" },
-      { label: "Contests", href: "/cp-hub/contests" },
       { label: "Leaderboard", href: "/cp-hub/leaderboard" },
-      { label: "ICPC Preparation", href: "/cp-hub/icpc-preparation" },
       { label: "Achievements", href: "/cp-hub/achievements" },
     ],
   },
@@ -58,6 +55,7 @@ const navItems = [
     children: [
       { label: "Projects", href: "/projects" },
       { label: "Blog", href: "/blog" },
+      { label: "Verify & Lookup", href: "/verify" },
     ],
   },
   {
@@ -172,7 +170,13 @@ export function Navbar() {
         __html: `
           .navbar { position: sticky; top: 0; left: 0; right: 0; z-index: 1000; height: var(--nav-height); background-color: var(--nav-bg) !important; border-bottom: 1px solid var(--border-default); transition: border-color var(--transition-base); }
           .navbar--scrolled { background-color: var(--nav-bg) !important; border-bottom: 1px solid var(--border-default); box-shadow: none; }
-          .navbar__inner { display: flex; align-items: center; justify-content: space-between; height: 100%; gap: var(--space-4); }
+          .navbar__inner { display: flex; align-items: center; justify-content: space-between; height: 100%; gap: var(--space-4); width: 100%; max-width: var(--max-width) !important; margin-left: auto !important; margin-right: auto !important; padding-left: var(--gutter) !important; padding-right: var(--gutter) !important; padding-top: 0 !important; padding-bottom: 0 !important; }
+          @media (min-width: 1920px) {
+            .navbar__inner { max-width: var(--max-width-wide) !important; }
+          }
+          @media (max-width: 768px) {
+            .navbar__inner { padding-left: var(--gutter-mobile) !important; padding-right: var(--gutter-mobile) !important; }
+          }
           .navbar__logo { display: flex; align-items: center; text-decoration: none; flex-shrink: 0; height: 36px; }
           .navbar__logo-image { object-fit: contain; }
           .navbar__links { display: flex; align-items: center; gap: var(--space-1); list-style: none; padding: 0; margin: 0; }

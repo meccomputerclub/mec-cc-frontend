@@ -30,6 +30,35 @@ export interface TeamMember {
   isExec?: boolean;
 }
 
+export interface EventReward {
+  position: string;
+  prize: string;
+}
+
+export interface EventScheduleItem {
+  time: string;
+  title: string;
+  description?: string;
+}
+
+export interface EventSponsorItem {
+  sponsorId?: any;
+  sponsorName: string;
+  logoUrl?: string;
+  tier?: string;
+}
+
+export interface EventMediaItem {
+  _id?: string;
+  id?: string;
+  title: string;
+  url: string;
+  mediaType: "image" | "video" | "document" | "other";
+  thumbnailUrl?: string;
+  relatedEvent?: any;
+  fileSize?: number;
+}
+
 export interface Event {
   id: string;
   slug: string;
@@ -40,14 +69,28 @@ export interface Event {
   endDate?: string;
   time: string;
   location: string;
-  type: "workshop" | "contest" | "seminar" | "social" | "hackathon";
+  onlineLink?: string;
+  type: "workshop" | "contest" | "seminar" | "social" | "hackathon" | "gaming" | string;
   department?: string;
   image: string;
   speakers?: string[];
   status: "upcoming" | "ongoing" | "past";
   registrationUrl?: string;
+  registrationType?: "individual" | "team";
+  teamSize?: { min: number; max: number };
+  registrationDeadline?: string;
+  registrationFee?: number;
+  maxParticipants?: number;
+  prizePool?: string;
+  rewards?: EventReward[];
+  schedule?: EventScheduleItem[];
+  rules?: string[];
+  sponsors?: EventSponsorItem[];
+  customHtmlSection?: string;
   attendeeCount?: number;
   tags?: string[];
+  linkedForm?: string;
+  media?: EventMediaItem[];
 }
 
 export interface Project {
@@ -65,6 +108,7 @@ export interface Project {
   status: "in-progress" | "completed" | "archived";
   featured?: boolean;
   completedDate?: string;
+  createdBy?: string;
 }
 
 export interface BlogPost {
@@ -74,11 +118,16 @@ export interface BlogPost {
   excerpt: string;
   content: string;
   author: string;
+  authorId?: string;
   authorImage?: string;
   date: string;
   readTime: number;
   tags: string[];
   image?: string;
+  coverImagePosition?: string;
+  views?: number;
+  likesCount?: number;
+  likes?: string[];
   featured?: boolean;
 }
 
@@ -117,13 +166,23 @@ export interface CPResource {
 }
 
 export interface LeaderboardEntry {
+  userId?: string;
   rank: number;
   name: string;
   handle: string;
+  hasCfHandle?: boolean;
   platform: string;
   rating: number;
+  maxRating?: number;
+  tier?: string;
   solved: number;
   image?: string;
+  imageUrl?: string;
+  avatar?: string;
+  designation?: string;
+  department?: string;
+  batch?: string;
+  profileUrl?: string;
 }
 
 export interface Stat {
@@ -133,6 +192,29 @@ export interface Stat {
 }
 
 /* ===== User & Auth Types ===== */
+
+export interface UserExperience {
+  _id?: string;
+  companyName: string;
+  jobTitle: string;
+  startDate: string;
+  endDate?: string;
+  isCurrent?: boolean;
+  location?: string;
+  description?: string;
+}
+
+export interface UserEducation {
+  _id?: string;
+  institution: string;
+  degree: string;
+  fieldOfStudy?: string;
+  startDate?: string;
+  endDate?: string;
+  isCurrent?: boolean;
+  location?: string;
+  description?: string;
+}
 
 export interface AuthUser {
   id?: string;
@@ -146,8 +228,10 @@ export interface AuthUser {
   designation?: string;
   imageUrl?: string;
   imagePublicId?: string;
+  imagePosition?: string;
   coverUrl?: string;
   coverPublicId?: string;
+  coverPosition?: string;
   session?: string;
   batch?: string;
   department?: string;
@@ -156,6 +240,10 @@ export interface AuthUser {
   contactNumber?: string;
   address?: string;
   bio?: string;
+  skills?: string[];
+  website?: string;
+  experiences?: UserExperience[];
+  education?: UserEducation[];
   isVerified?: boolean;
   isApproved?: boolean;
   applicationStatus?: "pending" | "approved" | "rejected";
@@ -171,6 +259,8 @@ export interface AuthUser {
   eventsAttended?: any[];
   certificates?: any[];
   projectsContributed?: any[];
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
 }
 
 export interface DesignationItem {

@@ -27,6 +27,8 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import Image from "next/image";
 import { Upload, X, Link as LinkIcon, ImageIcon } from "lucide-react";
+import toast from "react-hot-toast";
+import { compressImage } from "@/lib/imageCompressor";
 
 export interface ImageUploadProps {
   value: string;
@@ -38,6 +40,11 @@ export interface ImageUploadProps {
   error?: string;
   disabled?: boolean;
 }
+
+const getApiBaseUrl = () => {
+  const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/\/+$/, "");
+  return base.endsWith("/api") ? base : `${base}/api`;
+};
 
 export default function ImageUpload({
   value,
@@ -66,14 +73,22 @@ export default function ImageUpload({
   // ── Upload a File object to Cloudinary ──────────────────────────────────
   const uploadFile = useCallback(
     async (file: File) => {
-      if (!file.type.startsWith("image/")) return;
+      if (!file.type.startsWith("image/")) {
+        toast.error("Please select a valid image file");
+        return;
+      }
+      if (file.size > 15 * 1024 * 1024) {
+        toast.error("Image file size must be under 15MB");
+        return;
+      }
       setUploading(true);
       try {
+        const compressed = await compressImage(file);
         const fd = new FormData();
-        fd.append("image", file);
+        fd.append("image", compressed.file);
         fd.append("folder", folder);
         const res = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL}/upload/image`,
+          `${getApiBaseUrl()}/upload/image?folder=${encodeURIComponent(folder)}`,
           fd,
           { withCredentials: true }
         );
@@ -81,8 +96,13 @@ export default function ImageUpload({
         const publicId: string = res.data.public_id || "";
         setUploadedPublicId(publicId);
         onChange(url);
-      } catch {
-        alert("Image upload failed. Please try again.");
+        toast.success("Image uploaded successfully!");
+      } catch (err: any) {
+        const msg =
+          err?.response?.data?.message ||
+          err?.message ||
+          "Image upload failed. Please try again.";
+        toast.error(msg);
       } finally {
         setUploading(false);
       }
@@ -95,7 +115,7 @@ export default function ImageUpload({
     if (uploadedPublicId) {
       try {
         await axios.delete(
-          `${process.env.NEXT_PUBLIC_API_URL}/upload/image`,
+          `${getApiBaseUrl()}/upload/image`,
           {
             data: { public_id: uploadedPublicId },
             withCredentials: true,

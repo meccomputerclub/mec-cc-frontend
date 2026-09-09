@@ -8,9 +8,12 @@ import { Select } from "@/components/ui/Select";
 import toast from "react-hot-toast";
 import { Code2, Plus, X, Sparkles, Send } from "lucide-react";
 
+import { api } from "@/lib/api";
+
 interface ProjectsTabProps {
   user: AuthUser;
   projects: any[];
+  onProjectAdded?: () => void;
 }
 
 const DEPARTMENT_OPTIONS = [
@@ -22,7 +25,7 @@ const DEPARTMENT_OPTIONS = [
   { value: "other", label: "Other Software / Open Source" },
 ];
 
-export function ProjectsTab({ user, projects }: ProjectsTabProps) {
+export function ProjectsTab({ user, projects, onProjectAdded }: ProjectsTabProps) {
   const [showProposePanel, setShowProposePanel] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [proposalData, setProposalData] = useState({
@@ -34,12 +37,13 @@ export function ProjectsTab({ user, projects }: ProjectsTabProps) {
     techStack: "",
   });
 
-  const handleProposeProject = (e: React.FormEvent) => {
+  const handleProposeProject = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    setTimeout(() => {
-      toast.success("Project proposal submitted to club project leads!");
+    try {
+      await api.post("/api/projects/propose", proposalData);
+      toast.success("Project added successfully!");
       setIsSubmitting(false);
       setShowProposePanel(false);
       setProposalData({
@@ -50,15 +54,19 @@ export function ProjectsTab({ user, projects }: ProjectsTabProps) {
         liveUrl: "",
         techStack: "",
       });
-    }, 400);
+      if (onProjectAdded) onProjectAdded();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to submit project");
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <div className="bg-surface-elevated border-[1.5px] border-border-brutalist dark:border-border-default rounded-xl shadow-[4px_4px_0px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_0px_var(--border-default)] p-4 sm:p-6 mb-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-3 border-b-[1.5px] border-border-default">
         <div>
-          <h2 className="font-heading text-lg sm:text-xl font-extrabold text-text-primary m-0">Club Projects &amp; Software ({projects.length})</h2>
-          <p className="font-body text-xs text-text-secondary mt-0.5">Open-source tools, platforms, and applications built by club members.</p>
+          <h2 className="font-heading text-lg sm:text-xl font-extrabold text-text-primary m-0">My Projects &amp; Software ({projects.length})</h2>
+          <p className="font-body text-xs text-text-secondary mt-0.5">Software, tools, and repositories you have created or contributed to.</p>
         </div>
         <Button
           size="sm"

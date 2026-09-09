@@ -1,5 +1,7 @@
 import { LeaderboardEntry, CPContest, CPResource } from "@/types";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
 export const leaderboard: LeaderboardEntry[] = [
   { rank: 1, name: "Nusrat Jahan", handle: "nusrat_cf", platform: "Codeforces", rating: 1687, solved: 580, image: "/images/team/nusrat.jpg" },
   { rank: 2, name: "Rafi Islam", handle: "rafi_codes", platform: "Codeforces", rating: 1542, solved: 420, image: "/images/team/rafi.jpg" },
@@ -10,6 +12,31 @@ export const leaderboard: LeaderboardEntry[] = [
   { rank: 7, name: "Sabrina Akter", handle: "sabrina_a", platform: "Codeforces", rating: 1245, solved: 210 },
   { rank: 8, name: "Mehedi Hasan", handle: "mehedi_h", platform: "Codeforces", rating: 1189, solved: 185 },
 ];
+
+export async function getClubLeaderboard(): Promise<LeaderboardEntry[]> {
+  try {
+    const res = await fetch(`${API_URL}/api/users/public/leaderboard`, {
+      next: { revalidate: 60 },
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        return json.data.filter((entry: LeaderboardEntry) => {
+          const desig = (entry.designation || "").toLowerCase();
+          const batch = (entry.batch || "").toLowerCase();
+          if (desig.includes("advisor") || desig.includes("patron") || desig.includes("principal")) return false;
+          if (batch === "faculty") return false;
+          return true;
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("Could not fetch real leaderboard from backend, using fallback:", err);
+  }
+  return leaderboard;
+}
+
+
 
 export const contests: CPContest[] = [
   {

@@ -29,7 +29,9 @@ export async function middleware(req: NextRequest) {
   // --- 2. Profile-protected pages ---
   if (pathname === "/profile") {
     if (!payload) {
-      const response = NextResponse.redirect(new URL("/login", req.url));
+      const loginUrl = new URL("/login", req.url);
+      loginUrl.searchParams.set("redirect", pathname + req.nextUrl.search);
+      const response = NextResponse.redirect(loginUrl);
       if (token) {
         response.cookies.delete("auth_token");
         response.cookies.delete("role");
@@ -41,7 +43,9 @@ export async function middleware(req: NextRequest) {
   // --- 3. Dashboard-protected pages (Executive Only) ---
   if (pathname.startsWith("/dashboard")) {
     if (!payload) {
-      const response = NextResponse.redirect(new URL("/login", req.url));
+      const loginUrl = new URL("/login", req.url);
+      loginUrl.searchParams.set("redirect", pathname + req.nextUrl.search);
+      const response = NextResponse.redirect(loginUrl);
       // Clear stale/invalid cookies
       if (token) {
         response.cookies.delete("auth_token");
@@ -60,6 +64,20 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // --- 4. Blog write page ---
+  if (pathname.startsWith("/blog/write")) {
+    if (!payload) {
+      const loginUrl = new URL("/login", req.url);
+      loginUrl.searchParams.set("redirect", pathname + req.nextUrl.search);
+      const response = NextResponse.redirect(loginUrl);
+      if (token) {
+        response.cookies.delete("auth_token");
+        response.cookies.delete("role");
+      }
+      return response;
+    }
+  }
+
   return NextResponse.next();
 }
 
@@ -68,5 +86,7 @@ export const config = {
     "/register/form/:path*",
     "/profile",
     "/dashboard/:path*",
+    "/blog/write/:path*",
+    "/blog/write",
   ],
 };

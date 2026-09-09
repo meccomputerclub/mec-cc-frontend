@@ -1,130 +1,212 @@
 "use client";
-import React, { useState } from "react";
-import { CheckCircle, XCircle } from "lucide-react";
 
-interface ValidationResult {
-  status: "success" | "error";
-  recipient?: string;
-  event?: string;
-  date?: string;
-  message?: string;
+import React, { useState, useEffect, useCallback } from "react";
+import axios from "axios";
+import Link from "next/link";
+import toast from "react-hot-toast";
+import {
+  Award,
+  ShieldCheck,
+  ExternalLink,
+  Copy,
+  Printer,
+  Calendar,
+  AlertCircle,
+  Search,
+  CheckCircle2,
+  RefreshCw,
+} from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { Button } from "@/components/ui/Button";
+
+const API = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api`;
+
+interface CertificateItem {
+  _id: string;
+  certificateId: string;
+  name: string;
+  description?: string;
+  type: string;
+  position?: string;
+  issueDate: string;
+  status: "valid" | "revoked";
+  associatedEvent?: {
+    _id: string;
+    title: string;
+    date?: string;
+  };
 }
 
-export default function CertificatesPage() {
-  const [certCode, setCertCode] = useState("");
-  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
+export default function MemberCertificatesPage() {
+  const { user } = useAuth();
+  const [certificates, setCertificates] = useState<CertificateItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleValidate = (e: React.FormEvent) => {
-    e.preventDefault();
-    setValidationResult(null);
-
-    if (certCode.length < 8) {
-      setValidationResult({ status: "error", message: "Code must be at least 8 digits." });
-      return;
-    }
-
-    // Mock validation logic
-    if (certCode.startsWith("MEC")) {
-      setValidationResult({
-        status: "success",
-        recipient: "Bob Smith",
-        event: "Web Dev Workshop 2025",
-        date: "2025-12-10",
+  const fetchMyCertificates = useCallback(async () => {
+    if (!user?.id) return;
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API}/certificates/user/${user.id}`, {
+        withCredentials: true,
       });
-    } else {
-      setValidationResult({ status: "error", message: "Invalid or expired certificate code." });
+      setCertificates(res.data.data || []);
+    } catch {
+      toast.error("Failed to load your certificates.");
+    } finally {
+      setLoading(false);
     }
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchMyCertificates();
+  }, [fetchMyCertificates]);
+
+  const copyText = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copied to clipboard!`);
   };
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-3xl font-semibold text-gray-900 dark:text-white border-b pb-3 border-gray-200 dark:border-gray-700">
-        Certificate and Activity Validation
-      </h2>
+    <div className="space-y-8 pb-12 font-sans">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border-default pb-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-text-primary flex items-center gap-2">
+            <Award className="text-accent-primary" size={28} />
+            My Earned Credentials &amp; Certificates
+          </h1>
+          <p className="text-xs sm:text-sm text-text-secondary mt-1">
+            Official verifiable club credentials issued to your account for hackathons, workshops, and competitions.
+          </p>
+        </div>
 
-      {/* Public/Guest Validation Form */}
-      <div className="bg-white dark:bg-gray-900 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 max-w-lg mx-auto">
-        <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
-          Validate a Certificate (Public Feature)
-        </h3>
-        <form onSubmit={handleValidate} className="space-y-4">
-          <input
-            type="text"
-            value={certCode}
-            onChange={(e) => setCertCode(e.target.value.toUpperCase())}
-            placeholder="Enter Certificate Code (e.g., MEC12345)"
-            className="w-full border rounded-md px-4 py-2 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 focus:ring-blue-400 dark:focus:ring-blue-600 outline-none transition"
-          />
+        <div className="flex items-center gap-2.5">
+          <Button href="/verify" size="sm" variant="secondary">
+            <Search size={14} className="mr-1.5" /> Public Verify Portal
+          </Button>
           <button
-            type="submit"
-            className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition"
+            type="button"
+            onClick={fetchMyCertificates}
+            className="p-2 border border-border-default rounded-lg text-text-secondary hover:text-text-primary transition"
+            title="Refresh"
           >
-            Validate Code
+            <RefreshCw size={15} />
           </button>
-        </form>
+        </div>
       </div>
 
-      {/* Validation Result */}
-      {validationResult && (
-        <div
-          className={`p-6 rounded-xl shadow-lg max-w-lg mx-auto ${validationResult.status === "success"
-              ? "bg-green-50 dark:bg-green-900/50 border border-green-300 dark:border-green-700"
-              : "bg-red-50 dark:bg-red-900/50 border border-red-300 dark:border-red-700"
-            }`}
-        >
-          <div className="flex items-center">
-            {validationResult.status === "success" ? (
-              <CheckCircle className="w-6 h-6 text-green-600 mr-3" />
-            ) : (
-              <XCircle className="w-6 h-6 text-red-600 mr-3" />
-            )}
-            <h4 className="font-semibold text-lg text-gray-900 dark:text-white">
-              {validationResult.status === "success"
-                ? "Validation Successful!"
-                : "Validation Failed"}
-            </h4>
-          </div>
-          {validationResult.status === "success" ? (
-            <ul className="mt-3 text-sm space-y-1 text-gray-700 dark:text-gray-300">
-              <li>
-                <strong>Recipient:</strong> {validationResult.recipient}
-              </li>
-              <li>
-                <strong>Event:</strong> {validationResult.event}
-              </li>
-              <li>
-                <strong>Date Issued:</strong> {validationResult.date}
-              </li>
-            </ul>
-          ) : (
-            <p className="mt-3 text-sm text-gray-700 dark:text-gray-300">
-              {validationResult.message}
-            </p>
-          )}
+      {/* Certificates Grid */}
+      {loading ? (
+        <div className="p-12 text-center text-text-tertiary font-mono text-sm">
+          Loading credentials…
+        </div>
+      ) : certificates.length === 0 ? (
+        <div className="p-12 bg-surface-elevated rounded-2xl border border-dashed border-border-default text-center">
+          <Award size={48} className="mx-auto mb-3 text-accent-primary opacity-40" />
+          <h3 className="text-lg font-bold text-text-primary mb-1">No Certificates Issued Yet</h3>
+          <p className="text-sm text-text-secondary max-w-md mx-auto mb-5">
+            Participate in club hackathons, CP practice sessions, and bootcamps to earn official verifiable credentials.
+          </p>
+          <Button href="/events" size="sm">
+            View Upcoming Events →
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {certificates.map((cert) => (
+            <div
+              key={cert._id}
+              className="bg-surface-elevated border-2 border-border-brutalist rounded-xl p-5 flex flex-col justify-between shadow-[4px_4px_0px_var(--border-brutalist)] transition-all hover:shadow-[6px_6px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <span
+                    className={`inline-flex items-center gap-1 font-mono text-[10px] font-extrabold uppercase py-0.5 px-2 rounded-full border ${
+                      cert.status === "valid"
+                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                        : "bg-red-500/15 text-red-600 border-red-500/30"
+                    }`}
+                  >
+                    <ShieldCheck size={11} /> {cert.status === "valid" ? "Verified" : "Revoked"}
+                  </span>
+                  <span className="font-mono text-[10px] font-bold py-0.5 px-2 rounded bg-surface-secondary text-text-secondary border border-border-default uppercase">
+                    {cert.type}
+                  </span>
+                </div>
+
+                <h3 className="text-lg font-bold text-text-primary mb-1 leading-snug">
+                  {cert.name}
+                </h3>
+
+                {cert.position && (
+                  <span className="inline-block text-[11px] font-mono font-extrabold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded mb-2">
+                    ★ {cert.position}
+                  </span>
+                )}
+
+                {cert.associatedEvent && (
+                  <p className="text-xs text-text-secondary font-mono flex items-center gap-1.5 mb-2">
+                    <Calendar size={12} className="text-accent-primary flex-shrink-0" />
+                    <span className="truncate">{cert.associatedEvent.title}</span>
+                  </p>
+                )}
+
+                {cert.description && (
+                  <p className="text-xs text-text-secondary leading-relaxed line-clamp-2 italic mb-3">
+                    &ldquo;{cert.description}&rdquo;
+                  </p>
+                )}
+
+                <div className="pt-3 border-t border-border-default font-mono text-xs text-text-tertiary flex items-center justify-between">
+                  <span>Issued: {new Date(cert.issueDate).toLocaleDateString()}</span>
+                  <button
+                    type="button"
+                    onClick={() => copyText(cert.certificateId, "Credential ID")}
+                    className="hover:text-text-primary flex items-center gap-1 text-accent-primary font-bold"
+                  >
+                    <span>{cert.certificateId}</span>
+                    <Copy size={11} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-dashed border-border-default flex items-center justify-between gap-2">
+                <Link
+                  href={`/verify?cert=${cert.certificateId}`}
+                  target="_blank"
+                  className="text-xs font-mono font-bold text-accent-primary-hover hover:underline inline-flex items-center gap-1"
+                >
+                  Verify Online <ExternalLink size={12} />
+                </Link>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const url = `${window.location.origin}/verify?cert=${cert.certificateId}`;
+                    copyText(url, "Public Verification Link");
+                  }}
+                >
+                  Share Link
+                </Button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Member's Own Certificates (Only visible to logged-in members) */}
-      <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
-        <h3 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">
-          My Earned Certificates
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white dark:bg-gray-900 p-4 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-            <p className="font-semibold text-gray-900 dark:text-white">
-              Certificate: Python Fundamentals
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Issued: 2025-09-20</p>
-            <button className="mt-2 text-sm text-blue-600 hover:underline">Download PDF</button>
-          </div>
-          <div className="bg-white dark:bg-gray-900 p-4 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-            <p className="font-semibold text-gray-900 dark:text-white">
-              Certificate: Robotics Competition
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Issued: 2025-11-05</p>
-            <button className="mt-2 text-sm text-blue-600 hover:underline">Download PDF</button>
-          </div>
+      {/* Public Tool Callout Card */}
+      <div className="bg-surface-secondary border-2 border-border-brutalist rounded-2xl p-6 sm:p-7 shadow-[4px_4px_0px_var(--border-brutalist)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h3 className="text-lg font-bold text-text-primary mb-1">
+            Need to Verify Any Certificate or Look Up Club Members?
+          </h3>
+          <p className="text-xs sm:text-sm text-text-secondary">
+            Use the official verification portal to validate credentials, check student IDs, and inspect club activity records.
+          </p>
         </div>
+        <Button href="/verify" size="md" className="flex-shrink-0">
+          Launch Verification Portal →
+        </Button>
       </div>
     </div>
   );

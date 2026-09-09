@@ -5,6 +5,7 @@ export interface Advisor {
   academicPost?: string;
   department?: string;
   image: string;
+  imagePosition?: string;
   bio?: string;
   socials?: {
     linkedin?: string;
@@ -56,14 +57,16 @@ export const staticAdvisors: Advisor[] = [
 
 export const advisors = staticAdvisors;
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-
 export async function getAdvisors(): Promise<Advisor[]> {
+  const API_URL =
+    process.env.BACKEND_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://localhost:4000";
   try {
     // 1. Fetch active designations to build order precedence map
     const orderMap: Record<string, number> = {};
     try {
-      const desigRes = await fetch(`${API_URL}/api/designations?category=advisor`, { cache: "no-store" });
+      const desigRes = await fetch(`${API_URL}/api/designations?category=advisor`, { next: { revalidate: 60 } });
       if (desigRes.ok) {
         const desigData = await desigRes.json();
         const list = desigData.data || [];
@@ -78,7 +81,7 @@ export async function getAdvisors(): Promise<Advisor[]> {
     }
 
     // 2. Fetch active approved members from DB
-    const res = await fetch(`${API_URL}/api/users/profile/active`, { cache: "no-store" });
+    const res = await fetch(`${API_URL}/api/users/profile/active`, { next: { revalidate: 60 } });
     if (res.ok) {
       const data = await res.json();
       const backendMembers: any[] = data.data || data.members || [];
@@ -98,6 +101,7 @@ export async function getAdvisors(): Promise<Advisor[]> {
           academicPost: m.session && m.session !== "Faculty" ? m.session : (m.department ? `Dept. of ${m.department}` : "Faculty"),
           department: m.department || "CSE",
           image: m.imageUrl || "",
+          imagePosition: m.imagePosition || "50% 50%",
           bio: m.bio || undefined,
           socials: {
             linkedin: m.socialLinks?.linkedin || undefined,

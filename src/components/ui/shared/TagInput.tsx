@@ -1,12 +1,13 @@
 "use client";
 /**
  * TagInput — visual tag pill input
- * - Type and press Enter or comma to add a tag
+ * - Type and press Enter, comma, or space to add a tag
  * - Click ✕ on a tag to remove it
- * - Paste comma-separated values to add multiple at once
+ * - Paste comma or space-separated values to add multiple at once
  * - Fully controlled via value/onChange
+ * - Supports tagsBelow={true} to render tag view below the input field
  */
-import React, { useState, useRef, KeyboardEvent, ClipboardEvent } from "react";
+import React, { useState, useRef, KeyboardEvent, ClipboardEvent, ChangeEvent } from "react";
 import { X } from "lucide-react";
 
 interface TagInputProps {
@@ -16,6 +17,7 @@ interface TagInputProps {
   maxTags?: number;
   disabled?: boolean;
   className?: string;
+  tagsBelow?: boolean;
 }
 
 export default function TagInput({
@@ -25,13 +27,14 @@ export default function TagInput({
   maxTags,
   disabled = false,
   className = "",
+  tagsBelow = false,
 }: TagInputProps) {
   const [input, setInput] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const addTags = (raw: string) => {
     const newTags = raw
-      .split(",")
+      .split(/[, ]+/)
       .map((t) => t.trim().toLowerCase())
       .filter((t) => t.length > 0 && !value.includes(t));
 
@@ -46,7 +49,7 @@ export default function TagInput({
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" || e.key === ",") {
+    if (e.key === "Enter" || e.key === "," || e.key === " ") {
       e.preventDefault();
       if (input.trim()) addTags(input);
     } else if (e.key === "Backspace" && input === "" && value.length > 0) {
@@ -54,9 +57,23 @@ export default function TagInput({
     }
   };
 
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (val.endsWith(",") || val.endsWith(" ")) {
+      const trimmed = val.slice(0, -1).trim();
+      if (trimmed) {
+        addTags(trimmed);
+      } else {
+        setInput("");
+      }
+      return;
+    }
+    setInput(val);
+  };
+
   const handlePaste = (e: ClipboardEvent<HTMLInputElement>) => {
     const pasted = e.clipboardData.getData("text");
-    if (pasted.includes(",")) {
+    if (pasted.includes(",") || pasted.includes(" ")) {
       e.preventDefault();
       addTags(pasted);
     }
@@ -79,6 +96,48 @@ export default function TagInput({
     const idx = tag.charCodeAt(0) % TAG_COLORS.length;
     return TAG_COLORS[idx];
   };
+
+  if (tagsBelow) {
+    return (
+      <div className={`w-full ${className}`}>
+        <input
+          ref={inputRef}
+          type="text"
+          value={input}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
+          onBlur={handleBlur}
+          disabled={disabled}
+          placeholder={placeholder}
+          className="w-full px-4 py-2.5 text-sm bg-surface-elevated border-2 border-border-default rounded-xl text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-accent-primary focus:ring-2 focus:ring-accent-primary/20 transition"
+        />
+
+        {value.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-2.5">
+            {value.map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-medium border border-border-default bg-surface-secondary text-text-primary hover:border-accent-primary transition-all"
+              >
+                #{tag}
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={() => removeTag(tag)}
+                    className="hover:text-accent-error hover:scale-110 transition ml-0.5 p-0.5"
+                    aria-label={`Remove ${tag}`}
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -108,7 +167,7 @@ export default function TagInput({
           ref={inputRef}
           type="text"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
           onBlur={handleBlur}

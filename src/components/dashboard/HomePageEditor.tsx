@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { defaultState, IHomePageData } from "@/lib/types/homePage";
 import ImageUpload from "@/components/ui/shared/ImageUpload";
+import { rawGalleryItems } from "@/data/gallery";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ALL helper components are defined at MODULE SCOPE (outside any component).
@@ -369,6 +370,54 @@ export default function HomePageEditor({ initialData }: { initialData?: Partial<
                   </button>
                 </div>
                 <div className="space-y-2">
+                  {section.key === "gallery" && (
+                    <div className="mb-2 p-2 bg-purple-50 dark:bg-purple-950/30 rounded border border-purple-200 dark:border-purple-800">
+                      <span className="text-[11px] font-bold text-purple-700 dark:text-purple-300 block mb-1.5">
+                        Quick Select (Max 5 for Homepage):
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {rawGalleryItems.map((g) => {
+                          const isSelected = (formData.featuredData.gallery || []).includes(g.id);
+                          return (
+                            <button
+                              key={g.id}
+                              type="button"
+                              onClick={() => {
+                                if (isSelected) {
+                                  setFormData((prev) => ({
+                                    ...prev,
+                                    featuredData: {
+                                      ...prev.featuredData,
+                                      gallery: prev.featuredData.gallery.filter((id) => id !== g.id),
+                                    },
+                                  }));
+                                } else {
+                                  if ((formData.featuredData.gallery || []).length >= 5) {
+                                    alert("Homepage displays up to 5 featured gallery items.");
+                                  }
+                                  setFormData((prev) => ({
+                                    ...prev,
+                                    featuredData: {
+                                      ...prev.featuredData,
+                                      gallery: [...(prev.featuredData.gallery || []), g.id],
+                                    },
+                                  }));
+                                }
+                              }}
+                              className={`text-[10px] font-mono px-2 py-1 rounded border transition ${
+                                isSelected
+                                  ? "bg-purple-600 text-white border-purple-700 font-bold"
+                                  : "bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600 hover:border-purple-400"
+                              }`}
+                            >
+                              {isSelected ? "✓ " : "+ "}{g.title} ({g.id})
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {(formData.featuredData[section.key] || []).map((id, idx) => (
                     <div key={idx} className="flex gap-2">
                       <input

@@ -36,6 +36,7 @@ export interface ProfileCardProps {
   category: ProfileCategory;
   badgeLabel?: string;
   image?: string;
+  imagePosition?: string;
   socials?: ProfileSocials;
   systemRole?: "admin" | "moderator" | "member" | string;
   onCardClick?: (slug: string) => void;
@@ -149,6 +150,7 @@ export function ProfileCard({
   badgeLabel,
   systemRole,
   image,
+  imagePosition,
   socials,
   onCardClick,
   actionMenu,
@@ -198,6 +200,7 @@ export function ProfileCard({
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 220px"
             className="w-full h-full object-cover block transition-transform duration-300 group-hover:scale-105"
+            style={{ objectPosition: imagePosition || "50% 50%" }}
             onError={() => setImgError(true)}
             unoptimized={image?.startsWith("data:") || image?.startsWith("blob:")}
           />

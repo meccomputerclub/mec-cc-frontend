@@ -277,6 +277,31 @@
     line-height: inherit;
   }
 
+  /* Any clickable button, link, and interactive element gets cursor-pointer */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a:not([aria-disabled="true"]):not([disabled]),
+  input[type="button"]:not(:disabled),
+  input[type="submit"]:not(:disabled),
+  input[type="reset"]:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  select:not(:disabled),
+  summary,
+  label[for],
+  label:has(input) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role="button"][aria-disabled="true"],
+  input:disabled,
+  select:disabled,
+  a[aria-disabled="true"],
+  a[disabled] {
+    cursor: not-allowed;
+  }
+
   body {
     font-family: var(--font-body);
     color: var(--text-primary);
@@ -732,3 +757,161 @@
     transform: scale(0.9);
   }
 }
+
+/* ============================================================
+   Certificate Print Styles
+   Ensures that only the certificate canvas is printed in
+   landscape orientation, hiding all web page navigation and UI.
+   ============================================================ */
+@media print {
+  @page {
+    size: landscape;
+    margin: 0;
+  }
+
+  /* Reset body */
+  html,
+  body {
+    background-color: #FFFFFF !important;
+    color: #111827 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide entire page tree by default */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Hide common web chrome components explicitly */
+  header,
+  footer,
+  nav,
+  aside,
+  .print\:hidden {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Show only the certificate canvas and all nested elements */
+  #certificate-print-canvas,
+  #certificate-print-canvas *,
+  #cert-print-portal,
+  #cert-print-portal *,
+  #printable-certificates-hub,
+  #printable-certificates-hub * {
+    visibility: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #certificate-print-canvas {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    margin: 0 !important;
+    padding: 12mm 18mm !important;
+    box-shadow: none !important;
+    border: 3px double #1F2937 !important;
+    border-radius: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    background-color: #FFFFFF !important;
+    z-index: 9999999 !important;
+    box-sizing: border-box !important;
+    page-break-inside: avoid !important;
+
+    /* Enforce light-mode contrast variables during printing even in dark mode */
+    --text-primary: #111827 !important;
+    --text-secondary: #374151 !important;
+    --text-tertiary: #6B7280 !important;
+    --border-default: #E5E7EB !important;
+    --surface-secondary: #F9FAFB !important;
+    --surface-elevated: #FFFFFF !important;
+    color: #111827 !important;
+  }
+
+  /* Ensure dark-mode overrides don't wash out text */
+  .dark #certificate-print-canvas h1,
+  .dark #certificate-print-canvas h2,
+  .dark #certificate-print-canvas h3,
+  .dark #certificate-print-canvas h4,
+  .dark #certificate-print-canvas strong {
+    color: #111827 !important;
+  }
+
+  .dark #certificate-print-canvas p,
+  .dark #certificate-print-canvas span {
+    color: #374151 !important;
+  }
+
+  .dark #certificate-print-canvas [class*="text-amber-"] {
+    color: #B45309 !important;
+  }
+}
+
+/* ============================================================
+   Global Interactive Cursor Standards
+   Ensures all buttons, links, and clickable items get pointer cursor.
+   ============================================================ */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+a[href],
+a:not([aria-disabled="true"]):not([disabled]),
+input[type="button"]:not(:disabled),
+input[type="submit"]:not(:disabled),
+input[type="reset"]:not(:disabled),
+input[type="checkbox"]:not(:disabled),
+input[type="radio"]:not(:disabled),
+select:not(:disabled),
+summary,
+label[for],
+label:has(input) {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"],
+input:disabled,
+select:disabled,
+a[aria-disabled="true"],
+a[disabled] {
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   Single Line Marquee Slider Animation
+   ============================================================ */
+@keyframes marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll 70s linear infinite;
+  will-change: transform;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+.marquee-mask {
+  mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+}

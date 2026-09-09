@@ -9,6 +9,7 @@ export interface Executive {
   batch?: string;
   session?: string;
   image: string;
+  imagePosition?: string;
   bio?: string;
   socials?: {
     linkedin?: string;
@@ -227,14 +228,16 @@ export const executives: Executive[] = [
 
 export const staticExecutives = executives;
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-
 export async function getExecutives(): Promise<Executive[]> {
+  const API_URL =
+    process.env.BACKEND_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://localhost:4000";
   try {
     // 1. Fetch active designations to build order precedence map
     const orderMap: Record<string, number> = {};
     try {
-      const desigRes = await fetch(`${API_URL}/api/designations?category=executive`, { cache: "no-store" });
+      const desigRes = await fetch(`${API_URL}/api/designations?category=executive`, { next: { revalidate: 60 } });
       if (desigRes.ok) {
         const desigData = await desigRes.json();
         const list = desigData.data || [];
@@ -249,7 +252,7 @@ export async function getExecutives(): Promise<Executive[]> {
     }
 
     // 2. Fetch active approved members from DB
-    const res = await fetch(`${API_URL}/api/users/profile/active`, { cache: "no-store" });
+    const res = await fetch(`${API_URL}/api/users/profile/active`, { next: { revalidate: 60 } });
     if (res.ok) {
       const data = await res.json();
       const backendMembers: any[] = data.data || data.members || [];
@@ -298,7 +301,9 @@ export async function getExecutives(): Promise<Executive[]> {
           systemRole: m.role,
           department: m.department,
           session: formatDeptSession(m.department, m.session, m.batch) || "CSE (21-22)",
+          batch: m.batch || "",
           image: m.imageUrl || "",
+          imagePosition: m.imagePosition || "50% 50%",
           socials: {
             github: m.socialLinks?.github || undefined,
             linkedin: m.socialLinks?.linkedin || undefined,

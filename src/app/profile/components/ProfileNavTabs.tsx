@@ -7,7 +7,6 @@ export type ProfileTabKey =
   | "events"
   | "certificates"
   | "cp"
-  | "forms"
   | "edit-profile"
   | "security";
 
@@ -18,7 +17,6 @@ interface ProfileNavTabsProps {
     projects?: number;
     events?: number;
     certificates?: number;
-    forms?: number;
   };
 }
 
@@ -27,14 +25,13 @@ export function ProfileNavTabs({
   onTabChange,
   counts = {},
 }: ProfileNavTabsProps) {
-  const { projects = 0, events = 0, certificates = 0, forms = 0 } = counts;
+  const { projects = 0, events = 0, certificates = 0 } = counts;
 
   const tabs: { key: ProfileTabKey; label: string; count?: number }[] = [
     { key: "projects", label: "My Projects", count: projects },
-    { key: "events", label: "Events & Contests", count: events },
+    { key: "events", label: "My Events", count: events },
     { key: "certificates", label: "Certificates", count: certificates },
     { key: "cp", label: "CP Arena" },
-    { key: "forms", label: "Questionnaires", count: forms },
     { key: "edit-profile", label: "Edit Profile" },
     { key: "security", label: "Security" },
   ];

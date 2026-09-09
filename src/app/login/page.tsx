@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
@@ -26,14 +26,26 @@ interface ExtendedLoginState {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectPath = searchParams.get("redirect") || "/dashboard";
+  const redirectParam = searchParams.get("redirect");
+  // Validate relative redirect path to prevent open redirect vulnerabilities
+  const redirectPath =
+    redirectParam && redirectParam.startsWith("/") && !redirectParam.startsWith("//")
+      ? redirectParam
+      : "/dashboard";
 
-  const { login } = useAuth();
+  const { login, isAuthenticated, loading: authLoading } = useAuth();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [statusAlert, setStatusAlert] = useState<ExtendedLoginState | null>(null);
+
+  // If already authenticated, redirect to destination
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.replace(redirectPath);
+    }
+  }, [authLoading, isAuthenticated, redirectPath, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -252,7 +264,7 @@ function LoginForm() {
 
             <div className="mt-2 flex flex-col gap-4 text-center">
               <span className="text-sm text-text-secondary">
-                Not a member yet? <Link href="/register" className="text-text-primary font-bold hover:text-accent-primary-hover hover:underline ml-1">Apply to join</Link>
+                Not a member yet? <Link href="/join" className="text-text-primary font-bold hover:text-accent-primary-hover hover:underline ml-1">Apply to join</Link>
               </span>
             </div>
           </form>

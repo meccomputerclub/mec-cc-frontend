@@ -27,12 +27,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (!isLoading) {
       if (!isAuthenticated) {
-        router.replace("/login");
+        const currentPath =
+          typeof window !== "undefined"
+            ? window.location.pathname + window.location.search
+            : pathname;
+        router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
       } else if (user && !isExecutive) {
         router.replace("/profile");
       }
     }
-  }, [isLoading, isAuthenticated, user, isExecutive, router]);
+  }, [isLoading, isAuthenticated, user, isExecutive, router, pathname]);
 
   // Sync role when user loads
   useEffect(() => {

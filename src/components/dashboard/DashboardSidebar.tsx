@@ -69,30 +69,40 @@ const SidebarContent: React.FC<{
             </button>
 
             {/* Logo Icon Mark Only */}
-            <Link href="/" className="flex items-center justify-center rounded-lg hover:opacity-80 transition" title="MEC Computer Club">
-              <div className="w-7 h-7 overflow-hidden flex-shrink-0 flex items-center justify-start">
+            <Link
+              href="/"
+              className="flex items-center justify-center rounded-lg hover:opacity-85 transition-opacity"
+              title="MEC Computer Club"
+              aria-label="MEC Computer Club — Home"
+            >
+              <div className="w-8 h-8 overflow-hidden flex-shrink-0 flex items-center justify-start">
                 <Image
-                  alt="Logo Icon"
+                  alt="MEC Computer Club Logo"
                   src={logoSrc}
-                  width={150}
-                  height={38}
+                  width={160}
+                  height={40}
                   priority
-                  className="h-7 w-auto max-w-none object-left object-cover"
+                  className="h-8 w-auto max-w-none object-left object-cover"
                 />
               </div>
             </Link>
           </div>
         ) : (
-          <div className="px-4 py-2.5 flex items-center justify-between border-b border-border-default">
-            {/* Full Logo */}
-            <Link href="/" onClick={onClose} className="flex items-center min-w-0 pr-2">
+          <div className="px-4 py-3 flex items-center justify-between border-b border-border-default">
+            {/* Full Logo — matching Navbar logo */}
+            <Link
+              href="/"
+              onClick={onClose}
+              className="flex items-center flex-shrink-0 h-9 min-w-0 pr-2 hover:opacity-85 transition-opacity"
+              aria-label="MEC Computer Club — Home"
+            >
               <Image
                 alt="MEC Computer Club Logo"
                 src={logoSrc}
-                width={145}
-                height={36}
+                width={160}
+                height={40}
                 priority
-                className="h-7 w-auto object-contain"
+                className="h-[120px] w-auto object-contain"
               />
             </Link>
 

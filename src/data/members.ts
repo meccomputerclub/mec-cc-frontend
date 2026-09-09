@@ -9,9 +9,13 @@ export interface Member {
   batch?: string;
   session?: string;
   image?: string;
+  imagePosition?: string;
   socials?: {
     github?: string;
     linkedin?: string;
+    facebook?: string;
+    codeforces?: string;
+    email?: string;
   };
 }
 
@@ -63,11 +67,13 @@ export const activeMembers: Member[] = [
   },
 ];
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-
 export async function getActiveMembers(): Promise<Member[]> {
+  const API_URL =
+    process.env.BACKEND_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://localhost:4000";
   try {
-    const res = await fetch(`${API_URL}/api/users/profile/active`, { cache: "no-store" });
+    const res = await fetch(`${API_URL}/api/users/profile/active`, { next: { revalidate: 60 } });
     if (res.ok) {
       const data = await res.json();
       const backendMembers: any[] = data.data || data.members || [];
@@ -111,9 +117,13 @@ export async function getActiveMembers(): Promise<Member[]> {
           session: formatDeptSession(m.department, m.session, m.batch) || "CSE (21-22)",
           batch: m.batch || `${m.department || "CSE"}`,
           image: m.imageUrl || "",
+          imagePosition: m.imagePosition || "50% 50%",
           socials: {
             github: m.socialLinks?.github || undefined,
             linkedin: m.socialLinks?.linkedin || undefined,
+            facebook: m.socialLinks?.facebook || undefined,
+            codeforces: m.socialLinks?.codeforces || undefined,
+            email: m.email || undefined,
           },
         }));
         return mapped;

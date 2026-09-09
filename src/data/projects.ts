@@ -91,31 +91,51 @@ export const projects: Project[] = [
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 function mapBackendProject(p: any): Project {
+  const teamMembers = Array.isArray(p.teamMembers)
+    ? p.teamMembers.map((m: any) =>
+        typeof m === "object" && m ? m.fullName || m.name || "Member" : "Member"
+      )
+    : Array.isArray(p.team)
+    ? p.team
+    : p.contributors
+    ? p.contributors.map((c: any) => c.fullName || c.name || "Member")
+    : ["Club Member"];
+
+  const skills = Array.isArray(p.techStack) && p.techStack.length > 0
+    ? p.techStack
+    : Array.isArray(p.requiredSkills) && p.requiredSkills.length > 0
+    ? p.requiredSkills
+    : Array.isArray(p.technologies)
+    ? p.technologies
+    : ["TypeScript", "React"];
+
   return {
     id: p._id || p.id,
     slug: p.slug || p._id || p.id,
-    title: p.title,
+    title: p.title || "Untitled Project",
     description: p.description || "",
-    longDescription: p.description || "",
-    department: p.department || "General",
-    techStack: p.techStack || p.technologies || ["TypeScript", "React"],
-    image: p.coverImageUrl || p.imageUrl || "/images/projects/cp-tracker.jpg",
-    team: p.contributors ? p.contributors.map((c: any) => c.fullName || c.name || "Member") : ["Club Member"],
-    liveUrl: p.liveUrl || p.projectUrl || undefined,
-    repoUrl: p.githubUrl || p.repoUrl || undefined,
-    status: p.status === "completed" ? "completed" : "in-progress",
-    featured: !!p.featured,
+    longDescription: p.longDescription || p.description || "",
+    department: p.department || "webdev",
+    techStack: skills,
+    image: p.imageUrl || p.image || p.coverImageUrl || "/images/projects/cp-tracker.jpg",
+    team: teamMembers.length > 0 ? teamMembers : ["Club Member"],
+    liveUrl: p.liveDemoLink || p.liveUrl || p.projectUrl || undefined,
+    repoUrl: p.githubLink || p.repoUrl || p.githubUrl || undefined,
+    status: p.status === "completed" ? "completed" : p.status === "archived" ? "archived" : "in-progress",
+    featured: Boolean(p.featured),
+    completedDate: p.endDate ? String(p.endDate).slice(0, 7) : p.completedDate,
+    createdBy: typeof p.createdBy === "object" ? p.createdBy?._id : p.createdBy,
   };
 }
 
 export async function getProjects(): Promise<Project[]> {
   try {
-    const res = await fetch(`${API_URL}/api/projects`, { next: { revalidate: 30 } });
+    const res = await fetch(`${API_URL}/api/projects`, { next: { revalidate: 60 } });
     if (res.ok) {
       const data = await res.json();
       const backendProjects: any[] = data.data || data.projects || [];
       if (backendProjects && backendProjects.length > 0) {
-        return [...backendProjects.map(mapBackendProject), ...projects];
+        return backendProjects.map(mapBackendProject);
       }
     }
   } catch (err) {
@@ -124,15 +144,35 @@ export async function getProjects(): Promise<Project[]> {
   return projects;
 }
 
-export function getFeaturedProjects(): Project[] {
+export async function getFeaturedProjects(): Promise<Project[]> {
+  try {
+    const res = await fetch(`${API_URL}/api/projects?featured=true`, { next: { revalidate: 60 } });
+    if (res.ok) {
+      const data = await res.json();
+      const backendProjects: any[] = data.data || data.projects || [];
+      if (backendProjects && backendProjects.length > 0) {
+        return backendProjects.map(mapBackendProject);
+      }
+    }
+  } catch (err) {
+    console.warn("Could not fetch backend featured projects, fallback to static:", err);
+  }
   return projects.filter((p) => p.featured);
 }
 
-export function getProjectBySlug(slug: string): Project | undefined {
-  return projects.find((p) => p.slug === slug);
+export async function getProjectBySlug(slug: string): Promise<Project | undefined> {
+  try {
+    const all = await getProjects();
+    const found = all.find((p) => p.slug === slug || p.id === slug);
+    if (found) return found;
+  } catch (err) {
+    console.warn("Error looking up project by slug:", err);
+  }
+  return projects.find((p) => p.slug === slug || p.id === slug);
 }
 
-export function getProjectsByDepartment(dept: string): Project[] {
-  return projects.filter((p) => p.department === dept);
+export async function getProjectsByDepartment(dept: string): Promise<Project[]> {
+  const all = await getProjects();
+  return all.filter((p) => p.department === dept);
 }
 

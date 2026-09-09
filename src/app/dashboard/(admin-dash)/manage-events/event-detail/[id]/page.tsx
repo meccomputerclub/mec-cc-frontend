@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import axios from "axios";
@@ -10,8 +11,16 @@ import {
   ArrowLeft, Calendar, MapPin, Tag, Users, Trophy, Building2,
   Image as ImageIcon, Award, Search, X, Plus, Trash2, Check,
   AlertCircle, Clock, Mail, User, Loader2,
-  ExternalLink, Edit, Star,
+  ExternalLink, Edit, Star, Printer, Eye, Copy, Share2, Sparkles, CheckCircle2,
+  FileCheck, ShieldAlert,
 } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Select } from "@/components/ui/Select";
+import FilterSelect from "@/app/dashboard/components/FilterSelect";
+import { CertificateTemplatePreviewModal } from "@/components/certificates/CertificateTemplatePreviewModal";
+import { TemplateItem } from "@/components/certificates/CertificateTemplateCard";
+import { interpolateCertificateHtml } from "@/lib/utils/templateInterpolation";
+import { getOptimizedImageUrl } from "@/data/gallery";
 
 const API = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api`;
 
@@ -30,8 +39,35 @@ interface UserRef {
 
 interface PendingParticipant {
   _id: string;
-  userId: UserRef;
+  userId?: UserRef;
+  teamName?: string;
+  leaderName?: string;
+  leaderEmail?: string;
+  leaderPhone?: string;
+  leaderStudentId?: string;
+  inGameId?: string;
+  members?: {
+    fullName: string;
+    studentId?: string;
+    email?: string;
+    phone?: string;
+    inGameId?: string;
+    department?: string;
+  }[];
   registeredAt: string;
+}
+
+interface ApprovedParticipant {
+  _id?: string;
+  userId?: UserRef;
+  fullName: string;
+  email: string;
+  studentId?: string;
+  department?: string;
+  phone?: string;
+  teamName?: string;
+  isCaptain?: boolean;
+  approvedAt?: string;
 }
 
 interface Winner {
@@ -59,11 +95,27 @@ interface MediaItem {
 
 interface Certificate {
   _id: string;
-  name: string;
-  type: string;
   certificateId: string;
+  name: string;
+  description?: string;
+  type: string;
+  position?: string;
   issueDate: string;
-  recipient: { fullName: string };
+  status?: string;
+  digitalUrl?: string;
+  recipient?: {
+    _id?: string;
+    fullName: string;
+    studentId?: string;
+    email?: string;
+    department?: string;
+    batch?: string;
+  };
+  recipientName?: string;
+  recipientEmail?: string;
+  recipientStudentId?: string;
+  recipientDepartment?: string;
+  template?: TemplateItem;
 }
 
 interface EventData {
@@ -81,11 +133,13 @@ interface EventData {
   contactEmail?: string;
   coverImageUrl?: string;
   attendees: UserRef[];
+  approvedParticipants?: ApprovedParticipant[];
   pendingParticipants: PendingParticipant[];
   winners: Winner[];
   eventSponsors: EventSponsor[];
   media: MediaItem[];
   certificates: Certificate[];
+  linkedForm?: any;
 }
 
 interface SponsorOption {
@@ -129,7 +183,7 @@ const CERT_TYPE_COLORS: Record<string, string> = {
   achievement: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
 };
 
-const WINNER_CATEGORIES = ["contest", "hackathon", "other"];
+const WINNER_CATEGORIES = ["contest", "hackathon", "gaming", "other"];
 const TIERS = ["Gold", "Silver", "Bronze", "Partner"];
 const CERT_TYPES = ["participation", "winner", "completion", "achievement"];
 
@@ -407,21 +461,80 @@ function ParticipantsTab({
   onReject,
   onRemove,
   onAdd,
+  onAddNonMember,
   inFlight,
 }: {
   event: EventData;
-  onApprove: (userId: string) => Promise<void>;
-  onReject: (userId: string) => Promise<void>;
+  onApprove: (targetId: string) => Promise<void>;
+  onReject: (targetId: string) => Promise<void>;
   onRemove: (userId: string) => Promise<void>;
   onAdd: (user: UserRef) => Promise<void>;
+  onAddNonMember: (guest: { fullName: string; email: string; studentId?: string; department?: string }) => Promise<void>;
   inFlight: Set<string>;
 }) {
   const [search, setSearch] = useState("");
+  const [addMode, setAddMode] = useState<"member" | "guest">("member");
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestStudentId, setGuestStudentId] = useState("");
+  const [guestDept, setGuestDept] = useState("");
+  const [addingGuest, setAddingGuest] = useState(false);
 
-  const filtered = event.attendees.filter((a) =>
-    a.fullName.toLowerCase().includes(search.toLowerCase()) ||
-    (a.studentId || "").toLowerCase().includes(search.toLowerCase())
-  );
+  const participantsList = useMemo(() => {
+    if (event.approvedParticipants && event.approvedParticipants.length > 0) {
+      return event.approvedParticipants.map((p) => ({
+        id: p.userId?._id || p._id || p.email,
+        userId: p.userId,
+        fullName: p.fullName,
+        email: p.email,
+        studentId: p.studentId,
+        department: p.department,
+        teamName: p.teamName,
+        isCaptain: p.isCaptain,
+        isGuest: !p.userId,
+      }));
+    }
+    return event.attendees.map((a) => ({
+      id: a._id,
+      userId: a,
+      fullName: a.fullName,
+      email: a.email,
+      studentId: a.studentId,
+      department: a.department,
+      teamName: undefined,
+      isCaptain: false,
+      isGuest: false,
+    }));
+  }, [event.approvedParticipants, event.attendees]);
+
+  const filtered = useMemo(() => {
+    return participantsList.filter((a) =>
+      a.fullName.toLowerCase().includes(search.toLowerCase()) ||
+      (a.studentId || "").toLowerCase().includes(search.toLowerCase()) ||
+      (a.teamName || "").toLowerCase().includes(search.toLowerCase()) ||
+      a.email.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [participantsList, search]);
+
+  const handleAddGuestSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!guestName.trim() || !guestEmail.trim()) return;
+    setAddingGuest(true);
+    try {
+      await onAddNonMember({
+        fullName: guestName.trim(),
+        email: guestEmail.trim(),
+        studentId: guestStudentId.trim() || undefined,
+        department: guestDept.trim() || undefined,
+      });
+      setGuestName("");
+      setGuestEmail("");
+      setGuestStudentId("");
+      setGuestDept("");
+    } finally {
+      setAddingGuest(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -430,44 +543,126 @@ function ParticipantsTab({
           <h3 className="font-semibold text-amber-800 dark:text-amber-300 mb-4 flex items-center gap-2">
             <Clock size={16} /> Pending Approvals ({event.pendingParticipants.length})
           </h3>
-          <div className="space-y-3">
-            {event.pendingParticipants.map((p) => (
-              <div key={p._id} className="flex items-center gap-3 bg-white dark:bg-slate-900 rounded-xl p-3 border border-amber-100 dark:border-amber-900/40">
-                <Avatar user={p.userId} size={38} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{p.userId.fullName}</p>
-                  <p className="text-xs text-slate-500 truncate">{p.userId.email}</p>
-                  {(p.userId.studentId || p.userId.department) && (
-                    <p className="text-xs text-slate-400 truncate">
-                      {[p.userId.studentId, p.userId.department].filter(Boolean).join(" · ")}
-                    </p>
+          <div className="space-y-4">
+            {event.pendingParticipants.map((p) => {
+              const targetId = p._id || p.userId?._id || "";
+              const isTeam = !!p.teamName;
+
+              return (
+                <div key={p._id} className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-amber-200 dark:border-amber-900/50 shadow-sm space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-3">
+                      {isTeam ? (
+                        <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400 font-bold text-lg">
+                          🏆
+                        </div>
+                      ) : (
+                        p.userId && <Avatar user={p.userId} size={40} />
+                      )}
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-base font-bold text-slate-900 dark:text-white">
+                            {isTeam ? p.teamName : p.userId?.fullName || p.leaderName}
+                          </h4>
+                          {isTeam && (
+                            <span className="px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                              Squad / Team
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          Registered {new Date(p.registeredAt).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 self-end sm:self-auto flex-shrink-0">
+                      <button
+                        onClick={() => onApprove(targetId)}
+                        disabled={inFlight.has(targetId)}
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold shadow-sm transition disabled:opacity-50"
+                      >
+                        {inFlight.has(targetId) ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                        Approve {isTeam ? "Squad" : ""}
+                      </button>
+                      <button
+                        onClick={() => onReject(targetId)}
+                        disabled={inFlight.has(targetId)}
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold transition disabled:opacity-50"
+                      >
+                        <X size={13} /> Reject
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* If team: Captain and Roster */}
+                  {isTeam ? (
+                    <div className="space-y-3 pt-1">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <div>
+                          <span className="text-slate-400 font-medium">Captain: </span>
+                          <span className="font-semibold text-slate-700 dark:text-slate-200">{p.leaderName}</span>
+                          {p.inGameId && <span className="text-amber-600 font-mono ml-1">({p.inGameId})</span>}
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-medium">Email: </span>
+                          <span className="font-medium text-slate-700 dark:text-slate-200">{p.leaderEmail}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-medium">Phone: </span>
+                          <span className="font-medium text-slate-700 dark:text-slate-200">{p.leaderPhone || "—"}</span>
+                        </div>
+                      </div>
+
+                      {p.members && p.members.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">
+                            Squad Roster ({p.members.length} players):
+                          </p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                            {p.members.map((m, mIdx) => (
+                              <div key={mIdx} className="text-xs p-2 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                                <div className="font-bold text-slate-800 dark:text-slate-100 flex items-center justify-between">
+                                  <span>{mIdx + 1}. {m.fullName}</span>
+                                  {m.studentId && <span className="text-[10px] text-slate-400">{m.studentId}</span>}
+                                </div>
+                                {m.inGameId && (
+                                  <div className="text-[11px] text-amber-600 dark:text-amber-400 font-mono mt-0.5">
+                                    UID: {m.inGameId}
+                                  </div>
+                                )}
+                                {m.department && (
+                                  <div className="text-[10px] text-slate-400">
+                                    Dept: {m.department}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    p.userId && (
+                      <div className="text-xs text-slate-500">
+                        <p>{p.userId.email}</p>
+                        {(p.userId.studentId || p.userId.department) && (
+                          <p className="text-slate-400">
+                            {[p.userId.studentId, p.userId.department].filter(Boolean).join(" · ")}
+                          </p>
+                        )}
+                      </div>
+                    )
                   )}
                 </div>
-                <div className="flex gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => onApprove(p.userId._id)}
-                    disabled={inFlight.has(p.userId._id)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-semibold transition disabled:opacity-50"
-                  >
-                    {inFlight.has(p.userId._id) ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-                    Approve
-                  </button>
-                  <button
-                    onClick={() => onReject(p.userId._id)}
-                    disabled={inFlight.has(p.userId._id)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold transition disabled:opacity-50"
-                  >
-                    <X size={12} /> Reject
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
 
       <SectionCard
-        title={`Approved Attendees (${event.attendees.length})`}
+        title={`Approved Participants (${participantsList.length})`}
         action={
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
@@ -475,30 +670,57 @@ function ParticipantsTab({
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Filter…"
+              placeholder="Search participants, teams, IDs…"
               className="pl-8 pr-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
             />
           </div>
         }
       >
         {filtered.length === 0 ? (
-          <p className="text-sm text-slate-400 text-center py-6">No attendees yet.</p>
+          <p className="text-sm text-slate-400 text-center py-6">No participants found.</p>
         ) : (
-          <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+          <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
             {filtered.map((a) => (
-              <div key={a._id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition">
-                <Avatar user={a} size={34} />
+              <div key={a.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50/50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60 hover:bg-slate-100/60 dark:hover:bg-slate-800 transition">
+                {a.userId ? (
+                  <Avatar user={a.userId} size={36} />
+                ) : (
+                  <div className="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-xs text-slate-600 dark:text-slate-300">
+                    {a.fullName.charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">{a.fullName}</p>
-                  <p className="text-xs text-slate-500 truncate">{a.email}{a.studentId ? ` · ${a.studentId}` : ""}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{a.fullName}</p>
+                    {a.teamName && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                        Squad: {a.teamName}
+                      </span>
+                    )}
+                    {a.isCaptain && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300">
+                        👑 Captain
+                      </span>
+                    )}
+                    {a.isGuest && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                        Open Participant
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 truncate mt-0.5">
+                    {a.email}
+                    {a.studentId ? ` · ID: ${a.studentId}` : ""}
+                    {a.department ? ` · ${a.department}` : ""}
+                  </p>
                 </div>
                 <button
-                  onClick={() => onRemove(a._id)}
-                  disabled={inFlight.has(a._id)}
+                  onClick={() => onRemove(a.id)}
+                  disabled={inFlight.has(a.id)}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition disabled:opacity-50"
-                  title="Remove attendee"
+                  title="Remove participant"
                 >
-                  {inFlight.has(a._id) ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                  {inFlight.has(a.id) ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                 </button>
               </div>
             ))}
@@ -506,9 +728,78 @@ function ParticipantsTab({
         )}
       </SectionCard>
 
-      <SectionCard title="Add Attendee Manually">
-        <p className="text-xs text-slate-500 mb-3">Search by name or student ID to add directly.</p>
-        <MemberSearch onSelect={onAdd} />
+      <SectionCard title="Add Participant Manually">
+        <div className="flex gap-2 mb-4 border-b border-slate-200 dark:border-slate-700 pb-2">
+          <button
+            type="button"
+            onClick={() => setAddMode("member")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+              addMode === "member"
+                ? "bg-accent-primary text-white"
+                : "bg-surface-secondary text-text-secondary hover:text-text-primary"
+            }`}
+          >
+            Club Member
+          </button>
+          <button
+            type="button"
+            onClick={() => setAddMode("guest")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+              addMode === "guest"
+                ? "bg-accent-primary text-white"
+                : "bg-surface-secondary text-text-secondary hover:text-text-primary"
+            }`}
+          >
+            Guest / Non-Member
+          </button>
+        </div>
+
+        {addMode === "member" ? (
+          <div>
+            <p className="text-xs text-slate-500 mb-3">Search member by name or student ID to add directly.</p>
+            <MemberSearch onSelect={onAdd} />
+          </div>
+        ) : (
+          <form onSubmit={handleAddGuestSubmit} className="space-y-3">
+            <p className="text-xs text-slate-500">Add an external or non-member participant (e.g. for open-for-all events).</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input
+                type="text"
+                placeholder="Full Name *"
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                required
+                className="px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-accent-primary"
+              />
+              <input
+                type="email"
+                placeholder="Email Address *"
+                value={guestEmail}
+                onChange={(e) => setGuestEmail(e.target.value)}
+                required
+                className="px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-accent-primary"
+              />
+              <input
+                type="text"
+                placeholder="Student ID / Roll (Optional)"
+                value={guestStudentId}
+                onChange={(e) => setGuestStudentId(e.target.value)}
+                className="px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-accent-primary"
+              />
+              <input
+                type="text"
+                placeholder="Department / Institution (Optional)"
+                value={guestDept}
+                onChange={(e) => setGuestDept(e.target.value)}
+                className="px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-accent-primary"
+              />
+            </div>
+            <Button size="sm" type="submit" disabled={addingGuest || !guestName.trim() || !guestEmail.trim()}>
+              {addingGuest ? <Loader2 size={13} className="animate-spin mr-1" /> : <Plus size={13} className="mr-1" />}
+              Add Non-Member Participant
+            </Button>
+          </form>
+        )}
       </SectionCard>
     </div>
   );
@@ -919,7 +1210,7 @@ function MediaTab({
                 className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 aspect-video bg-slate-100 dark:bg-slate-800"
               >
                 {m.mediaType === "image" ? (
-                  <Image src={m.url} alt={m.title} fill style={{ objectFit: "cover" }} unoptimized />
+                  <Image src={getOptimizedImageUrl(m.url, 400)} alt={m.title} fill style={{ objectFit: "cover" }} />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center gap-1">
                     <ExternalLink size={20} className="text-slate-400" />
@@ -1010,194 +1301,1345 @@ function MediaTab({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tab 6: Certificates
+// Tab 6: Certificates & Credentials Hub
 // ─────────────────────────────────────────────────────────────────────────────
+const TYPE_OPTIONS = [
+  { value: "participation", label: "Participation" },
+  { value: "winner", label: "Winner / Champion" },
+  { value: "completion", label: "Completion" },
+  { value: "achievement", label: "Achievement" },
+  { value: "appreciation", label: "Appreciation" },
+  { value: "other", label: "Other" },
+];
+
+const TYPE_FILTER_OPTIONS = [
+  { value: "all", label: "All Types" },
+  { value: "participation", label: "Participation" },
+  { value: "winner", label: "Winner" },
+  { value: "completion", label: "Completion" },
+  { value: "achievement", label: "Achievement" },
+  { value: "appreciation", label: "Appreciation" },
+];
+
+const STATUS_FILTER_OPTIONS = [
+  { value: "all", label: "All Statuses" },
+  { value: "valid", label: "Valid" },
+  { value: "revoked", label: "Revoked" },
+];
+
 function CertificatesTab({
   event,
-  onIssue,
-  issuing,
+  onRefresh,
+  showToast,
 }: {
   event: EventData;
-  onIssue: (payload: {
-    name: string;
-    description: string;
-    issueDate: string;
-    digitalUrl: string;
-    recipients: { userId: string; type: string }[];
-  }) => Promise<void>;
-  issuing: boolean;
+  onRefresh: () => Promise<void>;
+  showToast: (msg: string, type?: "success" | "error") => void;
 }) {
-  const [certName, setCertName] = useState(`${event.title} Certificate`);
-  const [description, setDescription] = useState("");
-  const [issueDate, setIssueDate] = useState(new Date().toISOString().split("T")[0]);
-  const [digitalUrl, setDigitalUrl] = useState("");
-  const [certType, setCertType] = useState("participation");
-  const [recipients, setRecipients] = useState<UserRef[]>([]);
+  // Templates state
+  const [templates, setTemplates] = useState<TemplateItem[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [previewTemplate, setPreviewTemplate] = useState<TemplateItem | null>(null);
 
-  const addAllAttendees = useCallback(() => {
-    setRecipients(event.attendees);
-  }, [event.attendees]);
+  // Filters & Search
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
 
-  const addWinnersOnly = useCallback(() => {
-    const winnerMembers: UserRef[] = [];
-    event.winners.forEach((w) => {
-      w.members.forEach((m) => {
-        if (!winnerMembers.some((x) => x._id === m._id)) winnerMembers.push(m);
+  // Modals state
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [showWinnersModal, setShowWinnersModal] = useState(false);
+  const [showSingleModal, setShowSingleModal] = useState(false);
+  const [printTargetCerts, setPrintTargetCerts] = useState<Certificate[] | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Form states - Bulk
+  const [bulkTemplateId, setBulkTemplateId] = useState("");
+  const [bulkTitle, setBulkTitle] = useState(`${event.title} - Certificate of Participation`);
+  const [bulkType, setBulkType] = useState("participation");
+  const [bulkDate, setBulkDate] = useState(new Date().toISOString().split("T")[0]);
+  const [bulkDesc, setBulkDesc] = useState(`In recognition of active participation and dedication in ${event.title}.`);
+  const [selectedParticipantKeys, setSelectedParticipantKeys] = useState<Set<string>>(new Set());
+  const [issuingBulk, setIssuingBulk] = useState(false);
+
+  // Form states - Winners
+  const [winnerTemplateId, setWinnerTemplateId] = useState("");
+  const [winnerTitle, setWinnerTitle] = useState(`${event.title} - Certificate of Excellence`);
+  const [winnerDate, setWinnerDate] = useState(new Date().toISOString().split("T")[0]);
+  const [winnerDesc, setWinnerDesc] = useState(`For extraordinary skill, innovation, and outstanding performance in ${event.title}.`);
+  const [selectedWinnerKeys, setSelectedWinnerKeys] = useState<Set<string>>(new Set());
+  const [issuingWinners, setIssuingWinners] = useState(false);
+
+  // Form states - Single
+  const [singleTemplateId, setSingleTemplateId] = useState("");
+  const [singleRecipientMode, setSingleRecipientMode] = useState<"existing" | "manual">("existing");
+  const [singleSelectedKey, setSingleSelectedKey] = useState("");
+  const [singleManualName, setSingleManualName] = useState("");
+  const [singleManualEmail, setSingleManualEmail] = useState("");
+  const [singleManualStudentId, setSingleManualStudentId] = useState("");
+  const [singleManualDept, setSingleManualDept] = useState("");
+  const [singleTitle, setSingleTitle] = useState(`${event.title} - Certificate of Recognition`);
+  const [singleType, setSingleType] = useState("participation");
+  const [singlePosition, setSinglePosition] = useState("");
+  const [singleDate, setSingleDate] = useState(new Date().toISOString().split("T")[0]);
+  const [singleDesc, setSingleDesc] = useState("");
+  const [issuingSingle, setIssuingSingle] = useState(false);
+
+  // Fetch certificate templates
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      setLoadingTemplates(true);
+      try {
+        const res = await axios.get(`${API}/certificate-templates`, { withCredentials: true });
+        const list: TemplateItem[] = res.data.data || [];
+        setTemplates(list);
+
+        const def = list.find((t) => t.isDefault) || list[0];
+        if (def) {
+          setBulkTemplateId((p) => p || def._id);
+          setWinnerTemplateId((p) => p || def._id);
+          setSingleTemplateId((p) => p || def._id);
+        }
+      } catch (err) {
+        console.warn("Failed to load certificate templates", err);
+      } finally {
+        setLoadingTemplates(false);
+      }
+    };
+    fetchTemplates();
+  }, []);
+
+  // Unified approved participants list
+  const approvedList = useMemo(() => {
+    if (event.approvedParticipants && event.approvedParticipants.length > 0) {
+      return event.approvedParticipants.map((p, idx) => ({
+        key: p.userId?._id || p.studentId || p.email || `p-${idx}`,
+        userId: p.userId?._id,
+        fullName: p.fullName,
+        email: p.email,
+        studentId: p.studentId || "",
+        department: p.department || "",
+        teamName: p.teamName,
+        isCaptain: p.isCaptain,
+      }));
+    }
+    return event.attendees.map((a) => ({
+      key: a._id,
+      userId: a._id,
+      fullName: a.fullName,
+      email: a.email,
+      studentId: a.studentId || "",
+      department: a.department || "",
+      teamName: undefined,
+      isCaptain: false,
+    }));
+  }, [event.approvedParticipants, event.attendees]);
+
+  // Initial populate of bulk selection
+  useEffect(() => {
+    if (approvedList.length > 0 && selectedParticipantKeys.size === 0) {
+      setSelectedParticipantKeys(new Set(approvedList.map((p) => p.key)));
+    }
+  }, [approvedList, selectedParticipantKeys.size]);
+
+  // Winners list flattened
+  const flatWinnersList = useMemo(() => {
+    const items: {
+      key: string;
+      userId: string;
+      fullName: string;
+      studentId: string;
+      email: string;
+      position: string;
+      teamName?: string;
+    }[] = [];
+
+    event.winners.forEach((w, wIdx) => {
+      w.members.forEach((m, mIdx) => {
+        items.push({
+          key: `${w._id || wIdx}-${m._id || mIdx}`,
+          userId: m._id,
+          fullName: m.fullName,
+          studentId: m.studentId || "",
+          email: m.email,
+          position: w.position,
+          teamName: w.teamName,
+        });
       });
     });
-    setRecipients(winnerMembers);
+    return items;
   }, [event.winners]);
 
-  const addRecipient = useCallback((user: UserRef) => {
-    setRecipients((prev) => prev.some((r) => r._id === user._id) ? prev : [...prev, user]);
-  }, []);
+  // Initial populate of winner selection
+  useEffect(() => {
+    if (flatWinnersList.length > 0 && selectedWinnerKeys.size === 0) {
+      setSelectedWinnerKeys(new Set(flatWinnersList.map((w) => w.key)));
+    }
+  }, [flatWinnersList, selectedWinnerKeys.size]);
 
-  const removeRecipient = useCallback((id: string) => {
-    setRecipients((prev) => prev.filter((r) => r._id !== id));
-  }, []);
+  // Filtered issued certificates
+  const filteredCertificates = useMemo(() => {
+    return event.certificates.filter((c) => {
+      const recipientName = c.recipient?.fullName || c.recipientName || "";
+      const matchesSearch =
+        !search.trim() ||
+        recipientName.toLowerCase().includes(search.toLowerCase().trim()) ||
+        c.certificateId.toLowerCase().includes(search.toLowerCase().trim()) ||
+        c.name.toLowerCase().includes(search.toLowerCase().trim());
 
-  const handleIssue = async () => {
-    if (recipients.length === 0 || !certName.trim()) return;
-    await onIssue({
-      name: certName,
-      description,
-      issueDate,
-      digitalUrl,
-      recipients: recipients.map((r) => ({ userId: r._id, type: certType })),
+      const matchesType = typeFilter === "all" || c.type === typeFilter;
+      const matchesStatus = statusFilter === "all" || (c.status || "valid") === statusFilter;
+      return matchesSearch && matchesType && matchesStatus;
     });
-    setRecipients([]);
+  }, [event.certificates, search, typeFilter, statusFilter]);
+
+  // Template select options
+  const templateOptions = useMemo(() => {
+    return templates.map((t) => ({
+      value: t._id,
+      label: `${t.name}${t.isDefault ? " (Default)" : ""} [${t.type.toUpperCase()}]`,
+    }));
+  }, [templates]);
+
+  // Handle Delete Certificate
+  const handleDeleteCert = async (certId: string) => {
+    if (!confirm("Are you sure you want to permanently delete this certificate?")) return;
+    try {
+      await axios.delete(`${API}/certificates/${certId}`, { withCredentials: true });
+      showToast("Certificate deleted successfully.");
+      await onRefresh();
+    } catch {
+      showToast("Failed to delete certificate.", "error");
+    }
+  };
+
+  // Handle Bulk Issuance
+  const handleBulkSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const chosen = approvedList.filter((p) => selectedParticipantKeys.has(p.key));
+    if (chosen.length === 0) {
+      showToast("Please select at least one participant.", "error");
+      return;
+    }
+
+    setIssuingBulk(true);
+    try {
+      await axios.post(
+        `${API}/certificates/bulk`,
+        {
+          associatedEventId: event._id,
+          name: bulkTitle.trim(),
+          description: bulkDesc.trim(),
+          type: bulkType,
+          templateId: bulkTemplateId || undefined,
+          issueDate: bulkDate,
+          recipients: chosen.map((p) => ({
+            userId: p.userId,
+            fullName: p.fullName,
+            email: p.email,
+            studentId: p.studentId,
+            department: p.department,
+            type: bulkType,
+          })),
+        },
+        { withCredentials: true }
+      );
+      showToast(`Successfully issued ${chosen.length} certificates!`);
+      setShowBulkModal(false);
+      await onRefresh();
+    } catch (err: any) {
+      showToast(err.response?.data?.message || "Failed to bulk issue certificates.", "error");
+    } finally {
+      setIssuingBulk(false);
+    }
+  };
+
+  // Handle Winners Issuance
+  const handleWinnersSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const chosen = flatWinnersList.filter((w) => selectedWinnerKeys.has(w.key));
+    if (chosen.length === 0) {
+      showToast("Please select at least one winner.", "error");
+      return;
+    }
+
+    setIssuingWinners(true);
+    try {
+      await axios.post(
+        `${API}/certificates/bulk`,
+        {
+          associatedEventId: event._id,
+          name: winnerTitle.trim(),
+          description: winnerDesc.trim(),
+          type: "winner",
+          templateId: winnerTemplateId || undefined,
+          issueDate: winnerDate,
+          recipients: chosen.map((w) => ({
+            userId: w.userId,
+            fullName: w.fullName,
+            email: w.email,
+            studentId: w.studentId,
+            position: w.position,
+            type: "winner",
+          })),
+        },
+        { withCredentials: true }
+      );
+      showToast(`Issued credentials to ${chosen.length} winners!`);
+      setShowWinnersModal(false);
+      await onRefresh();
+    } catch (err: any) {
+      showToast(err.response?.data?.message || "Failed to issue winner certificates.", "error");
+    } finally {
+      setIssuingWinners(false);
+    }
+  };
+
+  // Handle Single Issuance
+  const handleSingleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIssuingSingle(true);
+    try {
+      let recipientPayload: any = {};
+      if (singleRecipientMode === "existing") {
+        const p = approvedList.find((x) => x.key === singleSelectedKey);
+        if (!p) {
+          showToast("Please select an existing recipient.", "error");
+          setIssuingSingle(false);
+          return;
+        }
+        recipientPayload = {
+          recipientId: p.userId,
+          recipientName: p.fullName,
+          recipientEmail: p.email,
+          recipientStudentId: p.studentId,
+          recipientDepartment: p.department,
+        };
+      } else {
+        if (!singleManualName.trim() || !singleManualEmail.trim()) {
+          showToast("Please enter recipient name and email.", "error");
+          setIssuingSingle(false);
+          return;
+        }
+        recipientPayload = {
+          recipientName: singleManualName.trim(),
+          recipientEmail: singleManualEmail.trim(),
+          recipientStudentId: singleManualStudentId.trim() || undefined,
+          recipientDepartment: singleManualDept.trim() || undefined,
+        };
+      }
+
+      await axios.post(
+        `${API}/certificates`,
+        {
+          associatedEventId: event._id,
+          name: singleTitle.trim(),
+          type: singleType,
+          position: singlePosition.trim() || undefined,
+          description: singleDesc.trim() || undefined,
+          templateId: singleTemplateId || undefined,
+          issueDate: singleDate,
+          ...recipientPayload,
+        },
+        { withCredentials: true }
+      );
+
+      showToast("Certificate issued successfully!");
+      setShowSingleModal(false);
+      setSingleManualName("");
+      setSingleManualEmail("");
+      setSingleManualStudentId("");
+      setSingleManualDept("");
+      await onRefresh();
+    } catch (err: any) {
+      showToast(err.response?.data?.message || "Failed to issue certificate.", "error");
+    } finally {
+      setIssuingSingle(false);
+    }
   };
 
   return (
     <div className="space-y-6">
-      <SectionCard title={`Issued Certificates (${event.certificates.length})`}>
-        {event.certificates.length === 0 ? (
-          <p className="text-sm text-slate-400 text-center py-6">No certificates issued yet.</p>
+      {/* Top Banner & Metric Bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="p-4 rounded-xl border border-border-default bg-surface-elevated shadow-sm">
+          <span className="text-xs text-text-secondary font-mono block mb-1">Total Issued</span>
+          <div className="text-2xl font-black text-text-primary flex items-center gap-1.5">
+            <Award size={22} className="text-accent-primary" />
+            {event.certificates.length}
+          </div>
+        </div>
+
+        <div className="p-4 rounded-xl border border-border-default bg-surface-elevated shadow-sm">
+          <span className="text-xs text-text-secondary font-mono block mb-1">Participants</span>
+          <div className="text-2xl font-black text-text-primary flex items-center gap-1.5">
+            <Users size={22} className="text-blue-500" />
+            {approvedList.length}
+          </div>
+        </div>
+
+        <div className="p-4 rounded-xl border border-border-default bg-surface-elevated shadow-sm">
+          <span className="text-xs text-text-secondary font-mono block mb-1">Winners Defined</span>
+          <div className="text-2xl font-black text-text-primary flex items-center gap-1.5">
+            <Trophy size={22} className="text-amber-500" />
+            {flatWinnersList.length}
+          </div>
+        </div>
+
+        <div className="p-4 rounded-xl border border-border-default bg-surface-elevated shadow-sm">
+          <span className="text-xs text-text-secondary font-mono block mb-1">Templates Ready</span>
+          <div className="text-2xl font-black text-text-primary flex items-center gap-1.5">
+            <Sparkles size={22} className="text-purple-500" />
+            {templates.length}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Hub Toolbar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface-elevated p-4 rounded-2xl border-2 border-border-brutalist shadow-[4px_4px_0px_var(--border-brutalist)]">
+        <div>
+          <h2 className="text-base font-black text-text-primary">Event Certificate Issuance Hub</h2>
+          <p className="text-xs text-text-secondary mt-0.5">
+            Issue credentials to all participants or contest winners, and batch print certificates.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="primary"
+            onClick={() => setPrintTargetCerts(event.certificates)}
+            disabled={event.certificates.length === 0}
+            title={event.certificates.length === 0 ? "No certificates issued to print" : "Print all certificates"}
+          >
+            <Printer size={15} className="mr-1.5" />
+            Print All Certificates ({event.certificates.length})
+          </Button>
+
+          <Button
+            variant="secondary"
+            onClick={() => setShowBulkModal(true)}
+            disabled={approvedList.length === 0}
+          >
+            <Users size={14} className="mr-1.5" />
+            Bulk Issue
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={() => setShowWinnersModal(true)}
+            disabled={event.winners.length === 0}
+            title={event.winners.length === 0 ? "Define winners in Winners tab first" : "Issue to contest winners"}
+          >
+            <Trophy size={14} className="mr-1.5" />
+            Issue to Winners
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={() => setShowSingleModal(true)}
+          >
+            <Plus size={14} className="mr-1.5" />
+            Single Issue
+          </Button>
+        </div>
+      </div>
+
+      {/* Filter & Search Bar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-surface-secondary/40 p-3 rounded-xl border border-border-default">
+        <div className="relative w-full sm:w-80">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary pointer-events-none" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by recipient or certificate ID…"
+            className="w-full pl-9 pr-3 py-1.5 rounded-lg border border-border-default bg-surface-elevated text-xs text-text-primary outline-none focus:border-accent-primary"
+          />
+        </div>
+
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="w-36">
+            <FilterSelect
+              value={typeFilter}
+              onChange={setTypeFilter}
+              options={TYPE_FILTER_OPTIONS}
+              placeholder="Filter by type"
+            />
+          </div>
+
+          <div className="w-36">
+            <FilterSelect
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={STATUS_FILTER_OPTIONS}
+              placeholder="Filter by status"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Certificate Registry Cards */}
+      <SectionCard title={`Issued Certificates (${filteredCertificates.length})`}>
+        {filteredCertificates.length === 0 ? (
+          <div className="text-center py-12">
+            <Award size={40} className="mx-auto text-text-secondary/40 mb-3" />
+            <p className="text-sm font-bold text-text-primary">No certificates match your query</p>
+            <p className="text-xs text-text-secondary mt-1 max-w-sm mx-auto">
+              Use the bulk or winner issuance buttons above to generate certified credentials for this event.
+            </p>
+          </div>
         ) : (
-          <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-            {event.certificates.map((c) => (
-              <div key={c._id} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl">
-                <Award size={18} className="text-purple-500 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">{c.recipient?.fullName}</p>
-                  <p className="text-xs text-slate-500">{c.name} · {fmtDate(c.issueDate)}</p>
-                  <p className="text-xs text-slate-400 font-mono">{c.certificateId}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            {filteredCertificates.map((c) => {
+              const recipientName = c.recipient?.fullName || c.recipientName || "Participant";
+              const recipientId = c.recipient?.studentId || c.recipientStudentId;
+              const verifyUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/verify?cert=${c.certificateId}`;
+
+              return (
+                <div
+                  key={c._id}
+                  className="bg-surface-elevated p-4 rounded-xl border border-border-default hover:border-accent-primary/60 transition-all shadow-sm flex flex-col justify-between gap-3"
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <div className="min-w-0">
+                        <h4 className="text-sm font-black text-text-primary truncate">{recipientName}</h4>
+                        <p className="text-xs text-text-secondary truncate">
+                          {recipientId ? `ID: ${recipientId} · ` : ""}
+                          {c.name}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {c.position && (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                            ★ {c.position}
+                          </span>
+                        )}
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${CERT_TYPE_COLORS[c.type] || "bg-slate-100 text-slate-700"}`}>
+                          {c.type}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-[11px] font-mono text-text-secondary mt-2">
+                      <span className="bg-surface-secondary px-2 py-0.5 rounded border border-border-default font-bold text-accent-primary">
+                        {c.certificateId}
+                      </span>
+                      <span>Issued {fmtDate(c.issueDate)}</span>
+                    </div>
+                  </div>
+
+                  {/* Actions Bar on card */}
+                  <div className="flex items-center justify-between pt-2.5 border-t border-border-default text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setPrintTargetCerts([c])}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-md border border-border-default hover:bg-accent-primary hover:text-white transition font-medium text-[11px]"
+                        title="Print Certificate"
+                      >
+                        <Printer size={12} /> Print
+                      </button>
+
+                      <a
+                        href={verifyUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-md border border-border-default hover:bg-surface-secondary text-text-secondary hover:text-text-primary transition font-medium text-[11px]"
+                        title="Open Public Verification Link"
+                      >
+                        <ExternalLink size={12} /> Verify
+                      </a>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(verifyUrl);
+                          showToast("Verification link copied!");
+                        }}
+                        className="p-1 rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-secondary transition"
+                        title="Copy Verification URL"
+                      >
+                        <Copy size={12} />
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteCert(c._id)}
+                      className="p-1 rounded-md text-text-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+                      title="Delete Certificate"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                 </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${CERT_TYPE_COLORS[c.type] || "bg-slate-100 text-slate-600"}`}>
-                  {c.type}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </SectionCard>
 
-      <SectionCard title="Issue Certificates">
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2">
-              <label className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">Certificate Name</label>
-              <input
-                type="text"
-                value={certName}
-                onChange={(e) => setCertName(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">Description</label>
-              <textarea
-                rows={2}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional description…"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">Issue Date</label>
-              <input
-                type="date"
-                value={issueDate}
-                onChange={(e) => setIssueDate(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">Certificate Type</label>
-              <select
-                value={certType}
-                onChange={(e) => setCertType(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+      {/* ── MODAL 1: Bulk Issue ── */}
+      {showBulkModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-sm overflow-y-auto">
+          <div className="relative w-full max-w-2xl bg-surface-elevated rounded-2xl border-2 border-border-brutalist shadow-[8px_8px_0px_var(--accent-primary)] flex flex-col overflow-hidden max-h-[90vh]">
+            <div className="p-4 border-b-2 border-border-brutalist bg-surface-secondary flex items-center justify-between">
+              <div>
+                <span className="font-mono text-[10px] font-bold text-accent-primary uppercase tracking-wider block">Bulk Issuance</span>
+                <h3 className="text-base font-black text-text-primary">Issue Certificates to Participants</h3>
+              </div>
+              <button
+                onClick={() => setShowBulkModal(false)}
+                className="p-1.5 rounded-lg border border-border-default hover:bg-surface-elevated text-text-secondary"
               >
-                {CERT_TYPES.map((t) => (
-                  <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
-                ))}
-              </select>
+                <X size={16} />
+              </button>
             </div>
-            <div className="sm:col-span-2">
-              <label className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">Digital URL (certificate image/PDF link)</label>
-              <input
-                type="url"
-                value={digitalUrl}
-                onChange={(e) => setDigitalUrl(e.target.value)}
-                placeholder="https://…"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-              />
-            </div>
-          </div>
 
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-medium text-slate-600 dark:text-slate-400">
-                Recipients ({recipients.length})
-              </label>
-              <div className="flex gap-2">
+            <form onSubmit={handleBulkSubmit} className="p-5 overflow-y-auto space-y-4">
+              {/* Template picker */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-text-primary">Certificate Template *</label>
+                  {bulkTemplateId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const t = templates.find((x) => x._id === bulkTemplateId);
+                        if (t) setPreviewTemplate(t);
+                      }}
+                      className="text-[11px] font-bold text-accent-primary hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <Eye size={12} /> Preview Template
+                    </button>
+                  )}
+                </div>
+                <Select
+                  value={bulkTemplateId}
+                  onChange={setBulkTemplateId}
+                  options={templateOptions}
+                  placeholder="Select certificate template..."
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-text-primary mb-1 block">Certificate Title *</label>
+                  <input
+                    type="text"
+                    value={bulkTitle}
+                    onChange={(e) => setBulkTitle(e.target.value)}
+                    required
+                    className="w-full px-3.5 py-2 rounded-lg border border-border-default bg-surface-primary text-xs text-text-primary outline-none focus:border-accent-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-text-primary mb-1 block">Award Type *</label>
+                  <Select
+                    value={bulkType}
+                    onChange={setBulkType}
+                    options={TYPE_OPTIONS}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-text-primary mb-1 block">Issue Date *</label>
+                  <input
+                    type="date"
+                    value={bulkDate}
+                    onChange={(e) => setBulkDate(e.target.value)}
+                    required
+                    className="w-full px-3.5 py-2 rounded-lg border border-border-default bg-surface-primary text-xs text-text-primary outline-none focus:border-accent-primary"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-bold text-text-primary mb-1 block">Citation / Description</label>
+                  <textarea
+                    rows={2}
+                    value={bulkDesc}
+                    onChange={(e) => setBulkDesc(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-lg border border-border-default bg-surface-primary text-xs text-text-primary outline-none focus:border-accent-primary resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* Participant selector */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-bold text-text-primary">
+                    Recipients ({selectedParticipantKeys.size} of {approvedList.length} selected)
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedParticipantKeys(new Set(approvedList.map((p) => p.key)))}
+                      className="text-[11px] font-bold text-accent-primary hover:underline cursor-pointer"
+                    >
+                      Select All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedParticipantKeys(new Set())}
+                      className="text-[11px] font-bold text-text-secondary hover:underline cursor-pointer"
+                    >
+                      Deselect All
+                    </button>
+                  </div>
+                </div>
+
+                <div className="max-h-48 overflow-y-auto border border-border-default rounded-xl p-2 space-y-1.5 bg-surface-primary">
+                  {approvedList.map((p) => {
+                    const isChecked = selectedParticipantKeys.has(p.key);
+                    return (
+                      <label
+                        key={p.key}
+                        className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition text-xs ${
+                          isChecked ? "bg-accent-primary/10 border border-accent-primary/30" : "hover:bg-surface-secondary"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              const next = new Set(selectedParticipantKeys);
+                              if (e.target.checked) next.add(p.key);
+                              else next.delete(p.key);
+                              setSelectedParticipantKeys(next);
+                            }}
+                            className="rounded border-border-default text-accent-primary focus:ring-accent-primary"
+                          />
+                          <div>
+                            <span className="font-bold text-text-primary block">{p.fullName}</span>
+                            <span className="text-[10px] text-text-secondary">
+                              {p.studentId ? `ID: ${p.studentId} · ` : ""}{p.email}
+                            </span>
+                          </div>
+                        </div>
+
+                        {p.teamName && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300">
+                            {p.teamName}
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-border-default flex items-center justify-end gap-2">
+                <Button variant="outline" type="button" onClick={() => setShowBulkModal(false)}>
+                  Cancel
+                </Button>
+                <Button variant="primary" type="submit" disabled={issuingBulk || selectedParticipantKeys.size === 0}>
+                  {issuingBulk ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Award size={14} className="mr-1.5" />}
+                  Issue {selectedParticipantKeys.size} Certificates
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL 2: Issue to Winners ── */}
+      {showWinnersModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-sm overflow-y-auto">
+          <div className="relative w-full max-w-2xl bg-surface-elevated rounded-2xl border-2 border-border-brutalist shadow-[8px_8px_0px_var(--accent-primary)] flex flex-col overflow-hidden max-h-[90vh]">
+            <div className="p-4 border-b-2 border-border-brutalist bg-surface-secondary flex items-center justify-between">
+              <div>
+                <span className="font-mono text-[10px] font-bold text-amber-500 uppercase tracking-wider block">Winner Awards</span>
+                <h3 className="text-base font-black text-text-primary">Issue Credentials to Contest Winners</h3>
+              </div>
+              <button
+                onClick={() => setShowWinnersModal(false)}
+                className="p-1.5 rounded-lg border border-border-default hover:bg-surface-elevated text-text-secondary"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleWinnersSubmit} className="p-5 overflow-y-auto space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-text-primary">Certificate Template *</label>
+                  {winnerTemplateId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const t = templates.find((x) => x._id === winnerTemplateId);
+                        if (t) setPreviewTemplate(t);
+                      }}
+                      className="text-[11px] font-bold text-accent-primary hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <Eye size={12} /> Preview Template
+                    </button>
+                  )}
+                </div>
+                <Select
+                  value={winnerTemplateId}
+                  onChange={setWinnerTemplateId}
+                  options={templateOptions}
+                  placeholder="Select certificate template..."
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-text-primary mb-1 block">Certificate Title *</label>
+                  <input
+                    type="text"
+                    value={winnerTitle}
+                    onChange={(e) => setWinnerTitle(e.target.value)}
+                    required
+                    className="w-full px-3.5 py-2 rounded-lg border border-border-default bg-surface-primary text-xs text-text-primary outline-none focus:border-accent-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-text-primary mb-1 block">Issue Date *</label>
+                  <input
+                    type="date"
+                    value={winnerDate}
+                    onChange={(e) => setWinnerDate(e.target.value)}
+                    required
+                    className="w-full px-3.5 py-2 rounded-lg border border-border-default bg-surface-primary text-xs text-text-primary outline-none focus:border-accent-primary"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-bold text-text-primary mb-1 block">Citation / Description</label>
+                  <textarea
+                    rows={2}
+                    value={winnerDesc}
+                    onChange={(e) => setWinnerDesc(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-lg border border-border-default bg-surface-primary text-xs text-text-primary outline-none focus:border-accent-primary resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* Winners Checklist */}
+              <div>
+                <label className="text-xs font-bold text-text-primary mb-2 block">
+                  Select Winners ({selectedWinnerKeys.size} of {flatWinnersList.length})
+                </label>
+                <div className="max-h-52 overflow-y-auto border border-border-default rounded-xl p-2 space-y-1.5 bg-surface-primary">
+                  {flatWinnersList.map((w) => {
+                    const isChecked = selectedWinnerKeys.has(w.key);
+                    return (
+                      <label
+                        key={w.key}
+                        className={`flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition text-xs ${
+                          isChecked ? "bg-amber-50 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-800" : "hover:bg-surface-secondary"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              const next = new Set(selectedWinnerKeys);
+                              if (e.target.checked) next.add(w.key);
+                              else next.delete(w.key);
+                              setSelectedWinnerKeys(next);
+                            }}
+                            className="rounded border-border-default text-amber-500 focus:ring-amber-500"
+                          />
+                          <div>
+                            <span className="font-bold text-text-primary block">{w.fullName}</span>
+                            <span className="text-[10px] text-text-secondary">
+                              {w.teamName ? `Squad: ${w.teamName} · ` : ""}{w.email}
+                            </span>
+                          </div>
+                        </div>
+
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                          ★ {w.position}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-border-default flex items-center justify-end gap-2">
+                <Button variant="outline" type="button" onClick={() => setShowWinnersModal(false)}>
+                  Cancel
+                </Button>
+                <Button variant="primary" type="submit" disabled={issuingWinners || selectedWinnerKeys.size === 0}>
+                  {issuingWinners ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Trophy size={14} className="mr-1.5" />}
+                  Issue to {selectedWinnerKeys.size} Winners
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL 3: Single Issue ── */}
+      {showSingleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-sm overflow-y-auto">
+          <div className="relative w-full max-w-xl bg-surface-elevated rounded-2xl border-2 border-border-brutalist shadow-[8px_8px_0px_var(--accent-primary)] flex flex-col overflow-hidden max-h-[90vh]">
+            <div className="p-4 border-b-2 border-border-brutalist bg-surface-secondary flex items-center justify-between">
+              <div>
+                <span className="font-mono text-[10px] font-bold text-accent-primary uppercase tracking-wider block">Single Issuance</span>
+                <h3 className="text-base font-black text-text-primary">Issue Individual Certificate</h3>
+              </div>
+              <button
+                onClick={() => setShowSingleModal(false)}
+                className="p-1.5 rounded-lg border border-border-default hover:bg-surface-elevated text-text-secondary"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSingleSubmit} className="p-5 overflow-y-auto space-y-4">
+              {/* Recipient Source Mode */}
+              <div className="flex gap-2 border-b border-border-default pb-2">
                 <button
                   type="button"
-                  onClick={addAllAttendees}
-                  className="text-xs px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg font-medium hover:bg-blue-100 dark:hover:bg-blue-900/40 transition"
+                  onClick={() => setSingleRecipientMode("existing")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                    singleRecipientMode === "existing" ? "bg-accent-primary text-white" : "bg-surface-secondary text-text-secondary"
+                  }`}
                 >
-                  All Attendees
+                  Event Participant
                 </button>
-                {event.winners.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={addWinnersOnly}
-                    className="text-xs px-3 py-1.5 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 rounded-lg font-medium hover:bg-yellow-100 dark:hover:bg-yellow-900/40 transition"
-                  >
-                    Winners Only
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setSingleRecipientMode("manual")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                    singleRecipientMode === "manual" ? "bg-accent-primary text-white" : "bg-surface-secondary text-text-secondary"
+                  }`}
+                >
+                  Guest / Non-Member
+                </button>
               </div>
+
+              {singleRecipientMode === "existing" ? (
+                <div>
+                  <label className="text-xs font-bold text-text-primary mb-1 block">Select Attendee *</label>
+                  <Select
+                    value={singleSelectedKey}
+                    onChange={setSingleSelectedKey}
+                    options={approvedList.map((p) => ({
+                      value: p.key,
+                      label: `${p.fullName} (${p.studentId || p.email})`,
+                    }))}
+                    placeholder="Choose an approved attendee..."
+                  />
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-text-primary mb-1 block">Full Name *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. John Doe"
+                      value={singleManualName}
+                      onChange={(e) => setSingleManualName(e.target.value)}
+                      required
+                      className="w-full px-3 py-2 rounded-lg border border-border-default bg-surface-primary text-xs text-text-primary outline-none focus:border-accent-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-text-primary mb-1 block">Email Address *</label>
+                    <input
+                      type="email"
+                      placeholder="e.g. john@example.com"
+                      value={singleManualEmail}
+                      onChange={(e) => setSingleManualEmail(e.target.value)}
+                      required
+                      className="w-full px-3 py-2 rounded-lg border border-border-default bg-surface-primary text-xs text-text-primary outline-none focus:border-accent-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-text-primary mb-1 block">Student ID / Roll (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 2021331501"
+                      value={singleManualStudentId}
+                      onChange={(e) => setSingleManualStudentId(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-border-default bg-surface-primary text-xs text-text-primary outline-none focus:border-accent-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-text-primary mb-1 block">Department / Institution (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. CSE"
+                      value={singleManualDept}
+                      onChange={(e) => setSingleManualDept(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-border-default bg-surface-primary text-xs text-text-primary outline-none focus:border-accent-primary"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Template Picker */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-text-primary">Certificate Template *</label>
+                  {singleTemplateId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const t = templates.find((x) => x._id === singleTemplateId);
+                        if (t) setPreviewTemplate(t);
+                      }}
+                      className="text-[11px] font-bold text-accent-primary hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <Eye size={12} /> Preview Template
+                    </button>
+                  )}
+                </div>
+                <Select
+                  value={singleTemplateId}
+                  onChange={setSingleTemplateId}
+                  options={templateOptions}
+                  placeholder="Select certificate template..."
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-bold text-text-primary mb-1 block">Certificate Title *</label>
+                  <input
+                    type="text"
+                    value={singleTitle}
+                    onChange={(e) => setSingleTitle(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 rounded-lg border border-border-default bg-surface-primary text-xs text-text-primary outline-none focus:border-accent-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-text-primary mb-1 block">Award Type *</label>
+                  <Select
+                    value={singleType}
+                    onChange={setSingleType}
+                    options={TYPE_OPTIONS}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-text-primary mb-1 block">Position / Rank (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 1st Place, Best Innovator"
+                    value={singlePosition}
+                    onChange={(e) => setSinglePosition(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-border-default bg-surface-primary text-xs text-text-primary outline-none focus:border-accent-primary"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-bold text-text-primary mb-1 block">Issue Date *</label>
+                  <input
+                    type="date"
+                    value={singleDate}
+                    onChange={(e) => setSingleDate(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 rounded-lg border border-border-default bg-surface-primary text-xs text-text-primary outline-none focus:border-accent-primary"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-bold text-text-primary mb-1 block">Citation Description</label>
+                  <textarea
+                    rows={2}
+                    value={singleDesc}
+                    onChange={(e) => setSingleDesc(e.target.value)}
+                    placeholder="Citation description..."
+                    className="w-full px-3 py-2 rounded-lg border border-border-default bg-surface-primary text-xs text-text-primary outline-none focus:border-accent-primary resize-none"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-border-default flex items-center justify-end gap-2">
+                <Button variant="outline" type="button" onClick={() => setShowSingleModal(false)}>
+                  Cancel
+                </Button>
+                <Button variant="primary" type="submit" disabled={issuingSingle}>
+                  {issuingSingle ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Award size={14} className="mr-1.5" />}
+                  Issue Certificate
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL 4: Print All / Batch Printable Sheets Modal ── */}
+      {mounted && printTargetCerts && typeof document !== "undefined" && createPortal(
+        <div id="cert-print-portal" className="fixed inset-0 z-[100] flex flex-col bg-black/90 backdrop-blur-md overflow-hidden print:static print:inset-auto print:overflow-visible print:bg-white print:h-auto print:w-full print:block">
+          {/* Printable style overrides */}
+          <style dangerouslySetInnerHTML={{
+            __html: `
+              @media print {
+                @page {
+                  size: landscape;
+                  margin: 0;
+                }
+                html, body {
+                  background: #FFFFFF !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  overflow: visible !important;
+                  height: auto !important;
+                  min-height: 100% !important;
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                }
+                /* Hide everything in the page except the print portal */
+                body > :not(#cert-print-portal) {
+                  display: none !important;
+                  visibility: hidden !important;
+                  height: 0 !important;
+                  max-height: 0 !important;
+                  overflow: hidden !important;
+                }
+                #cert-print-portal {
+                  display: block !important;
+                  position: static !important;
+                  inset: auto !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  width: 100vw !important;
+                  height: auto !important;
+                  background: #FFFFFF !important;
+                  overflow: visible !important;
+                }
+                #cert-print-portal,
+                #cert-print-portal * {
+                  visibility: visible !important;
+                }
+                #printable-certificates-hub {
+                  position: static !important;
+                  left: auto !important;
+                  top: auto !important;
+                  width: 100vw !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  background: #FFFFFF !important;
+                  display: block !important;
+                }
+                .print-cert-sheet {
+                  box-sizing: border-box !important;
+                  width: 100vw !important;
+                  height: 100vh !important;
+                  max-width: 100vw !important;
+                  max-height: 100vh !important;
+                  aspect-ratio: auto !important;
+                  margin: 0 !important;
+                  padding: 8mm 12mm !important;
+                  box-shadow: none !important;
+                  border-radius: 0 !important;
+                  page-break-inside: avoid !important;
+                  break-inside: avoid !important;
+                  overflow: hidden !important;
+                  display: flex !important;
+                  flex-direction: column !important;
+                  justify-content: space-between !important;
+                  background: #FFFFFF !important;
+                }
+                .print-cert-sheet:not(:last-child) {
+                  page-break-after: always !important;
+                  break-after: page !important;
+                }
+                .print-cert-sheet:last-child {
+                  page-break-after: avoid !important;
+                  break-after: avoid !important;
+                }
+              }
+            `
+          }} />
+
+          {/* Modal Header Controls (Hidden during print) */}
+          <div className="p-4 bg-surface-elevated border-b-2 border-border-brutalist flex items-center justify-between z-10 print:hidden">
+            <div>
+              <span className="font-mono text-[10px] font-bold text-accent-primary uppercase tracking-wider block">Batch Printing Mode</span>
+              <h2 className="text-base font-black text-text-primary">
+                Print Certificates ({printTargetCerts.length} page{printTargetCerts.length !== 1 ? "s" : ""})
+              </h2>
             </div>
 
-            {recipients.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl max-h-32 overflow-y-auto">
-                {recipients.map((r) => (
-                  <span key={r._id} className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-full text-xs font-medium">
-                    {r.fullName}
-                    <button onClick={() => removeRecipient(r._id)} className="hover:opacity-70 transition">
-                      <X size={10} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
+            <div className="flex items-center gap-3">
+              <Button
+                variant="primary"
+                onClick={() => window.print()}
+                className="cursor-pointer"
+              >
+                <Printer size={16} className="mr-1.5" />
+                Print / Save PDF
+              </Button>
 
-            <MemberSearch placeholder="Search and add individual recipient…" onSelect={addRecipient} />
+              <button
+                type="button"
+                onClick={() => setPrintTargetCerts(null)}
+                className="p-2 rounded-lg border border-border-default hover:bg-surface-secondary text-text-secondary cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
           </div>
 
-          <button
-            onClick={handleIssue}
-            disabled={issuing || recipients.length === 0 || !certName.trim()}
-            className="flex items-center gap-2 px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-semibold text-sm transition disabled:opacity-50"
-          >
-            {issuing ? <Loader2 size={15} className="animate-spin" /> : <Award size={15} />}
-            {issuing ? "Issuing…" : `Issue to ${recipients.length} Recipient${recipients.length !== 1 ? "s" : ""}`}
-          </button>
-        </div>
-      </SectionCard>
+          {/* Printable Body */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-900/60 print:p-0 print:bg-white print:overflow-visible print:h-auto print:block">
+            <div id="printable-certificates-hub" className="max-w-4xl mx-auto space-y-8 print:space-y-0 print:max-w-none print:w-full print:m-0 print:p-0">
+              {printTargetCerts.map((c, index) => {
+                const recipientName = c.recipient?.fullName || c.recipientName || "Participant";
+                const studentId = c.recipient?.studentId || c.recipientStudentId || "";
+                const department = c.recipient?.department || c.recipientDepartment || "";
+                const verifyUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/verify?cert=${c.certificateId}`;
+
+                if (c.template?.type === "html" && c.template.htmlContent) {
+                  const html = interpolateCertificateHtml(c.template.htmlContent, {
+                    recipient_name: recipientName,
+                    student_id: studentId,
+                    department: department,
+                    event_title: event.title,
+                    certificate_title: c.name,
+                    certificate_id: c.certificateId,
+                    issue_date: fmtDate(c.issueDate),
+                    position: c.position || (c.type === "winner" ? "Winner" : undefined),
+                    description: c.description || `In recognition of active participation and dedication in ${event.title}.`,
+                    verification_url: verifyUrl,
+                  });
+
+                  return (
+                    <div
+                      key={c._id}
+                      className="print-cert-sheet w-full aspect-[1.414/1] bg-white rounded-xl overflow-hidden border-2 border-slate-300 shadow-xl print:border-none print:shadow-none print:rounded-none"
+                    >
+                      <iframe
+                        title={c.certificateId}
+                        srcDoc={html}
+                        sandbox="allow-same-origin"
+                        className="w-full h-full border-none"
+                      />
+                    </div>
+                  );
+                }
+
+                // Visual Preset Fallback
+                return (
+                  <div
+                    key={c._id}
+                    className="print-cert-sheet w-full aspect-[1.414/1] bg-white text-slate-900 rounded-xl p-8 sm:p-12 text-center relative flex flex-col justify-between overflow-hidden shadow-2xl border-4 print:border-4 print:shadow-none print:rounded-none"
+                    style={{
+                      backgroundColor: "#FFFFFF",
+                      color: "#0F172A",
+                      borderColor: c.template?.primaryColor || "#0F766E",
+                      borderStyle: c.template?.borderStyle === "classic-ornate" ? "double" : "solid",
+                      borderWidth: c.template?.borderStyle === "none" ? "0px" : c.template?.borderStyle === "classic-ornate" ? "8px" : "4px",
+                      boxShadow: c.template?.borderStyle === "neo-brutalist" ? `8px 8px 0px ${c.template.primaryColor || "#0F766E"}` : undefined,
+                      backgroundImage: c.template?.backgroundUrl ? `url(${c.template.backgroundUrl})` : undefined,
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
+                    }}
+                  >
+                    {/* Header */}
+                    <div>
+                      <div
+                        className="flex items-center justify-center gap-2 mb-2"
+                        style={{ color: c.template?.primaryColor || "#0F766E" }}
+                      >
+                        <Award size={26} />
+                        <span className="font-mono text-xs font-black tracking-widest uppercase">
+                          {c.template?.headerSubtitle || "MYMENSINGH ENGINEERING COLLEGE COMPUTER CLUB"}
+                        </span>
+                      </div>
+                      <h3 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight uppercase mb-1">
+                        {c.name}
+                      </h3>
+                      {c.position ? (
+                        <span className="inline-block text-xs font-mono font-extrabold uppercase px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-300">
+                          ★ {c.position}
+                        </span>
+                      ) : (
+                        <span className="inline-block text-xs font-mono font-bold uppercase px-3 py-1 rounded-full bg-slate-100 text-slate-700">
+                          {c.type.toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Recipient Details */}
+                    <div className="my-4 py-4 border-t-2 border-b-2 border-dashed border-slate-300">
+                      <span className="text-xs font-mono text-slate-400 uppercase tracking-widest block mb-1">
+                        {c.template?.presentationText || "PROUDLY PRESENTED TO"}
+                      </span>
+                      <h4 className="text-2xl sm:text-3xl font-black" style={{ color: c.template?.primaryColor || "#0F766E" }}>
+                        {recipientName}
+                      </h4>
+                      {(studentId || department) && (
+                        <p className="text-xs sm:text-sm font-mono text-slate-600 mt-1">
+                          {studentId ? <>Student ID: <strong className="text-slate-900">{studentId}</strong></> : null}
+                          {department ? <> &bull; Dept. of {department}</> : null}
+                        </p>
+                      )}
+                      <p className="text-xs sm:text-sm text-slate-600 italic mt-2 max-w-lg mx-auto">
+                        &ldquo;{c.description || `In recognition of active participation, dedication, and valued contribution to ${event.title}.`}&rdquo;
+                      </p>
+                    </div>
+
+                    {/* Event info */}
+                    <div className="text-xs font-mono text-slate-600">
+                      Event: <strong className="text-slate-900">{event.title}</strong>
+                    </div>
+
+                    {/* Signatures & Verification */}
+                    <div className="pt-4 border-t border-slate-200 flex items-end justify-between font-mono text-xs">
+                      <div className="text-center">
+                        <div className="w-28 sm:w-36 border-t-2 border-slate-900 mx-auto pt-1 font-bold text-slate-900 line-clamp-1">
+                          President
+                        </div>
+                        <div className="text-[10px] text-slate-400">MEC Computer Club</div>
+                      </div>
+
+                      <div className="text-center">
+                        <img
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&margin=0&data=${encodeURIComponent(verifyUrl)}`}
+                          alt="Verification QR"
+                          className="w-14 h-14 mx-auto border border-slate-300 p-1 bg-white"
+                        />
+                        <span className="block font-bold text-slate-900 text-[10px] mt-1">{c.certificateId}</span>
+                      </div>
+
+                      <div className="text-center">
+                        <div className="w-28 sm:w-36 border-t-2 border-slate-900 mx-auto pt-1 font-bold text-slate-900 line-clamp-1">
+                          Faculty Advisor
+                        </div>
+                        <div className="text-[10px] text-slate-400">MEC</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── MODAL 5: Certificate Template Preview Modal ── */}
+      {previewTemplate && (
+        <CertificateTemplatePreviewModal
+          template={previewTemplate}
+          onClose={() => setPreviewTemplate(null)}
+        />
+      )}
     </div>
   );
 }
@@ -1217,7 +2659,6 @@ export default function EventDetailPage() {
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [inFlight, setInFlight] = useState<Set<string>>(new Set());
   const [winnerSaving, setWinnerSaving] = useState(false);
-  const [issuing, setIssuing] = useState(false);
 
   const showToast = useCallback((msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -1232,16 +2673,22 @@ export default function EventDetailPage() {
   // ── Fetch ─────────────────────────────────────────────────────────────────
   const fetchEvent = useCallback(async () => {
     try {
-      const res = await axios.get(`${API}/events/${id}`, { withCredentials: true });
-      const raw = res.data.data;
+      const [resEvent, resCerts] = await Promise.all([
+        axios.get(`${API}/events/${id}`, { withCredentials: true }),
+        axios.get(`${API}/certificates/event/${id}`, { withCredentials: true }).catch(() => ({ data: { data: [] } })),
+      ]);
+      const raw = resEvent.data.data;
+      const certs = resCerts.data.data && resCerts.data.data.length > 0 ? resCerts.data.data : raw.certificates || [];
+
       setEvent({
         ...raw,
         attendees: raw.attendees || [],
+        approvedParticipants: raw.approvedParticipants || [],
         pendingParticipants: raw.pendingParticipants || [],
         winners: raw.winners || [],
         eventSponsors: raw.eventSponsors || [],
         media: raw.media || [],
-        certificates: raw.certificates || [],
+        certificates: certs,
         tags: raw.tags || [],
       });
     } catch (err) {
@@ -1257,77 +2704,76 @@ export default function EventDetailPage() {
   useEffect(() => { fetchEvent(); }, [fetchEvent]);
 
   // ── Participant handlers ──────────────────────────────────────────────────
-  const handleApprove = useCallback(async (userId: string) => {
-    addInFlight(userId);
+  const handleApprove = useCallback(async (targetId: string) => {
+    addInFlight(targetId);
     try {
-      await axios.patch(`${API}/events/${id}/participants/${userId}/approve`, {}, { withCredentials: true });
-      setEvent((prev) => {
-        if (!prev) return prev;
-        const pending = prev.pendingParticipants.find((p) => p.userId._id === userId);
-        if (!pending) return prev;
-        return {
-          ...prev,
-          pendingParticipants: prev.pendingParticipants.filter((p) => p.userId._id !== userId),
-          attendees: [...prev.attendees, pending.userId],
-        };
-      });
-      showToast("Participant approved.");
+      await axios.patch(`${API}/events/${id}/participants/${targetId}/approve`, {}, { withCredentials: true });
+      await fetchEvent();
+      showToast("Approved and confirmation email sent!");
     } catch {
       showToast("Failed to approve.", "error");
     } finally {
-      removeInFlight(userId);
+      removeInFlight(targetId);
     }
-  }, [id, addInFlight, removeInFlight, showToast]);
+  }, [id, addInFlight, removeInFlight, showToast, fetchEvent]);
 
-  const handleReject = useCallback(async (userId: string) => {
-    addInFlight(userId);
+  const handleReject = useCallback(async (targetId: string) => {
+    addInFlight(targetId);
     try {
-      await axios.patch(`${API}/events/${id}/participants/${userId}/reject`, {}, { withCredentials: true });
-      setEvent((prev) => prev ? {
-        ...prev,
-        pendingParticipants: prev.pendingParticipants.filter((p) => p.userId._id !== userId),
-      } : prev);
-      showToast("Participant rejected.");
+      await axios.patch(`${API}/events/${id}/participants/${targetId}/reject`, {}, { withCredentials: true });
+      await fetchEvent();
+      showToast("Registration rejected.");
     } catch {
       showToast("Failed to reject.", "error");
     } finally {
-      removeInFlight(userId);
+      removeInFlight(targetId);
     }
-  }, [id, addInFlight, removeInFlight, showToast]);
+  }, [id, addInFlight, removeInFlight, showToast, fetchEvent]);
 
   const handleRemoveAttendee = useCallback(async (userId: string) => {
     addInFlight(userId);
     try {
       await axios.delete(`${API}/events/${id}/participants/${userId}`, { withCredentials: true });
-      setEvent((prev) => prev ? {
-        ...prev,
-        attendees: prev.attendees.filter((a) => a._id !== userId),
-      } : prev);
+      await fetchEvent();
       showToast("Attendee removed.");
     } catch {
       showToast("Failed to remove.", "error");
     } finally {
       removeInFlight(userId);
     }
-  }, [id, addInFlight, removeInFlight, showToast]);
+  }, [id, addInFlight, removeInFlight, showToast, fetchEvent]);
 
   const handleAddAttendee = useCallback(async (user: UserRef) => {
     addInFlight(user._id);
     try {
       await axios.post(`${API}/events/${id}/participants/add`, { userIds: [user._id] }, { withCredentials: true });
-      setEvent((prev) => prev ? {
-        ...prev,
-        attendees: prev.attendees.some((a) => a._id === user._id)
-          ? prev.attendees
-          : [...prev.attendees, user],
-      } : prev);
+      await fetchEvent();
       showToast(`${user.fullName} added as attendee.`);
     } catch {
       showToast("Failed to add attendee.", "error");
     } finally {
       removeInFlight(user._id);
     }
-  }, [id, addInFlight, removeInFlight, showToast]);
+  }, [id, addInFlight, removeInFlight, showToast, fetchEvent]);
+
+  const handleAddNonMemberAttendee = useCallback(async (guest: {
+    fullName: string;
+    email: string;
+    studentId?: string;
+    department?: string;
+  }) => {
+    try {
+      await axios.post(
+        `${API}/events/${id}/participants/add`,
+        { nonMembers: [guest] },
+        { withCredentials: true }
+      );
+      await fetchEvent();
+      showToast(`${guest.fullName} added as participant.`);
+    } catch {
+      showToast("Failed to add non-member participant.", "error");
+    }
+  }, [id, fetchEvent, showToast]);
 
   // ── Winners handler ───────────────────────────────────────────────────────
   const handleSaveWinners = useCallback(async (
@@ -1392,7 +2838,7 @@ export default function EventDetailPage() {
             url: file.url,
             title: file.originalName,
             mediaType: file.mediaType,
-            publicId: file.public_id,   // pass public_id so backend can delete from Cloudinary later
+            publicId: file.public_id,
           },
           { withCredentials: true }
         );
@@ -1424,26 +2870,6 @@ export default function EventDetailPage() {
       removeInFlight(mediaId);
     }
   }, [id, addInFlight, removeInFlight, showToast]);
-
-  // ── Certificate handler ───────────────────────────────────────────────────
-  const handleIssueCertificates = useCallback(async (payload: {
-    name: string;
-    description: string;
-    issueDate: string;
-    digitalUrl: string;
-    recipients: { userId: string; type: string }[];
-  }) => {
-    setIssuing(true);
-    try {
-      await axios.post(`${API}/events/${id}/certificates`, payload, { withCredentials: true });
-      await fetchEvent();
-      showToast(`Certificates issued to ${payload.recipients.length} recipient${payload.recipients.length !== 1 ? "s" : ""}.`);
-    } catch {
-      showToast("Failed to issue certificates.", "error");
-    } finally {
-      setIssuing(false);
-    }
-  }, [id, fetchEvent, showToast]);
 
   // ── Loading skeleton ──────────────────────────────────────────────────────
   if (loading) {
@@ -1525,6 +2951,7 @@ export default function EventDetailPage() {
           onReject={handleReject}
           onRemove={handleRemoveAttendee}
           onAdd={handleAddAttendee}
+          onAddNonMember={handleAddNonMemberAttendee}
           inFlight={inFlight}
         />
       )}
@@ -1558,8 +2985,8 @@ export default function EventDetailPage() {
       {activeTab === "certificates" && (
         <CertificatesTab
           event={event}
-          onIssue={handleIssueCertificates}
-          issuing={issuing}
+          onRefresh={fetchEvent}
+          showToast={showToast}
         />
       )}
 

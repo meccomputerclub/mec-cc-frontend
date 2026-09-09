@@ -8,3 +8,4 @@ export * from "./CPArenaTab";
 export * from "./FormsTab";
 export * from "./ProfileEditTab";
 export * from "./SecurityTab";
+export * from "./AvatarPositionModal";

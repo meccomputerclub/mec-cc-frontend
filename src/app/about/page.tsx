@@ -2,9 +2,45 @@ import type { Metadata } from "next";
 import { departments } from "@/data/departments";
 
 export const metadata: Metadata = {
-  title: "About | whoami",
+  title: "About MEC Computer Club | Mission, History & Tech Wings",
   description:
-    "Learn about MEC Computer Club — our mission, departments, and the team behind it all.",
+    "Learn about MEC Computer Club at Murari Chand College (MEC), Sylhet. Explore our history from 2019, competitive programming teams, web dev projects, and student tech community.",
+  keywords: [
+    "About MEC Computer Club",
+    "MEC Computer Club history",
+    "Murari Chand College tech club",
+    "MEC Sylhet computer club",
+    "MEC CP team",
+    "MEC ICPC",
+  ],
+  alternates: {
+    canonical: "https://meccomputerclub.org/about",
+  },
+  openGraph: {
+    title: "About MEC Computer Club | Mission, History & Tech Wings",
+    description:
+      "Explore the journey of MEC Computer Club at Murari Chand College, Sylhet — from a 12-person CP group in 2019 to 70+ members shipping production software and competing in ICPC.",
+    url: "https://meccomputerclub.org/about",
+    images: ["/mec-club-photo.jpg"],
+  },
+};
+
+const jsonLdAbout = {
+  "@context": "https://schema.org",
+  "@type": "AboutPage",
+  "name": "About MEC Computer Club",
+  "url": "https://meccomputerclub.org/about",
+  "description": "History, mission, and department structure of the MEC Computer Club at Murari Chand College, Sylhet.",
+  "mainEntity": {
+    "@type": "EducationalOrganization",
+    "name": "MEC Computer Club",
+    "foundingDate": "2019",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Sylhet",
+      "addressCountry": "BD"
+    }
+  }
 };
 
 const historyMilestones = [
@@ -38,6 +74,10 @@ const historyMilestones = [
 export default function AboutPage() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdAbout) }}
+      />
       {/* Mission Hero */}
       <section className="pt-10 md:pt-14 pb-8 md:pb-12">
         <div className="container mx-auto px-4 md:px-8">

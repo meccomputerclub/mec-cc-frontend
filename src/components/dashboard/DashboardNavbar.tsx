@@ -1,5 +1,9 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { useTheme } from "next-themes";
+import { useAccent } from "@/components/AccentProvider";
 import { Menu, User, ChevronDown, LogOut, Settings } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
@@ -22,6 +26,17 @@ export const DashboardNavbar: React.FC<DashboardNavbarProps> = ({
   const { logout, user: authUser } = useAuth();
   const router = useRouter();
   const menuRef = useRef<HTMLDivElement>(null);
+  const { resolvedTheme } = useTheme();
+  const { currentVibe } = useAccent();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const logoSrc = mounted
+    ? `/logo-${currentVibe || "lime"}-${resolvedTheme === "dark" ? "dark" : "light"}.png`
+    : "/logo-lime-light.png";
 
   const handleLogout = async () => {
     try {
@@ -66,9 +81,16 @@ export const DashboardNavbar: React.FC<DashboardNavbarProps> = ({
             >
               <Menu className="w-6 h-6" />
             </button>
-            <span className="lg:hidden text-lg font-semibold text-text-primary">
-              MEC Computer Club
-            </span>
+            <Link href="/" className="lg:hidden flex items-center h-8" aria-label="MEC Computer Club — Home">
+              <Image
+                src={logoSrc}
+                alt="MEC Computer Club Logo"
+                width={140}
+                height={35}
+                priority
+                className="h-8 w-auto object-contain"
+              />
+            </Link>
           </div>
 
           {/* Right side — User menu */}

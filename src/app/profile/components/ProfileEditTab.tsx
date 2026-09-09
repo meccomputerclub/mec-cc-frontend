@@ -1,14 +1,28 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { AuthUser } from "@/types";
+import { useState, useRef, useEffect, useMemo, forwardRef, useImperativeHandle } from "react";
+import { AuthUser, UserExperience, UserEducation } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { api, ApiError } from "@/lib/api";
 import toast from "react-hot-toast";
 import {
   Save,
   Upload,
+  Move,
+  Briefcase,
+  GraduationCap,
+  Plus,
+  Trash2,
+  Globe,
+  Sparkles,
+  MapPin,
+  Building2,
+  Calendar,
+  X,
+  Pencil,
+  ExternalLink,
 } from "lucide-react";
+import { AvatarPositionModal } from "./AvatarPositionModal";
 import { coverPresets, CoverPreset } from "@/data/coverPresets";
 
 /* Helper to format social handles into clean URLs */
@@ -73,18 +87,47 @@ const DEPARTMENT_LABEL_MAP: Record<string, string> = {
   CE: "Civil Engineering (CE)",
 };
 
+export interface ProfileEditTabHandle {
+  save: () => Promise<void>;
+}
+
 interface ProfileEditTabProps {
   user: AuthUser;
   onProfileUpdated: () => void;
   onCancel?: () => void;
+  onDirtyChange?: (isDirty: boolean) => void;
 }
 
-export function ProfileEditTab({ user, onProfileUpdated, onCancel }: ProfileEditTabProps) {
+const POPULAR_SKILLS = [
+  "TypeScript",
+  "JavaScript",
+  "React",
+  "Next.js",
+  "Node.js",
+  "Python",
+  "C++",
+  "Competitive Programming",
+  "Django",
+  "TailwindCSS",
+  "Docker",
+  "SQL",
+  "PostgreSQL",
+  "MongoDB",
+  "Git & GitHub",
+  "Machine Learning",
+  "System Design",
+];
+
+export const ProfileEditTab = forwardRef<ProfileEditTabHandle, ProfileEditTabProps>(function ProfileEditTab(
+  { user, onProfileUpdated, onCancel, onDirtyChange }: ProfileEditTabProps,
+  ref
+) {
   const [profileData, setProfileData] = useState({
     fullName: user.fullName || "",
     contactNumber: user.contactNumber || "",
     department: user.department || "CSE",
     session: user.session || "2021-2022",
+    batch: user.batch || "",
     address: user.address || "",
     bio: user.bio || "",
     facebook: user.socialLinks?.facebook || "",
@@ -95,10 +138,228 @@ export function ProfileEditTab({ user, onProfileUpdated, onCancel }: ProfileEdit
     discord: user.socialLinks?.discord || "",
   });
 
+  // Online & Portfolio Link
+  const [website, setWebsite] = useState(user.website || "");
+
+  // Skills Tag Manager
+  const [skills, setSkills] = useState<string[]>(user.skills || []);
+  const [skillInput, setSkillInput] = useState("");
+
+  const handleAddSkill = (skillToAdd?: string) => {
+    const target = (skillToAdd || skillInput).trim();
+    if (!target) return;
+    if (skills.some((s) => s.toLowerCase() === target.toLowerCase())) {
+      toast.error(`"${target}" is already in your skills list.`);
+      return;
+    }
+    setSkills([...skills, target]);
+    setSkillInput("");
+  };
+
+  const handleRemoveSkill = (skillToRemove: string) => {
+    setSkills(skills.filter((s) => s !== skillToRemove));
+  };
+
+  // Experience Ladder Manager
+  const [experiences, setExperiences] = useState<UserExperience[]>(user.experiences || []);
+  const [showExpModal, setShowExpModal] = useState(false);
+  const [editingExpIndex, setEditingExpIndex] = useState<number | null>(null);
+  const [expForm, setExpForm] = useState<UserExperience>({
+    companyName: "",
+    jobTitle: "",
+    startDate: "",
+    endDate: "",
+    isCurrent: false,
+    location: "",
+    description: "",
+  });
+
+  const openAddExp = () => {
+    setExpForm({
+      companyName: "",
+      jobTitle: "",
+      startDate: "",
+      endDate: "",
+      isCurrent: false,
+      location: "",
+      description: "",
+    });
+    setEditingExpIndex(null);
+    setShowExpModal(true);
+  };
+
+  const openEditExp = (index: number) => {
+    const item = experiences[index];
+    const isCur = Boolean(item.isCurrent || item.endDate === "Present");
+    setExpForm({
+      ...item,
+      isCurrent: isCur,
+      endDate: isCur || item.endDate === "Present" ? "" : (item.endDate || ""),
+    });
+    setEditingExpIndex(index);
+    setShowExpModal(true);
+  };
+
+  const handleSaveExp = () => {
+    if (!expForm.companyName.trim() || !expForm.jobTitle.trim() || !expForm.startDate.trim()) {
+      toast.error("Company Name, Job Title, and Start Date are required.");
+      return;
+    }
+    const cleanExp: UserExperience = {
+      ...expForm,
+      companyName: expForm.companyName.trim(),
+      jobTitle: expForm.jobTitle.trim(),
+      startDate: expForm.startDate.trim(),
+      endDate: expForm.isCurrent ? "Present" : (expForm.endDate === "Present" ? "" : expForm.endDate?.trim() || ""),
+      location: expForm.location?.trim() || "",
+      description: expForm.description?.trim() || "",
+    };
+
+    if (editingExpIndex !== null) {
+      const updated = [...experiences];
+      updated[editingExpIndex] = cleanExp;
+      setExperiences(updated);
+      toast.success("Position updated!");
+    } else {
+      setExperiences([...experiences, cleanExp]);
+      toast.success("Position added to experience ladder!");
+    }
+    setShowExpModal(false);
+  };
+
+  const handleDeleteExp = (index: number) => {
+    setExperiences(experiences.filter((_, i) => i !== index));
+    toast.success("Experience removed.");
+  };
+
+  // Education Manager
+  const [education, setEducation] = useState<UserEducation[]>(user.education || []);
+  const [showEduModal, setShowEduModal] = useState(false);
+  const [editingEduIndex, setEditingEduIndex] = useState<number | null>(null);
+  const [eduForm, setEduForm] = useState<UserEducation>({
+    institution: "",
+    degree: "",
+    fieldOfStudy: "",
+    startDate: "",
+    endDate: "",
+    isCurrent: false,
+    location: "",
+    description: "",
+  });
+
+  const openAddEdu = () => {
+    setEduForm({
+      institution: "",
+      degree: "",
+      fieldOfStudy: "",
+      startDate: "",
+      endDate: "",
+      isCurrent: false,
+      location: "",
+      description: "",
+    });
+    setEditingEduIndex(null);
+    setShowEduModal(true);
+  };
+
+  const openEditEdu = (index: number) => {
+    const item = education[index];
+    const isCur = Boolean(item.isCurrent || item.endDate === "Present");
+    setEduForm({
+      ...item,
+      isCurrent: isCur,
+      endDate: isCur || item.endDate === "Present" ? "" : (item.endDate || ""),
+    });
+    setEditingEduIndex(index);
+    setShowEduModal(true);
+  };
+
+  // Track if any field was changed
+  const [hasSaved, setHasSaved] = useState(false);
+
+  const isDirty = useMemo(() => {
+    if (hasSaved) return false;
+    if (profileData.fullName !== (user.fullName || "")) return true;
+    if (profileData.contactNumber !== (user.contactNumber || "")) return true;
+    if (profileData.batch !== (user.batch || "")) return true;
+    if (profileData.address !== (user.address || "")) return true;
+    if (profileData.bio !== (user.bio || "")) return true;
+    if (website !== (user.website || "")) return true;
+    if (JSON.stringify(skills) !== JSON.stringify(user.skills || [])) return true;
+    if (JSON.stringify(experiences) !== JSON.stringify(user.experiences || [])) return true;
+    if (JSON.stringify(education) !== JSON.stringify(user.education || [])) return true;
+    if (profileData.facebook !== (user.socialLinks?.facebook || "")) return true;
+    if (profileData.github !== (user.socialLinks?.github || "")) return true;
+    if (profileData.linkedin !== (user.socialLinks?.linkedin || "")) return true;
+    if (profileData.codeforces !== (user.socialLinks?.codeforces || "")) return true;
+    if (profileData.codechef !== (user.socialLinks?.codechef || "")) return true;
+    if (profileData.discord !== (user.socialLinks?.discord || "")) return true;
+    return false;
+  }, [hasSaved, profileData, website, skills, experiences, education, user]);
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+
+  // Warn on tab/browser close or reload
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
+
+  // Expose save() to parent via ref for "Save & Leave" dialog option
+  useImperativeHandle(ref, () => ({
+    save: async () => {
+      const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+      await handleSaveProfile(fakeEvent);
+    },
+  }));
+
+  const handleSaveEdu = () => {
+    if (!eduForm.institution.trim() || !eduForm.degree.trim()) {
+      toast.error("Institution / University and Degree are required.");
+      return;
+    }
+    const cleanEdu: UserEducation = {
+      ...eduForm,
+      institution: eduForm.institution.trim(),
+      degree: eduForm.degree.trim(),
+      fieldOfStudy: eduForm.fieldOfStudy?.trim() || "",
+      startDate: eduForm.startDate?.trim() || "",
+      endDate: eduForm.isCurrent ? "Present" : (eduForm.endDate === "Present" ? "" : eduForm.endDate?.trim() || ""),
+      location: eduForm.location?.trim() || "",
+      description: eduForm.description?.trim() || "",
+    };
+
+    if (editingEduIndex !== null) {
+      const updated = [...education];
+      updated[editingEduIndex] = cleanEdu;
+      setEducation(updated);
+      toast.success("Education record updated!");
+    } else {
+      setEducation([...education, cleanEdu]);
+      toast.success("Education record added!");
+    }
+    setShowEduModal(false);
+  };
+
+  const handleDeleteEdu = (index: number) => {
+    setEducation(education.filter((_, i) => i !== index));
+    toast.success("Education record removed.");
+  };
+
   const [savingProfile, setSavingProfile] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [showAvatarModal, setShowAvatarModal] = useState<boolean>(false);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [uploadingCover, setUploadingCover] = useState(false);
@@ -129,6 +390,7 @@ export function ProfileEditTab({ user, onProfileUpdated, onCancel }: ProfileEdit
       if (res?.user?.coverUrl) {
         setCoverPreviewUrl(res.user.coverUrl);
       }
+      window.scrollTo({ top: 0, behavior: "smooth" });
       await onProfileUpdated();
     } catch (err: any) {
       setCoverPreviewUrl(null);
@@ -148,6 +410,7 @@ export function ProfileEditTab({ user, onProfileUpdated, onCancel }: ProfileEdit
       await api.patch("/api/users/me", { coverUrl: preset.url });
       toast.success(`Cover banner updated to "${preset.name}"!`);
       setCoverPreviewUrl(preset.url);
+      window.scrollTo({ top: 0, behavior: "smooth" });
       await onProfileUpdated();
     } catch (err: any) {
       const msg = err instanceof ApiError ? err.message : err?.message || "Failed to set preset cover";
@@ -167,9 +430,14 @@ export function ProfileEditTab({ user, onProfileUpdated, onCancel }: ProfileEdit
     setSavingProfile(true);
     try {
       await api.patch("/api/users/me", {
+        batch: profileData.batch?.trim() || "",
         contactNumber: profileData.contactNumber.trim(),
         address: profileData.address,
         bio: profileData.bio,
+        website: website.trim(),
+        skills: skills,
+        experiences: experiences,
+        education: education,
         socialLinks: {
           facebook: profileData.facebook?.trim() ? toSocialUrl("facebook", profileData.facebook) : "",
           github: profileData.github?.trim() ? toSocialUrl("github", profileData.github) : "",
@@ -180,8 +448,10 @@ export function ProfileEditTab({ user, onProfileUpdated, onCancel }: ProfileEdit
         },
       });
       toast.success("Profile credentials saved successfully!");
+      setHasSaved(true);
+      onDirtyChange?.(false);
+      window.scrollTo({ top: 0, behavior: "smooth" });
       await onProfileUpdated();
-      if (onCancel) onCancel();
     } catch (err: any) {
       const msg = err instanceof ApiError ? err.message : err?.message || "Failed to update profile";
       toast.error(msg);
@@ -193,63 +463,9 @@ export function ProfileEditTab({ user, onProfileUpdated, onCancel }: ProfileEdit
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      const err = "Photo exceeds maximum 5MB size limit.";
-      setPhotoError(err);
-      toast.error(err);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
-    }
-
-    const localUrl = URL.createObjectURL(file);
-    const img = new window.Image();
-
-    img.onload = async () => {
-      if (img.width !== img.height) {
-        const err = "Photo MUST be exactly squared (1:1 aspect ratio). Please crop your photo before uploading.";
-        setPhotoError(err);
-        toast.error(err);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-        return;
-      }
-
-      setPhotoError(null);
-      setPreviewUrl(localUrl);
-      setUploadingPhoto(true);
-
-      try {
-        const formData = new FormData();
-        formData.append("image", file);
-
-        const userId = user.id || user._id;
-        const res = await api.upload(`/api/users/update/image/${userId}`, formData, { method: "PATCH" });
-        toast.success("Profile photo updated successfully!");
-        if (res?.user?.imageUrl) {
-          setPreviewUrl(res.user.imageUrl);
-        }
-        await onProfileUpdated();
-      } catch (err: any) {
-        setPreviewUrl(null);
-        const msg = err instanceof ApiError ? err.message : err?.message || "Failed to upload photo";
-        setPhotoError(msg);
-        toast.error(msg);
-      } finally {
-        setUploadingPhoto(false);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
-      }
-    };
-
-    img.onerror = () => {
-      const err = "Invalid or corrupted image file.";
-      setPhotoError(err);
-      toast.error(err);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    };
-
-    img.src = localUrl;
+    setPendingAvatarFile(file);
+    setShowAvatarModal(true);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   return (
@@ -269,7 +485,10 @@ export function ProfileEditTab({ user, onProfileUpdated, onCancel }: ProfileEdit
               <button 
                 type="button" 
                 className="w-20 h-20 sm:w-[90px] sm:h-[90px] rounded-md border-2 border-dashed border-border-brutalist dark:border-border-default bg-surface-secondary cursor-pointer overflow-hidden flex items-center justify-center relative transition-all duration-150 shrink-0 hover:border-accent-primary hover:bg-accent-primary-light" 
-                onClick={() => fileInputRef.current?.click()} 
+                onClick={() => {
+                  setPendingAvatarFile(null);
+                  setShowAvatarModal(true);
+                }} 
                 disabled={uploadingPhoto}
                 aria-label="Upload profile picture"
               >
@@ -280,6 +499,7 @@ export function ProfileEditTab({ user, onProfileUpdated, onCancel }: ProfileEdit
                     src={previewUrl || user.imageUrl} 
                     alt={user.fullName} 
                     className="w-full h-full object-cover" 
+                    style={{ objectPosition: (user as any).imagePosition || "50% 50%" }}
                     onError={(e) => {
                       e.currentTarget.style.display = 'none';
                       const fallback = e.currentTarget.parentElement?.querySelector('.avatar-upload-placeholder');
@@ -307,12 +527,27 @@ export function ProfileEditTab({ user, onProfileUpdated, onCancel }: ProfileEdit
               <div className="flex flex-col gap-1 text-xs">
                 <p className="font-bold text-text-primary m-0">Profile Photo <span className="text-accent-error">*</span></p>
                 <div className="font-bold text-xs text-accent-primary">
-                  <p className="m-0">Important requirements:</p>
+                  <p className="m-0">Requirements:</p>
                   <ul className="pl-5 mt-0.5 list-disc text-text-secondary font-normal">
-                    <li>Photo MUST be exactly squared (1:1 aspect ratio).</li>
-                    <li>File size must be under 5MB.</li>
+                    <li>PNG, JPG, or WEBP (auto-compressed).</li>
+                    <li>Easily reposition and align with interactive crop.</li>
                   </ul>
                 </div>
+                {(user.imageUrl || previewUrl) && (
+                  <div className="mt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPendingAvatarFile(null);
+                        setShowAvatarModal(true);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-2 py-1 text-[11px] font-bold text-accent-text-on-surface bg-surface-secondary border border-border-default rounded hover:border-accent-primary transition-colors cursor-pointer"
+                    >
+                      <Move size={12} />
+                      <span>Adjust / Reposition Photo</span>
+                    </button>
+                  </div>
+                )}
                 {photoError && <p role="alert" className="text-xs text-accent-error font-semibold m-0">{photoError}</p>}
               </div>
             </div>
@@ -389,7 +624,7 @@ export function ProfileEditTab({ user, onProfileUpdated, onCancel }: ProfileEdit
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="session" className="flex items-center gap-1.5 font-body text-xs font-bold text-text-primary">
                   Session <span className="text-[11px] text-text-tertiary font-medium">(Read Only)</span>
@@ -401,6 +636,20 @@ export function ProfileEditTab({ user, onProfileUpdated, onCancel }: ProfileEdit
                   value={profileData.session || user.session || "N/A"}
                   disabled
                   className="w-full py-2.5 px-3.5 font-body text-sm font-medium text-text-primary bg-surface-secondary border-[1.5px] border-text-primary dark:border-border-default rounded-md shadow-[2px_2px_0px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_0px_var(--border-default)] outline-none opacity-80 cursor-not-allowed"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="batch" className="flex items-center gap-1.5 font-body text-xs font-bold text-text-primary">
+                  Batch / Intake
+                </label>
+                <input
+                  id="batch"
+                  name="batch"
+                  type="text"
+                  placeholder="e.g. 5th Batch or 2021-2022"
+                  value={profileData.batch}
+                  onChange={(e) => setProfileData({ ...profileData, batch: e.target.value })}
+                  className="w-full py-2.5 px-3.5 font-body text-sm font-medium text-text-primary bg-surface-primary border-[1.5px] border-text-primary dark:border-border-default rounded-md shadow-[2px_2px_0px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_0px_var(--border-default)] outline-none transition-all duration-150 focus:border-accent-primary focus:shadow-[3px_3px_0px_0px_var(--accent-primary)]"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
@@ -420,17 +669,36 @@ export function ProfileEditTab({ user, onProfileUpdated, onCancel }: ProfileEdit
               </div>
             </div>
 
-            <div className="flex flex-col gap-1.5 mt-4">
-              <label htmlFor="address" className="flex items-center gap-1.5 font-body text-xs font-bold text-text-primary">Address / Campus Dorm</label>
-              <input
-                id="address"
-                name="address"
-                type="text"
-                value={profileData.address}
-                onChange={(e) => setProfileData({ ...profileData, address: e.target.value })}
-                placeholder="e.g. MEC Campus, Tilagarh, Sylhet"
-                className="w-full py-2.5 px-3.5 font-body text-sm font-medium text-text-primary bg-surface-primary border-[1.5px] border-text-primary dark:border-border-default rounded-md shadow-[2px_2px_0px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_0px_var(--border-default)] outline-none transition-all duration-150 focus:border-accent-primary focus:shadow-[3px_3px_0px_0px_var(--accent-primary)]"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="address" className="flex items-center gap-1.5 font-body text-xs font-bold text-text-primary">
+                  <MapPin size={13} className="text-accent-primary" /> Address / Campus Dorm
+                </label>
+                <input
+                  id="address"
+                  name="address"
+                  type="text"
+                  value={profileData.address}
+                  onChange={(e) => setProfileData({ ...profileData, address: e.target.value })}
+                  placeholder="e.g. MEC Campus, Tilagarh, Sylhet"
+                  className="w-full py-2.5 px-3.5 font-body text-sm font-medium text-text-primary bg-surface-primary border-[1.5px] border-text-primary dark:border-border-default rounded-md shadow-[2px_2px_0px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_0px_var(--border-default)] outline-none transition-all duration-150 focus:border-accent-primary focus:shadow-[3px_3px_0px_0px_var(--accent-primary)]"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="website" className="flex items-center gap-1.5 font-body text-xs font-bold text-text-primary">
+                  <Globe size={13} className="text-accent-primary" /> Personal Portfolio / Website
+                </label>
+                <input
+                  id="website"
+                  name="website"
+                  type="text"
+                  placeholder="https://yourportfolio.dev or yourname.com"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  className="w-full py-2.5 px-3.5 font-body text-sm font-medium text-text-primary bg-surface-primary border-[1.5px] border-text-primary dark:border-border-default rounded-md shadow-[2px_2px_0px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_0px_var(--border-default)] outline-none transition-all duration-150 focus:border-accent-primary focus:shadow-[3px_3px_0px_0px_var(--accent-primary)]"
+                />
+              </div>
             </div>
 
             <div className="flex flex-col gap-1.5 mt-4">
@@ -565,6 +833,283 @@ export function ProfileEditTab({ user, onProfileUpdated, onCancel }: ProfileEdit
               />
             </div>
 
+            {/* Part 04: Technical Skills & Tech Stack */}
+            <div className="pt-4 border-t border-border-default">
+              <div className="mb-4 pb-2 border-b-[1.5px] border-border-default">
+                <h2 className="flex items-center gap-2 font-heading text-base sm:text-lg font-extrabold text-text-primary m-0">
+                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-sm bg-accent-primary text-accent-primary-text font-mono text-xs font-black border border-black">
+                    04
+                  </span>
+                  Technical Skills &amp; Expertise
+                </h2>
+                <p className="text-xs text-text-secondary mt-1 font-body">
+                  Add technologies, programming languages, and competencies to showcase on your profile.
+                </p>
+              </div>
+
+              {/* Tag Input */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="e.g. React, C++, Docker, AI..."
+                  value={skillInput}
+                  onChange={(e) => setSkillInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === ",") {
+                      e.preventDefault();
+                      handleAddSkill();
+                    }
+                  }}
+                  className="flex-1 py-2 px-3.5 font-body text-sm font-medium text-text-primary bg-surface-primary border-[1.5px] border-text-primary dark:border-border-default rounded-md shadow-[2px_2px_0px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_0px_var(--border-default)] outline-none focus:border-accent-primary"
+                />
+                <Button type="button" size="sm" onClick={() => handleAddSkill()} className="shrink-0">
+                  <Plus size={14} style={{ marginRight: "4px" }} /> Add Skill
+                </Button>
+              </div>
+
+              {/* Active Tags */}
+              <div className="flex flex-wrap gap-2 mt-3 min-h-[38px] p-2 bg-surface-secondary/60 rounded-md border border-dashed border-border-default">
+                {skills.length === 0 ? (
+                  <span className="text-xs text-text-tertiary font-mono italic flex items-center">
+                    No skills added yet. Type a skill or pick from suggestions below.
+                  </span>
+                ) : (
+                  skills.map((skill) => (
+                    <span
+                      key={skill}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono font-bold bg-surface-elevated border border-border-brutalist dark:border-border-default rounded-md shadow-[1.5px_1.5px_0px_0px_var(--border-brutalist)] text-text-primary"
+                    >
+                      {skill}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSkill(skill)}
+                        className="text-text-secondary hover:text-accent-error cursor-pointer transition-colors"
+                        title="Remove skill"
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))
+                )}
+              </div>
+
+              {/* Suggestions */}
+              <div className="mt-2.5">
+                <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block mb-1.5">
+                  Popular Suggestions (Click to add):
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {POPULAR_SKILLS.filter((s) => !skills.includes(s)).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => handleAddSkill(s)}
+                      className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded border border-border-default bg-surface-primary hover:bg-accent-primary-light hover:text-text-primary transition-all cursor-pointer"
+                    >
+                      + {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Part 05: Professional Experience (Job Ladder) */}
+            <div className="pt-4 border-t border-border-default">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-2 border-b-[1.5px] border-border-default">
+                <div>
+                  <h2 className="flex items-center gap-2 font-heading text-base sm:text-lg font-extrabold text-text-primary m-0">
+                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-sm bg-accent-primary text-accent-primary-text font-mono text-xs font-black border border-black">
+                      05
+                    </span>
+                    Professional Experience (Career Ladder)
+                  </h2>
+                  <p className="text-xs text-text-secondary mt-1 font-body">
+                    Add current and previous companies, internships, or developer positions.
+                  </p>
+                </div>
+                <Button type="button" size="sm" onClick={openAddExp} className="shrink-0 self-start sm:self-auto">
+                  <Plus size={14} style={{ marginRight: "4px" }} /> Add Position
+                </Button>
+              </div>
+
+              {/* Experience Items */}
+              <div className="space-y-3">
+                {experiences.length === 0 ? (
+                  <div className="text-center py-6 px-4 bg-surface-secondary/40 border border-dashed border-border-default rounded-lg">
+                    <Briefcase size={28} className="mx-auto text-text-tertiary mb-2" />
+                    <p className="text-xs font-bold text-text-secondary">No professional experience listed yet.</p>
+                    <p className="text-[11px] text-text-tertiary mt-0.5">
+                      Showcase internships, developer roles, and companies you have worked with.
+                    </p>
+                  </div>
+                ) : (
+                  experiences.map((exp, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3.5 bg-surface-primary border border-border-brutalist dark:border-border-default rounded-lg shadow-[2px_2px_0px_var(--border-default)] flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-md bg-accent-primary-light/40 border border-border-default flex items-center justify-center text-accent-primary shrink-0 mt-0.5">
+                          <Building2 size={18} />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-heading text-sm font-bold text-text-primary m-0">
+                              {exp.jobTitle}
+                            </h4>
+                            <span className="text-xs font-semibold text-text-secondary">
+                              @ {exp.companyName}
+                            </span>
+                            {exp.isCurrent && (
+                              <span className="text-[10px] font-mono font-extrabold uppercase px-1.5 py-0.2 rounded bg-accent-primary text-accent-primary-text">
+                                Current
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-text-tertiary mt-1 flex-wrap">
+                            <span className="flex items-center gap-1 font-mono">
+                              <Calendar size={12} /> {exp.startDate} – {exp.isCurrent ? "Present" : exp.endDate || "Present"}
+                            </span>
+                            {exp.location && (
+                              <span className="flex items-center gap-1">
+                                <MapPin size={12} /> {exp.location}
+                              </span>
+                            )}
+                          </div>
+                          {exp.description && (
+                            <p className="text-xs text-text-secondary mt-1.5 font-body line-clamp-2">
+                              {exp.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                        <button
+                          type="button"
+                          onClick={() => openEditExp(idx)}
+                          className="p-1.5 text-text-secondary hover:text-text-primary border border-border-default rounded bg-surface-secondary hover:bg-surface-elevated transition-colors cursor-pointer"
+                          title="Edit experience"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteExp(idx)}
+                          className="p-1.5 text-accent-error hover:bg-accent-error/10 border border-border-default rounded transition-colors cursor-pointer"
+                          title="Delete experience"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Part 06: Higher Education & Academics */}
+            <div className="pt-4 border-t border-border-default">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-2 border-b-[1.5px] border-border-default">
+                <div>
+                  <h2 className="flex items-center gap-2 font-heading text-base sm:text-lg font-extrabold text-text-primary m-0">
+                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-sm bg-accent-primary text-accent-primary-text font-mono text-xs font-black border border-black">
+                      06
+                    </span>
+                    Higher Education &amp; Academic Milestones
+                  </h2>
+                  <p className="text-xs text-text-secondary mt-1 font-body">
+                    Ideal for members and alumni pursuing M.Sc., Ph.D., or postgraduate studies abroad &amp; domestically.
+                  </p>
+                </div>
+                <Button type="button" size="sm" onClick={openAddEdu} className="shrink-0 self-start sm:self-auto">
+                  <Plus size={14} style={{ marginRight: "4px" }} /> Add Education
+                </Button>
+              </div>
+
+              {/* Education Items */}
+              <div className="space-y-3">
+                {education.length === 0 ? (
+                  <div className="text-center py-6 px-4 bg-surface-secondary/40 border border-dashed border-border-default rounded-lg">
+                    <GraduationCap size={28} className="mx-auto text-text-tertiary mb-2" />
+                    <p className="text-xs font-bold text-text-secondary">No higher education records added yet.</p>
+                    <p className="text-[11px] text-text-tertiary mt-0.5">
+                      Add university degrees, postgrad research, M.Sc., or Ph.D. info.
+                    </p>
+                  </div>
+                ) : (
+                  education.map((edu, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3.5 bg-surface-primary border border-border-brutalist dark:border-border-default rounded-lg shadow-[2px_2px_0px_var(--border-default)] flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-md bg-accent-primary-light/40 border border-border-default flex items-center justify-center text-accent-primary shrink-0 mt-0.5">
+                          <GraduationCap size={18} />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-heading text-sm font-bold text-text-primary m-0">
+                              {edu.degree}
+                            </h4>
+                            <span className="text-xs font-semibold text-text-secondary">
+                              at {edu.institution}
+                            </span>
+                            {edu.isCurrent && (
+                              <span className="text-[10px] font-mono font-extrabold uppercase px-1.5 py-0.2 rounded bg-accent-primary text-accent-primary-text">
+                                Currently Pursuing
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-text-tertiary mt-1 flex-wrap">
+                            {edu.fieldOfStudy && (
+                              <span className="font-medium text-text-secondary">
+                                Major: {edu.fieldOfStudy}
+                              </span>
+                            )}
+                            {(edu.startDate || edu.endDate) && (
+                              <span className="flex items-center gap-1 font-mono">
+                                <Calendar size={12} /> {edu.startDate || ""} – {edu.isCurrent ? "Present" : edu.endDate || "Present"}
+                              </span>
+                            )}
+                            {edu.location && (
+                              <span className="flex items-center gap-1">
+                                <MapPin size={12} /> {edu.location}
+                              </span>
+                            )}
+                          </div>
+                          {edu.description && (
+                            <p className="text-xs text-text-secondary mt-1.5 font-body line-clamp-2">
+                              {edu.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                        <button
+                          type="button"
+                          onClick={() => openEditEdu(idx)}
+                          className="p-1.5 text-text-secondary hover:text-text-primary border border-border-default rounded bg-surface-secondary hover:bg-surface-elevated transition-colors cursor-pointer"
+                          title="Edit education"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteEdu(idx)}
+                          className="p-1.5 text-accent-error hover:bg-accent-error/10 border border-border-default rounded transition-colors cursor-pointer"
+                          title="Delete education"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
             <div className="flex flex-col sm:flex-row justify-end gap-3 mt-5 pt-3 border-t border-border-default">
               {onCancel && (
                 <Button type="button" variant="ghost" size="lg" onClick={onCancel} disabled={savingProfile}>
@@ -580,18 +1125,291 @@ export function ProfileEditTab({ user, onProfileUpdated, onCancel }: ProfileEdit
         </form>
       </div>
 
-      {/* Section 02: Dashboard Cover Banner */}
+      {/* Experience Add/Edit Modal */}
+      {showExpModal && (
+        <div className="fixed inset-0 z-[9999] flex items-start sm:items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-surface-elevated border-2 border-text-primary dark:border-border-default rounded-xl shadow-[6px_6px_0px_0px_var(--border-brutalist)] dark:shadow-[6px_6px_0px_0px_var(--border-default)] max-w-lg w-full p-4 sm:p-6 space-y-4 max-h-[85vh] overflow-y-auto my-auto relative">
+            <div className="flex items-center justify-between pb-3 border-b border-border-default">
+              <h3 className="font-heading text-base sm:text-lg font-bold text-text-primary m-0 flex items-center gap-2">
+                <Briefcase size={18} className="text-accent-primary" />
+                {editingExpIndex !== null ? "Edit Position" : "Add New Position"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowExpModal(false)}
+                className="text-text-secondary hover:text-text-primary p-1 rounded hover:bg-surface-secondary cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3 font-body">
+              <div>
+                <label className="block text-xs font-bold text-text-primary mb-1">
+                  Company / Organization Name <span className="text-accent-error">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Brain Station 23, Enosis, Google..."
+                  value={expForm.companyName}
+                  onChange={(e) => setExpForm({ ...expForm, companyName: e.target.value })}
+                  className="w-full py-2 px-3 text-sm bg-surface-primary border border-border-default rounded-md outline-none focus:border-accent-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-text-primary mb-1">
+                  Role / Job Title <span className="text-accent-error">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Software Engineer, Frontend Intern..."
+                  value={expForm.jobTitle}
+                  onChange={(e) => setExpForm({ ...expForm, jobTitle: e.target.value })}
+                  className="w-full py-2 px-3 text-sm bg-surface-primary border border-border-default rounded-md outline-none focus:border-accent-primary"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-text-primary mb-1">
+                    Start Date / Year <span className="text-accent-error">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Jan 2023 or 2023"
+                    value={expForm.startDate}
+                    onChange={(e) => setExpForm({ ...expForm, startDate: e.target.value })}
+                    className="w-full py-2 px-3 text-sm bg-surface-primary border border-border-default rounded-md outline-none focus:border-accent-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-text-primary mb-1">
+                    End Date / Year
+                  </label>
+                  <input
+                    type="text"
+                    disabled={expForm.isCurrent}
+                    placeholder={expForm.isCurrent ? "Present" : "e.g. Dec 2024 or 2024"}
+                    value={expForm.isCurrent ? "Present" : (expForm.endDate === "Present" ? "" : (expForm.endDate || ""))}
+                    onChange={(e) => setExpForm((prev) => ({ ...prev, endDate: e.target.value }))}
+                    className="w-full py-2 px-3 text-sm bg-surface-primary border border-border-default rounded-md outline-none focus:border-accent-primary disabled:opacity-60 disabled:cursor-not-allowed"
+                  />
+                </div>
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-text-primary">
+                <input
+                  type="checkbox"
+                  checked={expForm.isCurrent}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setExpForm((prev) => ({
+                      ...prev,
+                      isCurrent: checked,
+                      endDate: checked ? "" : (prev.endDate === "Present" ? "" : prev.endDate),
+                    }));
+                  }}
+                  className="w-4 h-4 rounded text-accent-primary focus:ring-0 cursor-pointer"
+                />
+                I currently work in this role
+              </label>
+
+              <div>
+                <label className="block text-xs font-bold text-text-primary mb-1">
+                  Location (optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Dhaka, Bangladesh or Remote"
+                  value={expForm.location || ""}
+                  onChange={(e) => setExpForm({ ...expForm, location: e.target.value })}
+                  className="w-full py-2 px-3 text-sm bg-surface-primary border border-border-default rounded-md outline-none focus:border-accent-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-text-primary mb-1">
+                  Key Responsibilities &amp; Achievements (optional)
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Describe your role, projects built, and tech stack used..."
+                  value={expForm.description || ""}
+                  onChange={(e) => setExpForm({ ...expForm, description: e.target.value })}
+                  className="w-full py-2 px-3 text-sm bg-surface-primary border border-border-default rounded-md outline-none focus:border-accent-primary"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-border-default">
+              <Button type="button" variant="ghost" size="sm" onClick={() => setShowExpModal(false)}>
+                Cancel
+              </Button>
+              <Button type="button" size="sm" onClick={handleSaveExp}>
+                {editingExpIndex !== null ? "Update Position" : "Add Position"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Education Add/Edit Modal */}
+      {showEduModal && (
+        <div className="fixed inset-0 z-[9999] flex items-start sm:items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-surface-elevated border-2 border-text-primary dark:border-border-default rounded-xl shadow-[6px_6px_0px_0px_var(--border-brutalist)] dark:shadow-[6px_6px_0px_0px_var(--border-default)] max-w-lg w-full p-4 sm:p-6 space-y-4 max-h-[85vh] overflow-y-auto my-auto relative">
+            <div className="flex items-center justify-between pb-3 border-b border-border-default">
+              <h3 className="font-heading text-base sm:text-lg font-bold text-text-primary m-0 flex items-center gap-2">
+                <GraduationCap size={18} className="text-accent-primary" />
+                {editingEduIndex !== null ? "Edit Education Record" : "Add Education Record"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowEduModal(false)}
+                className="text-text-secondary hover:text-text-primary p-1 rounded hover:bg-surface-secondary cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3 font-body">
+              <div>
+                <label className="block text-xs font-bold text-text-primary mb-1">
+                  Institution / University <span className="text-accent-error">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Technical University of Munich, Mymensingh Eng. College..."
+                  value={eduForm.institution}
+                  onChange={(e) => setEduForm({ ...eduForm, institution: e.target.value })}
+                  className="w-full py-2 px-3 text-sm bg-surface-primary border border-border-default rounded-md outline-none focus:border-accent-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-text-primary mb-1">
+                  Degree / Program <span className="text-accent-error">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. M.Sc. in Computer Science, Ph.D. in AI, B.Sc. in CSE..."
+                  value={eduForm.degree}
+                  onChange={(e) => setEduForm({ ...eduForm, degree: e.target.value })}
+                  className="w-full py-2 px-3 text-sm bg-surface-primary border border-border-default rounded-md outline-none focus:border-accent-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-text-primary mb-1">
+                  Field of Study / Major (optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Artificial Intelligence, Distributed Systems..."
+                  value={eduForm.fieldOfStudy || ""}
+                  onChange={(e) => setEduForm({ ...eduForm, fieldOfStudy: e.target.value })}
+                  className="w-full py-2 px-3 text-sm bg-surface-primary border border-border-default rounded-md outline-none focus:border-accent-primary"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-text-primary mb-1">
+                    Start Year
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 2024"
+                    value={eduForm.startDate || ""}
+                    onChange={(e) => setEduForm({ ...eduForm, startDate: e.target.value })}
+                    className="w-full py-2 px-3 text-sm bg-surface-primary border border-border-default rounded-md outline-none focus:border-accent-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-text-primary mb-1">
+                    End / Expected Graduation
+                  </label>
+                  <input
+                    type="text"
+                    disabled={eduForm.isCurrent}
+                    placeholder={eduForm.isCurrent ? "Present" : "e.g. 2026"}
+                    value={eduForm.isCurrent ? "Present" : (eduForm.endDate === "Present" ? "" : (eduForm.endDate || ""))}
+                    onChange={(e) => setEduForm((prev) => ({ ...prev, endDate: e.target.value }))}
+                    className="w-full py-2 px-3 text-sm bg-surface-primary border border-border-default rounded-md outline-none focus:border-accent-primary disabled:opacity-60 disabled:cursor-not-allowed"
+                  />
+                </div>
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-text-primary">
+                <input
+                  type="checkbox"
+                  checked={eduForm.isCurrent}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setEduForm((prev) => ({
+                      ...prev,
+                      isCurrent: checked,
+                      endDate: checked ? "" : (prev.endDate === "Present" ? "" : prev.endDate),
+                    }));
+                  }}
+                  className="w-4 h-4 rounded text-accent-primary focus:ring-0 cursor-pointer"
+                />
+                Currently studying / pursuing this degree
+              </label>
+
+              <div>
+                <label className="block text-xs font-bold text-text-primary mb-1">
+                  Location (optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Munich, Germany or Sylhet, Bangladesh"
+                  value={eduForm.location || ""}
+                  onChange={(e) => setEduForm({ ...eduForm, location: e.target.value })}
+                  className="w-full py-2 px-3 text-sm bg-surface-primary border border-border-default rounded-md outline-none focus:border-accent-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-text-primary mb-1">
+                  Thesis, Lab, or Academic Focus (optional)
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="e.g. Research in Graph Neural Networks under Prof. Schmidt..."
+                  value={eduForm.description || ""}
+                  onChange={(e) => setEduForm({ ...eduForm, description: e.target.value })}
+                  className="w-full py-2 px-3 text-sm bg-surface-primary border border-border-default rounded-md outline-none focus:border-accent-primary"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-border-default">
+              <Button type="button" variant="ghost" size="sm" onClick={() => setShowEduModal(false)}>
+                Cancel
+              </Button>
+              <Button type="button" size="sm" onClick={handleSaveEdu}>
+                {editingEduIndex !== null ? "Update Record" : "Add Record"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Section 07: Profile Cover Banner */}
       <div className="bg-surface-elevated border-[1.5px] border-border-brutalist dark:border-border-default rounded-xl shadow-[4px_4px_0px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_0px_var(--border-default)] p-4 sm:p-6">
         <div className="mb-4 pb-2 border-b-[1.5px] border-border-default">
           <h2 className="flex items-center gap-2 font-heading text-base sm:text-lg font-extrabold text-text-primary m-0">
-            <span className="inline-flex items-center justify-center w-6 h-6 rounded-sm bg-accent-primary text-accent-primary-text font-mono text-xs font-black border border-black">02</span> Dashboard Cover Banner
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-sm bg-accent-primary text-accent-primary-text font-mono text-xs font-black border border-black">07</span> Profile Cover Banner
           </h2>
         </div>
 
         <div className="flex flex-col gap-3">
           <div
             key={coverPreviewUrl || user.coverUrl || "pf-tab-cover"}
-            className="w-full h-[140px] rounded-md border-2 border-dashed border-border-brutalist dark:border-border-default bg-gradient-to-br from-gray-900 via-gray-800 to-slate-900 overflow-hidden relative flex items-center justify-center cursor-pointer"
+            className="w-full aspect-[4/1] rounded-md border-2 border-dashed border-border-brutalist dark:border-border-default bg-gradient-to-br from-gray-900 via-gray-800 to-slate-900 overflow-hidden relative flex items-center justify-center cursor-pointer"
             onClick={() => coverInputRef.current?.click()}
           >
             {coverPreviewUrl || user.coverUrl ? (
@@ -601,6 +1419,7 @@ export function ProfileEditTab({ user, onProfileUpdated, onCancel }: ProfileEdit
                 src={coverPreviewUrl || user.coverUrl}
                 alt="Cover Preview"
                 className="w-full h-full object-cover"
+                style={{ objectPosition: (user as any).coverPosition || "50% 50%" }}
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
             ) : (
@@ -623,7 +1442,7 @@ export function ProfileEditTab({ user, onProfileUpdated, onCancel }: ProfileEdit
 
           <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
             <div className="text-[11px] text-text-secondary">
-              Recommended: 1200×400 (3:1 or 16:9 ratio). Max size 5MB.
+              Recommended: 1200×300 (4:1 panoramic ratio). Max size 5MB.
             </div>
             <Button
               size="sm"
@@ -679,6 +1498,24 @@ export function ProfileEditTab({ user, onProfileUpdated, onCancel }: ProfileEdit
           </div>
         </div>
       </div>
+
+      {/* Avatar Position Modal */}
+      {user && (
+        <AvatarPositionModal
+          isOpen={showAvatarModal}
+          onClose={() => {
+            setShowAvatarModal(false);
+            setPendingAvatarFile(null);
+          }}
+          userId={user.id || user._id}
+          initialImageUrl={previewUrl || user.imageUrl}
+          initialPosition={(user as any).imagePosition || "50% 50%"}
+          initialFile={pendingAvatarFile}
+          onSuccess={async () => {
+            await onProfileUpdated();
+          }}
+        />
+      )}
     </div>
   );
-}
+});

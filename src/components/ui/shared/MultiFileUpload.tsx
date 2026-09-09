@@ -12,7 +12,8 @@
  */
 import React, { useCallback, useRef, useState } from "react";
 import axios from "axios";
-import { Upload, X, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { Upload, X, Loader2, CheckCircle, AlertCircle, Sparkles } from "lucide-react";
+import { compressImage } from "@/lib/imageCompressor";
 
 export interface UploadedFile {
   url: string;
@@ -24,10 +25,12 @@ export interface UploadedFile {
 interface FileState {
   id: string;
   file: File;
-  status: "pending" | "uploading" | "done" | "error";
+  status: "pending" | "compressing" | "uploading" | "done" | "error";
   url?: string;
   public_id?: string;
   error?: string;
+  originalSize?: number;
+  compressedSize?: number;
 }
 
 interface Props {
@@ -50,24 +53,53 @@ export default function MultiFileUpload({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const uploadOne = useCallback(async (fs: FileState): Promise<FileState> => {
-    setFiles((prev) => prev.map((f) => f.id === fs.id ? { ...f, status: "uploading" } : f));
+    let fileToUpload = fs.file;
+    const originalSize = fs.file.size;
+    let compressedSize = fs.file.size;
+
+    if (fs.file.type.startsWith("image/")) {
+      setFiles((prev) => prev.map((f) => (f.id === fs.id ? { ...f, status: "compressing" } : f)));
+      try {
+        const compressed = await compressImage(fs.file, {
+          maxSizeMB: 1.5,
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+          initialQuality: 0.85,
+        });
+        fileToUpload = compressed.file;
+        compressedSize = compressed.compressedSize;
+      } catch (err) {
+        console.warn("Client-side image compression failed, uploading original:", err);
+      }
+    }
+
+    setFiles((prev) =>
+      prev.map((f) =>
+        f.id === fs.id
+          ? { ...f, status: "uploading", originalSize, compressedSize }
+          : f
+      )
+    );
+
     try {
       const fd = new FormData();
-      fd.append("image", fs.file);
+      fd.append("image", fileToUpload);
       fd.append("folder", folder);
+      const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/\/+$/, "");
+      const uploadUrl = base.endsWith("/api") ? `${base}/upload/image` : `${base}/api/upload/image`;
       const res = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/upload/image`,
+        `${uploadUrl}?folder=${encodeURIComponent(folder)}`,
         fd,
         { withCredentials: true }
       );
       const url: string = res.data.url || res.data.secure_url;
       const public_id: string = res.data.public_id || "";
-      const updated: FileState = { ...fs, status: "done", url, public_id };
-      setFiles((prev) => prev.map((f) => f.id === fs.id ? updated : f));
+      const updated: FileState = { ...fs, status: "done", url, public_id, originalSize, compressedSize };
+      setFiles((prev) => prev.map((f) => (f.id === fs.id ? updated : f)));
       return updated;
     } catch {
       const updated: FileState = { ...fs, status: "error", error: "Upload failed" };
-      setFiles((prev) => prev.map((f) => f.id === fs.id ? updated : f));
+      setFiles((prev) => prev.map((f) => (f.id === fs.id ? updated : f)));
       return updated;
     }
   }, [folder]);
@@ -115,7 +147,9 @@ export default function MultiFileUpload({
 
   const clearAll = () => setFiles([]);
 
+  const compressing = files.some((f) => f.status === "compressing");
   const uploading = files.some((f) => f.status === "uploading");
+  const isBusy = compressing || uploading;
   const doneCount = files.filter((f) => f.status === "done").length;
   const errorCount = files.filter((f) => f.status === "error").length;
 
@@ -123,7 +157,7 @@ export default function MultiFileUpload({
     <div className="space-y-3">
       {/* Drop zone */}
       <div
-        onClick={() => !disabled && !uploading && inputRef.current?.click()}
+        onClick={() => !disabled && !isBusy && inputRef.current?.click()}
         onDragOver={(e) => { e.preventDefault(); if (!disabled) setIsDragOver(true); }}
         onDragLeave={(e) => { e.preventDefault(); setIsDragOver(false); }}
         onDrop={handleDrop}
@@ -135,17 +169,25 @@ export default function MultiFileUpload({
           disabled ? "opacity-50 cursor-not-allowed" : "",
         ].join(" ")}
       >
-        {uploading ? (
+        {compressing ? (
+          <Loader2 size={28} className="text-amber-500 animate-spin" />
+        ) : uploading ? (
           <Loader2 size={28} className="text-indigo-500 animate-spin" />
         ) : (
           <Upload size={28} className={isDragOver ? "text-indigo-500" : "text-slate-400"} />
         )}
         <div className="text-center">
           <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            {uploading ? "Uploading…" : isDragOver ? "Drop files here" : "Click or drag & drop files"}
+            {compressing
+              ? "Optimizing & compressing images…"
+              : uploading
+              ? "Uploading to Cloudinary…"
+              : isDragOver
+              ? "Drop files here"
+              : "Click or drag & drop files"}
           </p>
           <p className="text-xs text-slate-400 mt-1">
-            Images & videos · up to {maxFiles} files at once
+            Images (auto-compressed to WebP) & videos · up to {maxFiles} files at once
           </p>
         </div>
         <input
@@ -155,7 +197,7 @@ export default function MultiFileUpload({
           accept={accept}
           className="hidden"
           onChange={handleInput}
-          disabled={disabled}
+          disabled={disabled || isBusy}
         />
       </div>
 
@@ -179,7 +221,16 @@ export default function MultiFileUpload({
               <div key={f.id} className="flex items-center gap-3 px-3 py-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
                 {/* Status icon */}
                 <div className="flex-shrink-0">
-                  {f.status === "uploading" && <Loader2 size={14} className="text-indigo-500 animate-spin" />}
+                  {f.status === "compressing" && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-mono text-amber-500 font-semibold">
+                      <Loader2 size={13} className="animate-spin" /> Compressing
+                    </span>
+                  )}
+                  {f.status === "uploading" && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-mono text-indigo-500 font-semibold">
+                      <Loader2 size={13} className="animate-spin" /> Uploading
+                    </span>
+                  )}
                   {f.status === "done" && <CheckCircle size={14} className="text-green-500" />}
                   {f.status === "error" && <AlertCircle size={14} className="text-red-500" />}
                   {f.status === "pending" && <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-300" />}
@@ -191,6 +242,12 @@ export default function MultiFileUpload({
                 )}
                 {/* File name */}
                 <p className="flex-1 text-xs text-slate-700 dark:text-slate-300 truncate">{f.file.name}</p>
+                {/* Compression stats if image was compressed */}
+                {f.status === "done" && f.originalSize && f.compressedSize && f.compressedSize < f.originalSize && (
+                  <span className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-500/20 whitespace-nowrap flex-shrink-0">
+                    {(f.originalSize / (1024 * 1024)).toFixed(1)}MB → {(f.compressedSize / 1024).toFixed(0)}KB (-{Math.round((1 - f.compressedSize / f.originalSize) * 100)}%)
+                  </span>
+                )}
                 {/* Error */}
                 {f.error && <p className="text-xs text-red-500 flex-shrink-0">{f.error}</p>}
                 {/* Remove */}
