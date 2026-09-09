@@ -54,6 +54,34 @@ function BlogWriteContent() {
   const editorRef = useRef<HTMLDivElement>(null);
   const contentImageInputRef = useRef<HTMLInputElement>(null);
   const [insertingImage, setInsertingImage] = useState(false);
+  const pendingContentImagesRef = useRef<Map<string, File>>(new Map());
+  const [selectedImg, setSelectedImg] = useState<HTMLElement | null>(null);
+
+  // Attach discard button to existing images loaded from database
+  const attachDiscardButtonsToExistingImages = useCallback((container: HTMLElement) => {
+    const images = Array.from(container.querySelectorAll<HTMLImageElement>("img"));
+    images.forEach((img) => {
+      if (img.closest(".blog-editor-img-wrap")) return;
+
+      const figure = document.createElement("figure");
+      figure.className = "blog-editor-img-wrap";
+      figure.setAttribute("contenteditable", "false");
+
+      const discardBtn = document.createElement("button");
+      discardBtn.type = "button";
+      discardBtn.className = "blog-editor-img-delete-btn";
+      discardBtn.title = "Discard image (or press Backspace)";
+      discardBtn.setAttribute("aria-label", "Discard image");
+      discardBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+
+      const parent = img.parentNode;
+      if (parent) {
+        parent.insertBefore(figure, img);
+        figure.appendChild(img);
+        figure.appendChild(discardBtn);
+      }
+    });
+  }, []);
 
   // Load blog for editing
   useEffect(() => {
@@ -75,6 +103,7 @@ function BlogWriteContent() {
           setTimeout(() => {
             if (editorRef.current) {
               editorRef.current.innerHTML = blog.content || "";
+              attachDiscardButtonsToExistingImages(editorRef.current);
             }
           }, 100);
         }
@@ -85,7 +114,7 @@ function BlogWriteContent() {
         setLoadingBlog(false);
       }
     })();
-  }, [editId, router]);
+  }, [editId, router, attachDiscardButtonsToExistingImages]);
 
   // Redirect unauthenticated users with redirect query param
   useEffect(() => {
@@ -252,11 +281,55 @@ function BlogWriteContent() {
     }
   }, [execCommand]);
 
+  const discardImage = useCallback(
+    (targetEl: HTMLElement) => {
+      const figure =
+        targetEl.closest<HTMLElement>(".blog-editor-img-wrap") ||
+        (targetEl.tagName === "IMG" ? targetEl : null);
+      if (!figure) return;
+
+      const img =
+        figure.tagName === "IMG"
+          ? (figure as HTMLImageElement)
+          : figure.querySelector<HTMLImageElement>("img");
+      const pendingId =
+        figure.getAttribute("data-pending-id") ||
+        img?.getAttribute("data-pending-id");
+
+      if (pendingId) {
+        pendingContentImagesRef.current.delete(pendingId);
+      }
+
+      if (img?.src?.startsWith("blob:")) {
+        try {
+          URL.revokeObjectURL(img.src);
+        } catch {
+          // Ignore
+        }
+      }
+
+      const parent = figure.parentElement;
+      figure.remove();
+      if (
+        parent &&
+        parent !== editorRef.current &&
+        parent.innerHTML.trim() === ""
+      ) {
+        parent.remove();
+      }
+
+      setSelectedImg(null);
+      toast.success("Image discarded");
+      updateActiveFormats();
+    },
+    [updateActiveFormats]
+  );
+
   const insertImageToEditor = useCallback(
-    (url: string, alt: string = "") => {
+    (previewUrl: string, trackingId: string, alt: string = "") => {
       editorRef.current?.focus();
       const cleanAlt = alt ? alt.replace(/"/g, "&quot;") : "Blog image";
-      const imgHtml = `<p><img src="${url}" alt="${cleanAlt}" style="max-width: 100%; border-radius: 8px; margin: 1rem 0;" /></p><p><br></p>`;
+      const imgHtml = `<figure class="blog-editor-img-wrap" contenteditable="false" data-pending-id="${trackingId}"><img src="${previewUrl}" alt="${cleanAlt}" /><button type="button" class="blog-editor-img-delete-btn" title="Discard image (or press Backspace)" aria-label="Discard image"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button></figure><p><br></p>`;
 
       let inserted = false;
       const sel = window.getSelection();
@@ -280,10 +353,10 @@ function BlogWriteContent() {
     [updateActiveFormats]
   );
 
-  const uploadAndInsertImage = useCallback(
+  const processAndInsertImage = useCallback(
     async (file: File) => {
       if (!file.type.startsWith("image/")) {
-        toast.error("Please select a valid image file");
+        toast.error("Please select a valid image file (JPEG, PNG, WebP, etc.)");
         return;
       }
       if (file.size > 15 * 1024 * 1024) {
@@ -292,41 +365,35 @@ function BlogWriteContent() {
       }
 
       setInsertingImage(true);
-      const toastId = toast.loading("Uploading image to Cloudinary...", {
-        id: "blog-editor-upload",
+      const toastId = toast.loading("Compressing image locally...", {
+        id: "blog-editor-compress",
       });
+
       try {
-        const base = API_BASE_URL;
-        const uploadUrl = base.endsWith("/api")
-          ? `${base}/upload/image`
-          : `${base}/api/upload/image`;
+        // ALWAYS use compressor on any kind of uploading!
         const compressed = await compressImage(file, {
           maxSizeMB: 1.0,
           maxWidthOrHeight: 1600,
         });
 
-        const fd = new FormData();
-        fd.append("image", compressed.file);
-        fd.append("folder", "blog-content");
+        const trackingId = `pending-img-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        pendingContentImagesRef.current.set(trackingId, compressed.file);
 
-        const res = await axios.post(
-          `${uploadUrl}?folder=blog-content`,
-          fd,
-          { withCredentials: true }
-        );
-        const url = res.data.url || res.data.secure_url;
-        if (url) {
-          insertImageToEditor(url, file.name);
-          toast.success("Image inserted into blog post!", { id: toastId });
+        insertImageToEditor(compressed.previewUrl, trackingId, file.name);
+
+        if (compressed.savedPercentage > 0) {
+          toast.success(
+            `Image added (compressed by ${compressed.savedPercentage}%). Will upload when saved or published.`,
+            { id: toastId }
+          );
         } else {
-          throw new Error("No image URL returned from server");
+          toast.success(
+            "Image added to draft. Will upload when saved or published.",
+            { id: toastId }
+          );
         }
       } catch (err: any) {
-        const msg =
-          err?.response?.data?.message ||
-          err?.message ||
-          "Failed to upload image";
-        toast.error(msg, { id: toastId });
+        toast.error("Failed to process image", { id: toastId });
       } finally {
         setInsertingImage(false);
         if (contentImageInputRef.current) {
@@ -352,13 +419,13 @@ function BlogWriteContent() {
           e.preventDefault();
           const file = item.getAsFile();
           if (file) {
-            uploadAndInsertImage(file);
+            processAndInsertImage(file);
           }
           return;
         }
       }
     },
-    [uploadAndInsertImage]
+    [processAndInsertImage]
   );
 
   const handleEditorDrop = useCallback(
@@ -369,12 +436,74 @@ function BlogWriteContent() {
       for (const file of Array.from(files)) {
         if (file.type.startsWith("image/")) {
           e.preventDefault();
-          uploadAndInsertImage(file);
+          processAndInsertImage(file);
           return;
         }
       }
     },
-    [uploadAndInsertImage]
+    [processAndInsertImage]
+  );
+
+  const handleEditorClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const target = e.target as HTMLElement;
+
+      // 1. Red cross discard button clicked
+      const discardBtn = target.closest(".blog-editor-img-delete-btn");
+      if (discardBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        discardImage(discardBtn as HTMLElement);
+        return;
+      }
+
+      // 2. Image or figure selected
+      const figure = target.closest<HTMLElement>(".blog-editor-img-wrap");
+      const img = target.closest<HTMLImageElement>("img");
+      const imageTarget = figure || img;
+
+      editorRef.current
+        ?.querySelectorAll(".blog-editor-img-wrap.is-selected")
+        .forEach((el) => el.classList.remove("is-selected"));
+
+      if (imageTarget && editorRef.current?.contains(imageTarget)) {
+        imageTarget.classList.add("is-selected");
+        setSelectedImg(imageTarget);
+      } else {
+        setSelectedImg(null);
+      }
+    },
+    [discardImage]
+  );
+
+  const handleEditorKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === "Backspace" || e.key === "Delete") {
+        if (selectedImg && editorRef.current?.contains(selectedImg)) {
+          e.preventDefault();
+          e.stopPropagation();
+          discardImage(selectedImg);
+          return;
+        }
+
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0) {
+          const range = sel.getRangeAt(0);
+          const startNode = range.startContainer;
+          const figure =
+            startNode instanceof HTMLElement
+              ? startNode.closest<HTMLElement>(".blog-editor-img-wrap")
+              : startNode.parentElement?.closest<HTMLElement>(".blog-editor-img-wrap");
+          if (figure && editorRef.current?.contains(figure)) {
+            e.preventDefault();
+            e.stopPropagation();
+            discardImage(figure);
+            return;
+          }
+        }
+      }
+    },
+    [selectedImg, discardImage]
   );
 
   const toolbarActions: (ToolbarAction | "separator")[] = [
@@ -455,19 +584,25 @@ function BlogWriteContent() {
 
     setSaving(true);
 
-    // If user has a pending local file, upload to Cloudinary now
+    const base = API_BASE_URL;
+    const uploadUrl = base.endsWith("/api")
+      ? `${base}/upload/image`
+      : `${base}/api/upload/image`;
+
+    // 1. Upload Cover Image if pending (MUST use compressor!)
     let finalCoverUrl = coverImage.trim();
     if (pendingCoverFile) {
-      const uploadToast = toast.loading("Uploading cover photo to Cloudinary...", {
+      const uploadToast = toast.loading("Compressing & uploading cover photo...", {
         id: "cover-upload-publish",
       });
       try {
-        const base = API_BASE_URL;
-        const uploadUrl = base.endsWith("/api")
-          ? `${base}/upload/image`
-          : `${base}/api/upload/image`;
+        const compressedCover = await compressImage(pendingCoverFile, {
+          maxSizeMB: 1.5,
+          maxWidthOrHeight: 2048,
+        });
+
         const fd = new FormData();
-        fd.append("image", pendingCoverFile);
+        fd.append("image", compressedCover.file);
         fd.append("folder", "blog-covers");
 
         const res = await axios.post(
@@ -489,9 +624,101 @@ function BlogWriteContent() {
       }
     }
 
+    // 2. Upload Content Images that are currently still in the editor
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = editorRef.current?.innerHTML || "";
+
+    // Remove all editor discard buttons
+    tempDiv.querySelectorAll(".blog-editor-img-delete-btn").forEach((btn) => btn.remove());
+
+    const contentImgs = Array.from(tempDiv.querySelectorAll<HTMLImageElement>("img"));
+    const pendingImgs = contentImgs.filter(
+      (img) =>
+        img.hasAttribute("data-pending-id") ||
+        img.src.startsWith("blob:") ||
+        Boolean(img.closest("[data-pending-id]"))
+    );
+
+    if (pendingImgs.length > 0) {
+      const uploadToastId = toast.loading(
+        `Compressing & uploading ${pendingImgs.length} content image${pendingImgs.length > 1 ? "s" : ""} to Cloudinary...`,
+        { id: "content-images-upload" }
+      );
+
+      try {
+        for (let i = 0; i < pendingImgs.length; i++) {
+          const img = pendingImgs[i];
+          const figure = img.closest<HTMLElement>(".blog-editor-img-wrap");
+          const pendingId =
+            img.getAttribute("data-pending-id") ||
+            figure?.getAttribute("data-pending-id") ||
+            "";
+
+          let fileToUpload = pendingId ? pendingContentImagesRef.current.get(pendingId) : null;
+
+          if (!fileToUpload && img.src.startsWith("blob:")) {
+            try {
+              const blobRes = await fetch(img.src);
+              const blob = await blobRes.blob();
+              fileToUpload = new File([blob], `blog-image-${i + 1}.webp`, {
+                type: blob.type || "image/webp",
+              });
+            } catch {
+              // Ignore fetch error
+            }
+          }
+
+          if (fileToUpload) {
+            // ALWAYS use compressor on any kind of uploading!
+            const compressed = await compressImage(fileToUpload, {
+              maxSizeMB: 1.0,
+              maxWidthOrHeight: 1600,
+            });
+
+            const fd = new FormData();
+            fd.append("image", compressed.file);
+            fd.append("folder", "blog-content");
+
+            const uploadRes = await axios.post(
+              `${uploadUrl}?folder=blog-content`,
+              fd,
+              { withCredentials: true }
+            );
+
+            const uploadedUrl = uploadRes.data.url || uploadRes.data.secure_url;
+            if (uploadedUrl) {
+              img.src = uploadedUrl;
+            }
+          }
+
+          img.removeAttribute("data-pending-id");
+          figure?.removeAttribute("data-pending-id");
+        }
+
+        toast.success("Content images uploaded successfully!", { id: "content-images-upload" });
+      } catch (uploadErr: any) {
+        toast.error(
+          uploadErr?.response?.data?.message ||
+            uploadErr?.message ||
+            "Failed to upload content images",
+          { id: "content-images-upload" }
+        );
+        setSaving(false);
+        return;
+      }
+    }
+
+    // 3. Clean up figures for final HTML storage
+    tempDiv.querySelectorAll(".blog-editor-img-wrap").forEach((fig) => {
+      fig.removeAttribute("contenteditable");
+      fig.classList.remove("is-selected");
+    });
+
+    const finalContent = tempDiv.innerHTML;
+
     const payload = {
       title: title.trim(),
-      content,
+      content: finalContent,
       excerpt: autoExcerpt,
       coverImageUrl: finalCoverUrl,
       coverImagePosition,
@@ -687,7 +914,7 @@ function BlogWriteContent() {
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) uploadAndInsertImage(file);
+                if (file) processAndInsertImage(file);
               }}
             />
 
@@ -700,6 +927,8 @@ function BlogWriteContent() {
               data-placeholder="Start writing your blog post... (drag & drop or paste images here)"
               onKeyUp={updateActiveFormats}
               onMouseUp={updateActiveFormats}
+              onClick={handleEditorClick}
+              onKeyDown={handleEditorKeyDown}
               onPaste={handleEditorPaste}
               onDrop={handleEditorDrop}
               onDragOver={(e) => e.preventDefault()}
@@ -834,6 +1063,53 @@ function BlogWriteContent() {
           max-width: 100%;
           border-radius: 8px;
           margin: 1rem 0;
+        }
+        .prose-editor .blog-editor-img-wrap {
+          position: relative;
+          display: inline-block;
+          max-width: 100%;
+          margin: 1.25rem 0;
+          user-select: none;
+          vertical-align: top;
+        }
+        .prose-editor .blog-editor-img-wrap img {
+          margin: 0 !important;
+          display: block;
+          max-width: 100%;
+          max-height: 520px;
+          object-fit: contain;
+          border-radius: 8px;
+          border: 2px solid transparent;
+          transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .prose-editor .blog-editor-img-wrap:hover img,
+        .prose-editor .blog-editor-img-wrap.is-selected img {
+          border-color: var(--accent-primary) !important;
+          box-shadow: 0 0 0 2px var(--accent-primary);
+        }
+        .prose-editor .blog-editor-img-delete-btn {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          width: 28px;
+          height: 28px;
+          border-radius: 9999px;
+          background-color: #ef4444;
+          color: #ffffff;
+          border: 2px solid #ffffff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+          transition: transform 0.15s ease, background-color 0.15s ease;
+          z-index: 20;
+          outline: none;
+          padding: 0;
+        }
+        .prose-editor .blog-editor-img-delete-btn:hover {
+          background-color: #dc2626;
+          transform: scale(1.15);
         }
       `}</style>
     </div>
