@@ -52,6 +52,10 @@ const SidebarContent: React.FC<{
       ? `/logo-${currentVibe || "lime"}-${resolvedTheme === "dark" ? "dark" : "light"}.png`
       : "/logo-lime-light.png";
 
+    const logoIconSrc = mounted
+      ? `/logo-icon-${currentVibe || "lime"}-${resolvedTheme === "dark" ? "dark" : "light"}.png`
+      : "/logo-icon-lime-light.png";
+
     return (
       <div className="flex flex-col h-full bg-surface-elevated border-r border-border-default select-none">
         {/* ── Top Header Section (Higher up with thin divider line) ── */}
@@ -71,18 +75,18 @@ const SidebarContent: React.FC<{
             {/* Logo Icon Mark Only */}
             <Link
               href="/"
-              className="flex items-center justify-center rounded-lg hover:opacity-85 transition-opacity"
+              className="flex items-center justify-center p-0.5 rounded-lg hover:opacity-85 transition-opacity"
               title="MEC Computer Club"
               aria-label="MEC Computer Club — Home"
             >
-              <div className="w-8 h-8 overflow-hidden flex-shrink-0 flex items-center justify-start">
+              <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center">
                 <Image
                   alt="MEC Computer Club Logo"
-                  src={logoSrc}
-                  width={160}
-                  height={40}
+                  src={logoIconSrc}
+                  width={32}
+                  height={32}
                   priority
-                  className="h-8 w-auto max-w-none object-left object-cover"
+                  className="w-8 h-8 object-contain"
                 />
               </div>
             </Link>

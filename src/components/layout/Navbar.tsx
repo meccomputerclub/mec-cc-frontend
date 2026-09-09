@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useAccent } from "@/components/AccentProvider";
+import { useAuth } from "@/context/AuthContext";
+import { NotificationCenter } from "@/components/layout/NotificationCenter";
+import toast from "react-hot-toast";
 import { Button } from "@/components/ui/Button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { User, Shield, LayoutDashboard, LogOut, Menu, X, ChevronDown } from "lucide-react";
@@ -77,24 +80,29 @@ function LogoPreloader() {
     <div style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0, overflow: "hidden" }} aria-hidden="true">
       {VIBES.map((vibe) =>
         MODES.map((mode) => (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            key={`${vibe}-${mode}`}
-            src={`/logo-${vibe}-${mode}.png`}
-            alt=""
-            width={160}
-            height={40}
-            loading="eager"
-          />
+          <Fragment key={`${vibe}-${mode}`}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/logo-${vibe}-${mode}.png`}
+              alt=""
+              width={160}
+              height={40}
+              loading="eager"
+            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/logo-icon-${vibe}-${mode}.png`}
+              alt=""
+              width={32}
+              height={32}
+              loading="eager"
+            />
+          </Fragment>
         ))
       )}
     </div>
   );
 }
-
-import { useAuth } from "@/context/AuthContext";
-import { NotificationCenter } from "@/components/layout/NotificationCenter";
-import toast from "react-hot-toast";
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
