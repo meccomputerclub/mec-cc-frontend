@@ -228,11 +228,10 @@ export const executives: Executive[] = [
 
 export const staticExecutives = executives;
 
+import { API_BASE_URL } from "@/lib/api";
+
 export async function getExecutives(): Promise<Executive[]> {
-  const API_URL =
-    process.env.BACKEND_URL ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    "http://localhost:4000";
+  const API_URL = API_BASE_URL;
   try {
     // 1. Fetch active designations to build order precedence map
     const orderMap: Record<string, number> = {};

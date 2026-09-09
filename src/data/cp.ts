@@ -1,6 +1,7 @@
 import { LeaderboardEntry, CPContest, CPResource } from "@/types";
+import { API_BASE_URL } from "@/lib/api";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_URL = API_BASE_URL;
 
 export const leaderboard: LeaderboardEntry[] = [
   { rank: 1, name: "Nusrat Jahan", handle: "nusrat_cf", platform: "Codeforces", rating: 1687, solved: 580, image: "/images/team/nusrat.jpg" },

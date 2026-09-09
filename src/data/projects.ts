@@ -88,7 +88,8 @@ export const projects: Project[] = [
   },
 ];
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+import { API_BASE_URL } from "@/lib/api";
+const API_URL = API_BASE_URL;
 
 function mapBackendProject(p: any): Project {
   const teamMembers = Array.isArray(p.teamMembers)

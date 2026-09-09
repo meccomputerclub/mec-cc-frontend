@@ -91,7 +91,8 @@ export const events: Event[] = [
   },
 ];
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+import { API_BASE_URL } from "@/lib/api";
+const API_URL = API_BASE_URL;
 
 export function isEventUpcoming(e: any): boolean {
   if (!e) return false;

@@ -67,11 +67,10 @@ export const activeMembers: Member[] = [
   },
 ];
 
+import { API_BASE_URL } from "@/lib/api";
+
 export async function getActiveMembers(): Promise<Member[]> {
-  const API_URL =
-    process.env.BACKEND_URL ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    "http://localhost:4000";
+  const API_URL = API_BASE_URL;
   try {
     const res = await fetch(`${API_URL}/api/users/profile/active`, { next: { revalidate: 60 } });
     if (res.ok) {
