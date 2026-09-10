@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 import type { Metadata } from "next";
-import { EventCard } from "@/components/ui/Card";
+import EventsFilterView from "./components/EventsFilterView";
 import { getUpcomingEvents, getPastEvents } from "@/data/events";
 
 export const metadata: Metadata = {
@@ -81,39 +81,7 @@ export default async function EventsPage() {
         </div>
       </section>
 
-      {/* Upcoming */}
-      <section className="py-8 md:py-12" id="upcoming">
-        <div className="container mx-auto px-4 md:px-8">
-          <h2 className="text-2xl font-bold text-text-primary mb-5">
-            Next in Queue
-          </h2>
-          {upcoming.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {upcoming.map((event) => (
-                <EventCard key={event.id} {...event} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12 px-4 bg-surface-secondary rounded-xl text-text-tertiary">
-              <p>No upcoming events right now — check back soon or browse past events below.</p>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Past */}
-      <section className="py-8 md:py-12 bg-surface-secondary/50" id="past">
-        <div className="container mx-auto px-4 md:px-8">
-          <h2 className="text-2xl font-bold text-text-primary mb-5">
-            Successfully Executed (Past Events)
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-90 hover:opacity-100 transition-opacity">
-            {past.map((event) => (
-              <EventCard key={event.id} {...event} />
-            ))}
-          </div>
-        </div>
-      </section>
+      <EventsFilterView initialUpcoming={upcoming} initialPast={past} />
     </>
   );
 }

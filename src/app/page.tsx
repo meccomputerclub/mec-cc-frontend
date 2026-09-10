@@ -7,7 +7,6 @@ import { departments } from "@/data/departments";
 import { getUpcomingEvents, getHomeEvents } from "@/data/events";
 import { getFeaturedProjects } from "@/data/projects";
 import { getFeaturedBlogs } from "@/data/blog";
-import { testimonials } from "@/data/testimonials";
 import { getClubLeaderboard } from "@/data/cp";
 import { getHomeGalleryItems } from "@/data/gallery";
 import { getPartners } from "@/data/partners";
@@ -171,31 +170,54 @@ export default async function HomePage() {
           </div>
 
           <div className="flex flex-wrap justify-center gap-6 stagger-children">
-            {departments.slice(0, 5).map((dept) => (
-              <div
-                key={dept.id}
-                className="w-full md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] max-w-[420px] flex"
-                id={`dept-${dept.id}`}
-              >
-                <div className="group w-full flex flex-col justify-between bg-surface-elevated border border-border-brutalist rounded-[var(--radius-lg)] p-6 text-center transition-all duration-200 hover:border-border-brutalist hover:shadow-[6px_6px_0px_var(--accent-primary)] hover:translate-x-[-2px] hover:translate-y-[-2px]">
-                  <div>
-                    <div className="font-mono text-xs font-bold text-accent-primary-hover mb-2 uppercase tracking-widest">
-                      {dept.icon}
+            {departments.slice(0, 5).map((dept) => {
+              const deptLink =
+                dept.id === "cp"
+                  ? "/cp-hub"
+                  : dept.id === "webdev" || dept.id === "ml"
+                  ? "/projects"
+                  : dept.id === "cybersec"
+                  ? "/events?category=cybersec"
+                  : dept.id === "gaming"
+                  ? "/events?category=gaming"
+                  : "/events";
+
+              const eventCountText =
+                dept.id === "cp"
+                  ? "8+ EVENTS"
+                  : dept.id === "webdev"
+                  ? "5+ EVENTS"
+                  : "3+ EVENTS";
+
+              return (
+                <Link
+                  key={dept.id}
+                  href={deptLink}
+                  className="w-full md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] max-w-[420px] flex no-underline text-inherit group"
+                  id={`dept-${dept.id}`}
+                >
+                  <div className="w-full flex flex-col justify-between bg-surface-elevated border border-border-brutalist rounded-[var(--radius-lg)] p-6 text-center transition-all duration-200 hover:border-border-brutalist hover:shadow-[6px_6px_0px_var(--accent-primary)] hover:translate-x-[-2px] hover:translate-y-[-2px]">
+                    <div>
+                      <div className="font-mono text-xs font-bold text-accent-primary-hover mb-2 uppercase tracking-widest">
+                        {dept.icon}
+                      </div>
+                      <h3 className="font-heading text-xl font-bold mb-2 transition-colors duration-150 group-hover:text-accent-primary">
+                        {dept.name}
+                      </h3>
+                      <p className="text-sm text-text-secondary leading-relaxed">
+                        {dept.description}
+                      </p>
                     </div>
-                    <h3 className="font-heading text-xl font-bold mb-2 transition-colors duration-150 group-hover:text-accent-primary">
-                      {dept.name}
-                    </h3>
-                    <p className="text-sm text-text-secondary leading-relaxed">
-                      {dept.description}
-                    </p>
+                    <div className="mt-5 pt-4 border-t border-border-default flex items-center justify-between text-xs font-mono text-text-tertiary">
+                      <span className="font-bold text-text-secondary">{eventCountText}</span>
+                      <span className="text-accent-primary font-bold group-hover:translate-x-1 transition-transform">
+                        EXPLORE →
+                      </span>
+                    </div>
                   </div>
-                  <div className="mt-5 pt-4 border-t border-border-default flex items-center justify-between text-xs font-mono text-text-tertiary">
-                    <span>{dept.memberCount || 20}+ ACTIVE MEMBERS</span>
-                    <span className="text-accent-primary font-bold">EXPLORE →</span>
-                  </div>
-                </div>
-              </div>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -363,50 +385,7 @@ export default async function HomePage() {
       {/* ===== 8.1 FEATURED BLOGS SECTION (Max 3) ===== */}
       <HomeBlogs blogs={featuredBlogs} />
 
-      {/* ===== 9. TESTIMONIALS ===== */}
-      <section className="section" id="testimonials">
-        <div className="container">
-          <div className="text-center max-w-[640px] mx-auto mb-[var(--space-6)] max-[768px]:mb-[var(--space-4)]">
-            <span className="kicker">From our members</span>
-            <h2>System Logs: Member Feedbacks</h2>
-            <p className="text-lg text-text-tertiary max-[768px]:text-base">
-              What actual club members say — not &quot;Great club!&quot; quotes.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[var(--gutter)] stagger-children">
-            {testimonials.map((t) => (
-              <blockquote
-                key={t.id}
-                className="group w-full bg-surface-elevated border border-border-brutalist rounded-[var(--radius-lg)] overflow-hidden transition-all duration-200 hover:border-border-brutalist hover:shadow-[6px_6px_0px_var(--accent-primary)] hover:translate-x-[-2px] hover:translate-y-[-2px] active:translate-y-0 cursor-pointer"
-                id={`testimonial-${t.id}`}
-              >
-                <div className="p-[var(--space-3)]">
-                  <div className="font-heading text-[2.5rem] leading-[0.5] text-text-tertiary mt-[5px] mb-[5px] transition-colors duration-150 group-hover:text-accent-primary">
-                    &ldquo;
-                  </div>
-
-                  <p className="mt-0 mb-[var(--space-3)] text-[0.9rem] leading-[1.4] text-text-secondary">
-                    {t.quote}
-                  </p>
-
-                  <div className="flex justify-between items-center pt-[var(--space-2)] border-t border-border-default">
-                    <div className="font-mono text-text-xs font-bold uppercase text-text-secondary transition-colors duration-150 group-hover:text-accent-primary">
-                      <span className="testimonial__name-label">{t.name}</span> →
-                    </div>
-                    <div className="flex items-center -space-x-1.5">
-                      <div className="w-6 h-6 rounded-sm border border-border-brutalist bg-accent-primary text-[10px] text-accent-primary-text flex items-center justify-center font-mono font-bold uppercase transition-transform duration-150 hover:scale-110 hover:z-10">
-                        {t.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </blockquote>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ===== 10. ABOUT & CONTACT GLIMPSE ===== */}
+      {/* ===== 9. ABOUT & CONTACT GLIMPSE ===== */}
       <AboutContactGlimpse contactData={homeContent?.contact} />
 
       {/* ===== 11. JOIN CTA BAND ===== */}
