@@ -24,8 +24,11 @@ import {
   Check,
   Sparkles,
   Code,
+  Pencil,
+  UserCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Select } from "@/components/ui/Select";
 import FilterSelect from "@/app/dashboard/components/FilterSelect";
 import { CertificateTemplateCard, TemplateItem } from "@/components/certificates/CertificateTemplateCard";
 import { CertificateTemplateModal } from "@/components/certificates/CertificateTemplateModal";
@@ -46,6 +49,10 @@ interface CertificateItem {
   status: "valid" | "revoked";
   revokedAt?: string;
   revocationReason?: string;
+  recipientName?: string;
+  recipientStudentId?: string;
+  recipientEmail?: string;
+  recipientDepartment?: string;
   recipient?: {
     _id: string;
     fullName: string;
@@ -114,8 +121,13 @@ export default function CertificatesManagementPage() {
   const [deleteTarget, setDeleteTarget] = useState<CertificateItem | null>(null);
 
   // Single Issuance Form
+  const [singleRecipientType, setSingleRecipientType] = useState<"member" | "non_member">("member");
   const [singleRecipient, setSingleRecipient] = useState("");
   const [singleRecipientSearch, setSingleRecipientSearch] = useState("");
+  const [singleNonMemberName, setSingleNonMemberName] = useState("");
+  const [singleNonMemberStudentId, setSingleNonMemberStudentId] = useState("");
+  const [singleNonMemberEmail, setSingleNonMemberEmail] = useState("");
+  const [singleNonMemberDept, setSingleNonMemberDept] = useState("");
   const [singleEvent, setSingleEvent] = useState("");
   const [singleName, setSingleName] = useState("");
   const [singleType, setSingleType] = useState<string>("participation");
@@ -124,6 +136,17 @@ export default function CertificatesManagementPage() {
   const [singleDate, setSingleDate] = useState(new Date().toISOString().split("T")[0]);
   const [singleCertId, setSingleCertId] = useState("");
   const [singleIssuing, setSingleIssuing] = useState(false);
+
+  // Edit Certificate Modal State
+  const [editingCert, setEditingCert] = useState<CertificateItem | null>(null);
+  const [editRecipientName, setEditRecipientName] = useState("");
+  const [editRecipientStudentId, setEditRecipientStudentId] = useState("");
+  const [editRecipientEmail, setEditRecipientEmail] = useState("");
+  const [editRecipientDepartment, setEditRecipientDepartment] = useState("");
+  const [editCertName, setEditCertName] = useState("");
+  const [editCertType, setEditCertType] = useState<string>("participation");
+  const [editCertPosition, setEditCertPosition] = useState("");
+  const [savingEditCert, setSavingEditCert] = useState(false);
 
   // Bulk Issuance Form (Mass Participation)
   const [bulkEventId, setBulkEventId] = useState("");
@@ -237,6 +260,47 @@ export default function CertificatesManagementPage() {
     fetchTemplates();
   }, [fetchTemplates]);
 
+  const awardTypeOptions = useMemo(
+    () => [
+      { value: "participation", label: "Participation" },
+      { value: "winner", label: "Winner / Podium" },
+      { value: "completion", label: "Completion" },
+      { value: "achievement", label: "Achievement" },
+      { value: "appreciation", label: "Appreciation" },
+      { value: "other", label: "Other" },
+    ],
+    []
+  );
+
+  const eventOptions = useMemo(
+    () => [
+      { value: "", label: "None (Standalone Award / Recognition)" },
+      ...eventsList.map((ev) => ({
+        value: ev._id,
+        label: `${ev.title} (${new Date(ev.date).toLocaleDateString()})`,
+      })),
+    ],
+    [eventsList]
+  );
+
+  const bulkEventOptions = useMemo(
+    () => [
+      { value: "", label: "-- Choose an Event to load attendees --" },
+      ...eventsList.map((ev) => ({
+        value: ev._id,
+        label: `${ev.title} (${new Date(ev.date).toLocaleDateString()})`,
+      })),
+    ],
+    [eventsList]
+  );
+
+  const templateOptions = useMemo(() => {
+    return templatesList.map((tpl) => ({
+      value: tpl._id,
+      label: `${tpl.name} (${tpl.type === "html" ? "Custom HTML" : tpl.theme})${tpl.isDefault ? " ★ Default" : ""}`,
+    }));
+  }, [templatesList]);
+
   const handleSaveTemplate = async (templateData: any) => {
     if (editingTemplate) {
       await axios.put(`${API}/certificate-templates/${editingTemplate._id}`, templateData, {
@@ -286,28 +350,48 @@ export default function CertificatesManagementPage() {
   // ── Handle Single Issuance ──
   const handleSingleIssue = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!singleRecipient || !singleName.trim()) {
-      toast.error("Please select a recipient and enter a certificate title.");
-      return;
+    if (singleRecipientType === "member") {
+      if (!singleRecipient || !singleName.trim()) {
+        toast.error("Please select a recipient member and enter a certificate title.");
+        return;
+      }
+    } else {
+      if (!singleNonMemberName.trim() || !singleName.trim()) {
+        toast.error("Please enter the recipient full name and certificate title.");
+        return;
+      }
     }
 
     setSingleIssuing(true);
     try {
-      await axios.post(
-        `${API}/certificates`,
-        {
-          recipientId: singleRecipient,
-          associatedEventId: singleEvent || undefined,
-          name: singleName.trim(),
-          type: singleType,
-          position: singlePosition.trim() || undefined,
-          description: singleDescription.trim() || undefined,
-          templateId: singleTemplateId || undefined,
-          issueDate: singleDate,
-          certificateId: singleCertId.trim() || undefined,
-        },
-        { withCredentials: true }
-      );
+      const selectedMember = membersList.find((m) => m._id === singleRecipient);
+      const payload: any = {
+        name: singleName.trim(),
+        type: singleType,
+        position: singlePosition.trim() || undefined,
+        description: singleDescription.trim() || undefined,
+        templateId: singleTemplateId || undefined,
+        issueDate: singleDate,
+        certificateId: singleCertId.trim() || undefined,
+        associatedEventId: singleEvent || undefined,
+      };
+
+      if (singleRecipientType === "member") {
+        payload.recipientId = singleRecipient;
+        if (selectedMember) {
+          payload.recipientName = selectedMember.fullName;
+          payload.recipientEmail = selectedMember.email;
+          payload.recipientStudentId = selectedMember.studentId;
+          payload.recipientDepartment = selectedMember.department;
+        }
+      } else {
+        payload.recipientName = singleNonMemberName.trim();
+        payload.recipientEmail = singleNonMemberEmail.trim() || undefined;
+        payload.recipientStudentId = singleNonMemberStudentId.trim() || undefined;
+        payload.recipientDepartment = singleNonMemberDept.trim() || undefined;
+      }
+
+      await axios.post(`${API}/certificates`, payload, { withCredentials: true });
 
       toast.success("Certificate issued successfully!");
       setShowSingleModal(false);
@@ -321,8 +405,13 @@ export default function CertificatesManagementPage() {
   };
 
   const resetSingleForm = () => {
+    setSingleRecipientType("member");
     setSingleRecipient("");
     setSingleRecipientSearch("");
+    setSingleNonMemberName("");
+    setSingleNonMemberStudentId("");
+    setSingleNonMemberEmail("");
+    setSingleNonMemberDept("");
     setSingleEvent("");
     setSingleName("");
     setSingleType("participation");
@@ -330,6 +419,50 @@ export default function CertificatesManagementPage() {
     setSingleDescription("");
     setSingleDate(new Date().toISOString().split("T")[0]);
     setSingleCertId("");
+  };
+
+  const handleOpenEditCert = (cert: CertificateItem) => {
+    setEditingCert(cert);
+    setEditRecipientName(cert.recipient?.fullName || cert.recipientName || "");
+    setEditRecipientStudentId(cert.recipient?.studentId || cert.recipientStudentId || "");
+    setEditRecipientEmail(cert.recipient?.email || cert.recipientEmail || "");
+    setEditRecipientDepartment(cert.recipient?.department || cert.recipientDepartment || "");
+    setEditCertName(cert.name || "");
+    setEditCertType(cert.type || "participation");
+    setEditCertPosition(cert.position || "");
+  };
+
+  const handleSaveEditCert = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCert) return;
+    if (!editRecipientName.trim() || !editCertName.trim()) {
+      toast.error("Recipient name and certificate title are required.");
+      return;
+    }
+
+    setSavingEditCert(true);
+    try {
+      await axios.patch(
+        `${API}/certificates/${editingCert._id}`,
+        {
+          recipientName: editRecipientName.trim(),
+          recipientStudentId: editRecipientStudentId.trim(),
+          recipientEmail: editRecipientEmail.trim(),
+          recipientDepartment: editRecipientDepartment.trim(),
+          name: editCertName.trim(),
+          type: editCertType,
+          position: editCertPosition.trim() || undefined,
+        },
+        { withCredentials: true }
+      );
+      toast.success("Certificate updated successfully!");
+      setEditingCert(null);
+      fetchCertificates();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to update certificate.");
+    } finally {
+      setSavingEditCert(false);
+    }
   };
 
   // ── Handle Event Selection for Bulk Issuance ──
@@ -700,15 +833,15 @@ export default function CertificatesManagementPage() {
                           {cert.recipient?.imageUrl ? (
                             <Image src={cert.recipient.imageUrl} alt="" fill className="object-cover" />
                           ) : (
-                            cert.recipient?.fullName?.slice(0, 2).toUpperCase() || "MB"
+                            (cert.recipient?.fullName || cert.recipientName || "MB").slice(0, 2).toUpperCase()
                           )}
                         </div>
                         <div>
                           <span className="font-bold text-text-primary block leading-tight">
-                            {cert.recipient?.fullName || "Unknown Member"}
+                            {cert.recipient?.fullName || cert.recipientName || "Participant"}
                           </span>
                           <span className="font-mono text-[10px] text-text-tertiary">
-                            {cert.recipient?.studentId || "No Student ID"}
+                            {cert.recipient?.studentId || cert.recipientStudentId || (cert.recipientEmail ? cert.recipientEmail : "Non-Member / ID N/A")}
                           </span>
                         </div>
                       </div>
@@ -773,6 +906,16 @@ export default function CertificatesManagementPage() {
                           title="Copy Verification Link"
                         >
                           <Share2 size={14} />
+                        </button>
+
+                        {/* Edit Certificate / Recipient Details */}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditCert(cert)}
+                          className="p-1.5 text-text-secondary hover:text-text-primary hover:bg-surface-secondary rounded transition"
+                          title="Edit Certificate / Recipient Details"
+                        >
+                          <Pencil size={14} />
                         </button>
 
                         {/* Revoke */}
@@ -938,71 +1081,156 @@ export default function CertificatesManagementPage() {
             </div>
 
             <form onSubmit={handleSingleIssue} className="space-y-4 text-xs sm:text-sm">
-              {/* Recipient Selection */}
+              {/* Recipient Type Switcher */}
               <div>
-                <label className="block font-bold text-xs uppercase font-mono text-text-primary mb-1">
-                  Recipient Member *
+                <label className="block font-bold text-xs uppercase font-mono text-text-primary mb-1.5">
+                  Recipient Type *
                 </label>
-                <input
-                  type="text"
-                  value={singleRecipientSearch}
-                  onChange={(e) => setSingleRecipientSearch(e.target.value)}
-                  placeholder="Type name, student ID, or email to search…"
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-border-default bg-surface-primary text-text-primary focus:outline-none focus:border-accent-primary"
-                />
-
-                {/* Suggestions List */}
-                <div className="mt-2 max-h-36 overflow-y-auto border border-border-default rounded-lg divide-y divide-border-default bg-surface-secondary">
-                  {filteredMemberSuggestions.map((m) => {
-                    const isSelected = singleRecipient === m._id;
-                    return (
-                      <div
-                        key={m._id}
-                        onClick={() => {
-                          setSingleRecipient(m._id);
-                          setSingleRecipientSearch(`${m.fullName} (${m.studentId || m.email})`);
-                        }}
-                        className={`p-2.5 cursor-pointer flex items-center justify-between transition-colors ${
-                          isSelected ? "bg-accent-primary-light font-bold" : "hover:bg-surface-primary"
-                        }`}
-                      >
-                        <div>
-                          <strong className="text-text-primary block">{m.fullName}</strong>
-                          <span className="text-[11px] font-mono text-text-tertiary">
-                            {m.studentId} &bull; {m.department || "Member"}
-                          </span>
-                        </div>
-                        {isSelected && <Check size={16} className="text-accent-primary" />}
-                      </div>
-                    );
-                  })}
+                <div className="grid grid-cols-2 gap-2 p-1 bg-surface-secondary border border-border-default rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setSingleRecipientType("member")}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                      singleRecipientType === "member"
+                        ? "bg-accent-primary text-text-inverse shadow-sm"
+                        : "text-text-secondary hover:text-text-primary"
+                    }`}
+                  >
+                    <Users size={14} /> Registered Club Member
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSingleRecipientType("non_member")}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                      singleRecipientType === "non_member"
+                        ? "bg-accent-primary text-text-inverse shadow-sm"
+                        : "text-text-secondary hover:text-text-primary"
+                    }`}
+                  >
+                    <UserCheck size={14} /> Non-Member / Guest
+                  </button>
                 </div>
               </div>
+
+              {singleRecipientType === "member" ? (
+                /* Member Selection */
+                <div>
+                  <label className="block font-bold text-xs uppercase font-mono text-text-primary mb-1">
+                    Recipient Member *
+                  </label>
+                  <input
+                    type="text"
+                    value={singleRecipientSearch}
+                    onChange={(e) => setSingleRecipientSearch(e.target.value)}
+                    placeholder="Type name, student ID, or email to search…"
+                    className="w-full px-3.5 py-2.5 rounded-lg border border-border-default bg-surface-primary text-text-primary focus:outline-none focus:border-accent-primary"
+                  />
+
+                  {/* Suggestions List */}
+                  <div className="mt-2 max-h-36 overflow-y-auto border border-border-default rounded-lg divide-y divide-border-default bg-surface-secondary">
+                    {filteredMemberSuggestions.map((m) => {
+                      const isSelected = singleRecipient === m._id;
+                      return (
+                        <div
+                          key={m._id}
+                          onClick={() => {
+                            setSingleRecipient(m._id);
+                            setSingleRecipientSearch(`${m.fullName} (${m.studentId || m.email})`);
+                          }}
+                          className={`p-2.5 cursor-pointer flex items-center justify-between transition-colors ${
+                            isSelected ? "bg-accent-primary-light font-bold" : "hover:bg-surface-primary"
+                          }`}
+                        >
+                          <div>
+                            <strong className="text-text-primary block">{m.fullName}</strong>
+                            <span className="text-[11px] font-mono text-text-tertiary">
+                              {m.studentId} &bull; {m.department || "Member"}
+                            </span>
+                          </div>
+                          {isSelected && <Check size={16} className="text-accent-primary" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                /* Non-Member Form */
+                <div className="space-y-3 p-3.5 bg-surface-secondary/60 border border-dashed border-border-default rounded-xl">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-bold text-xs uppercase font-mono text-text-primary mb-1">
+                        Full Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={singleNonMemberName}
+                        onChange={(e) => setSingleNonMemberName(e.target.value)}
+                        placeholder="e.g. John Doe"
+                        className="w-full px-3 py-2 rounded-lg border border-border-default bg-surface-primary text-text-primary text-xs sm:text-sm focus:outline-none focus:border-accent-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-xs uppercase font-mono text-text-primary mb-1">
+                        Student ID / Roll
+                      </label>
+                      <input
+                        type="text"
+                        value={singleNonMemberStudentId}
+                        onChange={(e) => setSingleNonMemberStudentId(e.target.value)}
+                        placeholder="e.g. 210347 or Roll 42"
+                        className="w-full px-3 py-2 rounded-lg border border-border-default bg-surface-primary text-text-primary text-xs sm:text-sm focus:outline-none focus:border-accent-primary"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-bold text-xs uppercase font-mono text-text-primary mb-1">
+                        Email Address
+                      </label>
+                      <input
+                        type="email"
+                        value={singleNonMemberEmail}
+                        onChange={(e) => setSingleNonMemberEmail(e.target.value)}
+                        placeholder="e.g. participant@example.com"
+                        className="w-full px-3 py-2 rounded-lg border border-border-default bg-surface-primary text-text-primary text-xs sm:text-sm focus:outline-none focus:border-accent-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-xs uppercase font-mono text-text-primary mb-1">
+                        Department / Institution
+                      </label>
+                      <input
+                        type="text"
+                        value={singleNonMemberDept}
+                        onChange={(e) => setSingleNonMemberDept(e.target.value)}
+                        placeholder="e.g. CSE or External Org"
+                        className="w-full px-3 py-2 rounded-lg border border-border-default bg-surface-primary text-text-primary text-xs sm:text-sm focus:outline-none focus:border-accent-primary"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-text-tertiary">
+                    ℹ️ These details will be permanently attached to this certificate and will verify publicly even without a user account.
+                  </p>
+                </div>
+              )}
 
               {/* Event Linkage (Optional) */}
               <div>
                 <label className="block font-bold text-xs uppercase font-mono text-text-primary mb-1">
                   Associated Event (Optional)
                 </label>
-                <select
+                <Select
                   value={singleEvent}
-                  onChange={(e) => {
-                    const evId = e.target.value;
-                    setSingleEvent(evId);
-                    const ev = eventsList.find((x) => x._id === evId);
+                  onChange={(val) => {
+                    setSingleEvent(val);
+                    const ev = eventsList.find((x) => x._id === val);
                     if (ev && !singleName) {
                       setSingleName(`Certificate of Achievement — ${ev.title}`);
                     }
                   }}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-border-default bg-surface-primary text-text-primary focus:outline-none focus:border-accent-primary"
-                >
-                  <option value="">None (Standalone Award / Recognition)</option>
-                  {eventsList.map((ev) => (
-                    <option key={ev._id} value={ev._id}>
-                      {ev.title} ({new Date(ev.date).toLocaleDateString()})
-                    </option>
-                  ))}
-                </select>
+                  options={eventOptions}
+                />
               </div>
 
               {/* Certificate Template Selection */}
@@ -1011,17 +1239,11 @@ export default function CertificatesManagementPage() {
                   <span>Certificate Template</span>
                   <span className="text-[10px] text-text-tertiary font-normal">Controls colors, theme or HTML</span>
                 </label>
-                <select
+                <Select
                   value={singleTemplateId}
-                  onChange={(e) => setSingleTemplateId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-border-default bg-surface-primary text-text-primary focus:outline-none focus:border-accent-primary font-sans"
-                >
-                  {templatesList.map((tpl) => (
-                    <option key={tpl._id} value={tpl._id}>
-                      {tpl.name} ({tpl.type === "html" ? "Custom HTML" : tpl.theme}){tpl.isDefault ? " ★ Default" : ""}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setSingleTemplateId(val)}
+                  options={templateOptions}
+                />
               </div>
 
               {/* Certificate Title */}
@@ -1045,18 +1267,11 @@ export default function CertificatesManagementPage() {
                   <label className="block font-bold text-xs uppercase font-mono text-text-primary mb-1">
                     Award Type
                   </label>
-                  <select
+                  <Select
                     value={singleType}
-                    onChange={(e) => setSingleType(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-border-default bg-surface-primary text-text-primary focus:outline-none focus:border-accent-primary"
-                  >
-                    <option value="participation">Participation</option>
-                    <option value="winner">Winner / Podium</option>
-                    <option value="completion">Completion</option>
-                    <option value="achievement">Achievement</option>
-                    <option value="appreciation">Appreciation</option>
-                    <option value="other">Other</option>
-                  </select>
+                    onChange={(val) => setSingleType(val)}
+                    options={awardTypeOptions}
+                  />
                 </div>
 
                 <div>
@@ -1186,19 +1401,11 @@ export default function CertificatesManagementPage() {
                     <label className="block font-bold text-xs uppercase font-mono text-text-primary mb-1">
                       Target Event *
                     </label>
-                    <select
-                      required
+                    <Select
                       value={bulkEventId}
-                      onChange={(e) => handleSelectBulkEvent(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-lg border border-border-default bg-surface-primary text-text-primary focus:outline-none focus:border-accent-primary"
-                    >
-                      <option value="">-- Choose an Event to load attendees --</option>
-                      {eventsList.map((ev) => (
-                        <option key={ev._id} value={ev._id}>
-                          {ev.title} ({new Date(ev.date).toLocaleDateString()})
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(val) => handleSelectBulkEvent(val)}
+                      options={bulkEventOptions}
+                    />
                   </div>
 
                   {/* Attendees Selection Box */}
@@ -1276,17 +1483,11 @@ export default function CertificatesManagementPage() {
                   <span>Certificate Template</span>
                   <span className="text-[10px] text-text-tertiary font-normal">Applied to all batch attendees</span>
                 </label>
-                <select
+                <Select
                   value={bulkTemplateId}
-                  onChange={(e) => setBulkTemplateId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-border-default bg-surface-primary text-text-primary focus:outline-none focus:border-accent-primary font-sans"
-                >
-                  {templatesList.map((tpl) => (
-                    <option key={tpl._id} value={tpl._id}>
-                      {tpl.name} ({tpl.type === "html" ? "Custom HTML" : tpl.theme}){tpl.isDefault ? " ★ Default" : ""}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setBulkTemplateId(val)}
+                  options={templateOptions}
+                />
               </div>
 
               {/* Template Title */}
@@ -1336,16 +1537,11 @@ export default function CertificatesManagementPage() {
                   <label className="block font-bold text-xs uppercase font-mono text-text-primary mb-1">
                     Type
                   </label>
-                  <select
+                  <Select
                     value={bulkType}
-                    onChange={(e) => setBulkType(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-lg border border-border-default bg-surface-primary text-text-primary focus:outline-none focus:border-accent-primary"
-                  >
-                    <option value="participation">Participation</option>
-                    <option value="completion">Completion</option>
-                    <option value="appreciation">Appreciation</option>
-                    <option value="winner">Winner</option>
-                  </select>
+                    onChange={(val) => setBulkType(val)}
+                    options={awardTypeOptions}
+                  />
                 </div>
               </div>
 
@@ -1448,6 +1644,159 @@ export default function CertificatesManagementPage() {
         template={previewingTemplate}
         onClose={() => setPreviewingTemplate(null)}
       />
+
+      {/* ── MODAL 7: EDIT CERTIFICATE & RECIPIENT DETAILS ── */}
+      {editingCert && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fade-in">
+          <div className="bg-surface-elevated border-2 border-border-brutalist rounded-2xl max-w-lg w-full p-6 shadow-[8px_8px_0px_var(--accent-primary)] max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-border-default mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-text-primary flex items-center gap-2">
+                  <Pencil size={18} className="text-accent-primary" />
+                  Edit Certificate Details
+                </h2>
+                <p className="text-xs font-mono text-text-tertiary mt-0.5">
+                  ID: {editingCert.certificateId}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingCert(null)}
+                className="text-text-tertiary hover:text-text-primary p-1 rounded-lg hover:bg-surface-secondary"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditCert} className="space-y-4 text-xs sm:text-sm">
+              {/* Recipient Information Snapshot */}
+              <div className="space-y-3 p-3.5 bg-surface-secondary/70 border border-border-default rounded-xl">
+                <span className="block font-bold text-xs uppercase font-mono text-text-primary">
+                  Recipient Information (Snapshot)
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-[11px] uppercase font-mono text-text-secondary mb-1">
+                      Recipient Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={editRecipientName}
+                      onChange={(e) => setEditRecipientName(e.target.value)}
+                      placeholder="e.g. Md. Nasir Ahmed"
+                      className="w-full px-3 py-2 rounded-lg border border-border-default bg-surface-primary text-text-primary text-xs sm:text-sm focus:outline-none focus:border-accent-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-[11px] uppercase font-mono text-text-secondary mb-1">
+                      Student ID / Roll
+                    </label>
+                    <input
+                      type="text"
+                      value={editRecipientStudentId}
+                      onChange={(e) => setEditRecipientStudentId(e.target.value)}
+                      placeholder="e.g. 210347"
+                      className="w-full px-3 py-2 rounded-lg border border-border-default bg-surface-primary text-text-primary text-xs sm:text-sm focus:outline-none focus:border-accent-primary"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-[11px] uppercase font-mono text-text-secondary mb-1">
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      value={editRecipientEmail}
+                      onChange={(e) => setEditRecipientEmail(e.target.value)}
+                      placeholder="e.g. user@example.com"
+                      className="w-full px-3 py-2 rounded-lg border border-border-default bg-surface-primary text-text-primary text-xs sm:text-sm focus:outline-none focus:border-accent-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-[11px] uppercase font-mono text-text-secondary mb-1">
+                      Department / Org
+                    </label>
+                    <input
+                      type="text"
+                      value={editRecipientDepartment}
+                      onChange={(e) => setEditRecipientDepartment(e.target.value)}
+                      placeholder="e.g. CSE"
+                      className="w-full px-3 py-2 rounded-lg border border-border-default bg-surface-primary text-text-primary text-xs sm:text-sm focus:outline-none focus:border-accent-primary"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Award Details */}
+              <div className="space-y-3">
+                <div>
+                  <label className="block font-bold text-xs uppercase font-mono text-text-primary mb-1">
+                    Certificate Title *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editCertName}
+                    onChange={(e) => setEditCertName(e.target.value)}
+                    placeholder="Certificate of Participation / Winner"
+                    className="w-full px-3.5 py-2.5 rounded-lg border border-border-default bg-surface-primary text-text-primary focus:outline-none focus:border-accent-primary text-xs sm:text-sm"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-xs uppercase font-mono text-text-primary mb-1">
+                      Award Type
+                    </label>
+                    <Select
+                      value={editCertType}
+                      onChange={(val) => setEditCertType(val)}
+                      options={awardTypeOptions}
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-xs uppercase font-mono text-text-primary mb-1">
+                      Position / Rank
+                    </label>
+                    <input
+                      type="text"
+                      value={editCertPosition}
+                      onChange={(e) => setEditCertPosition(e.target.value)}
+                      placeholder="e.g. Champion, 1st Runner Up"
+                      className="w-full px-3.5 py-2.5 rounded-lg border border-border-default bg-surface-primary text-text-primary focus:outline-none focus:border-accent-primary text-xs sm:text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3 bg-surface-secondary/50 rounded-xl border border-border-default text-[11px] text-text-secondary leading-relaxed">
+                ℹ️ These saved recipient details are stored permanently in the certificate object. Even if the user account is deleted, the recipient information will stay intact on verification pages and registries.
+              </div>
+
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-border-default">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  type="button"
+                  onClick={() => setEditingCert(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={savingEditCert}
+                >
+                  {savingEditCert ? "Saving Changes…" : "Save Changes"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
