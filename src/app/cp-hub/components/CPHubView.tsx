@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import axios from "axios";
@@ -22,11 +22,15 @@ import {
   Loader2,
   CheckCircle2,
   FileDown,
+  UserCheck,
+  Search,
+  User,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { LeaderboardEntry, CPResource, CPAchievement } from "@/types";
 import LeaderboardTable from "../leaderboard/components/LeaderboardTable";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE_URL } from "@/lib/api";
 import ConfirmationModal from "@/components/ui/shared/ConfirmModal";
@@ -189,6 +193,12 @@ function CPHubViewContent({
   // Custom pages list for quick dropdown selection
   const [customPageOptions, setCustomPageOptions] = useState<{ value: string; label: string }[]>([]);
 
+  // Club Members list for author selection
+  const [clubMembers, setClubMembers] = useState<any[]>([]);
+  const [showMemberDropdown, setShowMemberDropdown] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<any | null>(null);
+  const authorDropdownRef = useRef<HTMLDivElement>(null);
+
   // Achievement Modal State
   const [achievementModal, setAchievementModal] = useState<{
     open: boolean;
@@ -273,6 +283,33 @@ function CPHubViewContent({
         }
       })
       .catch(() => {});
+  }, []);
+
+  // Load club members for author picker
+  useEffect(() => {
+    axios
+      .get(`${API_BASE_URL}/api/users/all-members`)
+      .then((res) => {
+        const list = res.data?.members || res.data?.data || [];
+        if (Array.isArray(list)) {
+          setClubMembers(list);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Close member dropdown on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (
+        authorDropdownRef.current &&
+        !authorDropdownRef.current.contains(e.target as Node)
+      ) {
+        setShowMemberDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
   const handleTabChange = (tabId: string) => {
@@ -396,6 +433,7 @@ function CPHubViewContent({
   // Club Docs CRUD & PDF Upload
   // ─────────────────────────────────────────────────────────────────────────────
   const openAddDoc = () => {
+    setSelectedMember(null);
     setDocModal({
       open: true,
       mode: "add",
@@ -408,7 +446,6 @@ function CPHubViewContent({
         type: "tutorial",
         url: customPageOptions.length > 0 ? customPageOptions[0].value : "",
         pdfUrl: "",
-        linkType: "custom-page",
         tags: [],
       },
       tagsInput: "",
@@ -429,6 +466,12 @@ function CPHubViewContent({
       (doc.url?.startsWith("/pages/") && !isPdf);
     const detectedType = isPdf ? "pdf" : isCustomPage ? "custom-page" : "external";
 
+    // Match member if found
+    const matchingMember = clubMembers.find(
+      (m) => m.fullName?.toLowerCase() === doc.author?.toLowerCase()
+    );
+    setSelectedMember(matchingMember || null);
+
     setDocModal({
       open: true,
       mode: "edit",
@@ -440,6 +483,43 @@ function CPHubViewContent({
       tagsInput: (doc.tags || []).join(", "),
       saving: false,
     });
+  };
+
+  const handleSelectMemberAuthor = (member: any) => {
+    setSelectedMember(member);
+    setDocModal((prev) => ({
+      ...prev,
+      data: { ...prev.data, author: member.fullName },
+    }));
+    setShowMemberDropdown(false);
+  };
+
+  const handleClearMemberAuthor = () => {
+    setSelectedMember(null);
+    setDocModal((prev) => ({
+      ...prev,
+      data: { ...prev.data, author: "" },
+    }));
+  };
+
+  const handleSetSelfAsAuthor = () => {
+    if (!user) return;
+    const authorName = user.fullName || "Club Member";
+    const selfMember = clubMembers.find(
+      (m) => m._id === user.id || m.id === user.id || m.studentId === user.studentId
+    );
+    setSelectedMember(
+      selfMember || {
+        fullName: authorName,
+        studentId: user.studentId,
+        imageUrl: user.imageUrl,
+      }
+    );
+    setDocModal((prev) => ({
+      ...prev,
+      data: { ...prev.data, author: authorName },
+    }));
+    setShowMemberDropdown(false);
   };
 
   const handlePdfFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -587,6 +667,17 @@ function CPHubViewContent({
     }
   };
 
+  // Filtered members for search
+  const filteredMembers = clubMembers.filter((m) => {
+    const term = (docModal.data.author || "").toLowerCase();
+    if (!term) return true;
+    return (
+      m.fullName?.toLowerCase().includes(term) ||
+      m.studentId?.toLowerCase().includes(term) ||
+      m.department?.toLowerCase().includes(term)
+    );
+  });
+
   return (
     <div className="space-y-8 pb-16">
       {/* Header */}
@@ -615,7 +706,7 @@ function CPHubViewContent({
                   onClick={() => handleTabChange(tab.id)}
                   className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
                     isActive
-                      ? "bg-accent-primary text-black shadow-[3px_3px_0px_var(--border-brutalist)] border-2 border-text-primary"
+                      ? "bg-accent-primary !text-accent-primary-text shadow-[3px_3px_0px_var(--border-brutalist)] border-2 border-text-primary dark:border-border-default"
                       : "bg-surface-elevated text-text-secondary hover:text-text-primary border border-border-default hover:bg-surface-secondary"
                   }`}
                 >
@@ -804,13 +895,14 @@ function CPHubViewContent({
               </div>
 
               {canManage && (
-                <button
+                <Button
+                  variant="primary"
+                  size="md"
                   onClick={openAddDoc}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-bold rounded-xl bg-accent-primary text-black border-2 border-text-primary shadow-[2px_2px_0px_var(--border-brutalist)] hover:translate-x-0.5 hover:translate-y-0.5 transition-all self-start sm:self-auto"
+                  icon={<Plus size={16} />}
                 >
-                  <Plus size={16} />
-                  <span>Add Club Doc</span>
-                </button>
+                  Add Club Doc
+                </Button>
               )}
             </div>
 
@@ -899,7 +991,7 @@ function CPHubViewContent({
                           {r.title}
                         </h4>
                         {r.author && (
-                          <span className="text-xs text-text-tertiary block mb-3">
+                          <span className="text-xs text-text-tertiary block mb-3 font-medium">
                             By {r.author}
                           </span>
                         )}
@@ -947,13 +1039,14 @@ function CPHubViewContent({
             </div>
 
             {canManage && (
-              <button
+              <Button
+                variant="primary"
+                size="md"
                 onClick={openAddAchievement}
-                className="inline-flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-bold rounded-xl bg-accent-primary text-black border-2 border-text-primary shadow-[2px_2px_0px_var(--border-brutalist)] hover:translate-x-0.5 hover:translate-y-0.5 transition-all whitespace-nowrap self-start sm:self-auto"
+                icon={<Plus size={16} />}
               >
-                <Plus size={16} />
-                <span>Add Achievement</span>
-              </button>
+                Add Achievement
+              </Button>
             )}
           </div>
 
@@ -974,7 +1067,7 @@ function CPHubViewContent({
                 >
                   <div className="space-y-1.5 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-accent-primary text-black">
+                      <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-accent-primary !text-accent-primary-text">
                         {ach.year}
                       </span>
                       <span className="font-bold text-accent-primary-hover text-sm">
@@ -1024,120 +1117,125 @@ function CPHubViewContent({
       {/* 1. ACHIEVEMENT ADD / EDIT MODAL */}
       {/* ────────────────────────────────────────────────────────────────────── */}
       {achievementModal.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="bg-surface-primary border border-border-brutalist dark:border-border-default rounded-2xl w-full max-w-lg shadow-[6px_6px_0px_var(--accent-primary)] overflow-hidden">
-            <div className="flex items-center justify-between p-5 border-b border-border-default bg-surface-secondary">
+        <div className="fixed inset-0 z-[1200] flex items-start sm:items-center justify-center p-3 sm:p-6 pt-20 sm:pt-24 pb-12 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150 overflow-y-auto">
+          <div className="bg-surface-primary border border-border-brutalist dark:border-border-default rounded-2xl w-full max-w-lg shadow-[8px_8px_0px_var(--accent-primary)] overflow-hidden my-auto flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-border-default bg-surface-secondary shrink-0">
               <h3 className="font-bold text-lg text-text-primary flex items-center gap-2">
                 <Award className="text-accent-primary" size={20} />
                 {achievementModal.mode === "add" ? "Add Milestone / Accolade" : "Edit Milestone"}
               </h3>
               <button
+                type="button"
                 onClick={() => setAchievementModal({ ...achievementModal, open: false })}
-                className="text-text-tertiary hover:text-text-primary p-1 rounded-lg transition"
+                className="text-text-tertiary hover:text-text-primary p-1.5 rounded-lg hover:bg-surface-elevated transition"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleSaveAchievement} className="p-5 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <form onSubmit={handleSaveAchievement} className="flex flex-col flex-1 overflow-hidden">
+              <div className="overflow-y-auto p-5 space-y-4 flex-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary mb-1 font-bold">
+                      Year *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={achievementModal.data.year}
+                      onChange={(e) =>
+                        setAchievementModal({
+                          ...achievementModal,
+                          data: { ...achievementModal.data, year: e.target.value },
+                        })
+                      }
+                      placeholder="e.g. 2025"
+                      className="w-full px-3.5 py-2.5 text-sm bg-surface-secondary border border-border-default rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-primary text-text-primary font-mono font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary mb-1 font-bold">
+                      Highlight / Rank *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={achievementModal.data.highlight}
+                      onChange={(e) =>
+                        setAchievementModal({
+                          ...achievementModal,
+                          data: { ...achievementModal.data, highlight: e.target.value },
+                        })
+                      }
+                      placeholder="e.g. Top 25 Finish, Champion"
+                      className="w-full px-3.5 py-2.5 text-sm bg-surface-secondary border border-border-default rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-primary text-text-primary font-bold"
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary mb-1">
-                    Year *
+                  <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary mb-1 font-bold">
+                    Contest / Milestone Title *
                   </label>
                   <input
                     type="text"
                     required
-                    value={achievementModal.data.year}
+                    value={achievementModal.data.title}
                     onChange={(e) =>
                       setAchievementModal({
                         ...achievementModal,
-                        data: { ...achievementModal.data, year: e.target.value },
+                        data: { ...achievementModal.data, title: e.target.value },
                       })
                     }
-                    placeholder="e.g. 2025"
-                    className="w-full px-3 py-2 text-sm bg-surface-secondary border border-border-default rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-primary text-text-primary font-mono font-bold"
+                    placeholder="e.g. ICPC Asia Dhaka Regional Contest"
+                    className="w-full px-3.5 py-2.5 text-sm bg-surface-secondary border border-border-default rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-primary text-text-primary font-bold"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary mb-1">
-                    Highlight / Rank *
+                  <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary mb-1 font-bold">
+                    Description *
                   </label>
-                  <input
-                    type="text"
+                  <textarea
                     required
-                    value={achievementModal.data.highlight}
+                    rows={4}
+                    value={achievementModal.data.desc}
                     onChange={(e) =>
                       setAchievementModal({
                         ...achievementModal,
-                        data: { ...achievementModal.data, highlight: e.target.value },
+                        data: { ...achievementModal.data, desc: e.target.value },
                       })
                     }
-                    placeholder="e.g. Top 25 Finish, Champion"
-                    className="w-full px-3 py-2 text-sm bg-surface-secondary border border-border-default rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-primary text-text-primary font-bold"
+                    placeholder="Official details, team members, or record summary..."
+                    className="w-full px-3.5 py-2.5 text-sm bg-surface-secondary border border-border-default rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-primary text-text-primary"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary mb-1">
-                  Contest / Milestone Title *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={achievementModal.data.title}
-                  onChange={(e) =>
-                    setAchievementModal({
-                      ...achievementModal,
-                      data: { ...achievementModal.data, title: e.target.value },
-                    })
-                  }
-                  placeholder="e.g. ICPC Asia Dhaka Regional Contest"
-                  className="w-full px-3 py-2 text-sm bg-surface-secondary border border-border-default rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-primary text-text-primary font-bold"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary mb-1">
-                  Description *
-                </label>
-                <textarea
-                  required
-                  rows={3}
-                  value={achievementModal.data.desc}
-                  onChange={(e) =>
-                    setAchievementModal({
-                      ...achievementModal,
-                      data: { ...achievementModal.data, desc: e.target.value },
-                    })
-                  }
-                  placeholder="Official details, team members, or record summary..."
-                  className="w-full px-3 py-2 text-sm bg-surface-secondary border border-border-default rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-primary text-text-primary"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-border-default">
-                <button
+              <div className="flex items-center justify-end gap-3 p-4 border-t border-border-default bg-surface-secondary/60 shrink-0">
+                <Button
+                  variant="secondary"
+                  size="md"
                   type="button"
                   onClick={() => setAchievementModal({ ...achievementModal, open: false })}
-                  className="px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl border border-border-default hover:bg-surface-secondary text-text-secondary transition"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="primary"
+                  size="md"
                   type="submit"
                   disabled={achievementModal.saving}
-                  className="inline-flex items-center gap-2 px-5 py-2 text-xs sm:text-sm font-bold rounded-xl bg-accent-primary text-black border-2 border-text-primary shadow-[2px_2px_0px_var(--border-brutalist)] disabled:opacity-50 transition"
+                  icon={achievementModal.saving ? <Loader2 size={15} className="animate-spin" /> : undefined}
                 >
-                  {achievementModal.saving && <Loader2 size={15} className="animate-spin" />}
                   {achievementModal.saving
                     ? "Saving..."
                     : achievementModal.mode === "add"
                     ? "Add Achievement"
                     : "Update Achievement"}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -1148,199 +1246,364 @@ function CPHubViewContent({
       {/* 2. CLUB DOC / EDITORIAL ADD & EDIT MODAL */}
       {/* ────────────────────────────────────────────────────────────────────── */}
       {docModal.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150 overflow-y-auto">
-          <div className="bg-surface-primary border border-border-brutalist dark:border-border-default rounded-2xl w-full max-w-xl shadow-[6px_6px_0px_var(--accent-primary)] overflow-hidden my-8">
-            <div className="flex items-center justify-between p-5 border-b border-border-default bg-surface-secondary">
+        <div className="fixed inset-0 z-[1200] flex items-start sm:items-center justify-center p-3 sm:p-6 pt-20 sm:pt-24 pb-12 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150 overflow-y-auto">
+          <div className="bg-surface-primary border border-border-brutalist dark:border-border-default rounded-2xl w-full max-w-xl shadow-[8px_8px_0px_var(--accent-primary)] overflow-hidden my-auto flex flex-col max-h-[85vh]">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-border-default bg-surface-secondary shrink-0">
               <h3 className="font-bold text-lg text-text-primary flex items-center gap-2">
                 <FileText className="text-accent-primary" size={20} />
                 {docModal.mode === "add" ? "Add Club Document / Editorial" : "Edit Club Document"}
               </h3>
               <button
+                type="button"
                 onClick={() => setDocModal({ ...docModal, open: false })}
-                className="text-text-tertiary hover:text-text-primary p-1 rounded-lg transition"
+                className="text-text-tertiary hover:text-text-primary p-1.5 rounded-lg hover:bg-surface-elevated transition"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleSaveDoc} className="p-5 space-y-4">
-              <div>
-                <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary mb-1">
-                  Document Title *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={docModal.data.title}
-                  onChange={(e) =>
-                    setDocModal({
-                      ...docModal,
-                      data: { ...docModal.data, title: e.target.value },
-                    })
-                  }
-                  placeholder="e.g. Segment Trees Crash Course &amp; Point Updates"
-                  className="w-full px-3 py-2 text-sm bg-surface-secondary border border-border-default rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-primary text-text-primary font-bold"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Modal Form */}
+            <form onSubmit={handleSaveDoc} className="flex flex-col flex-1 overflow-hidden">
+              <div className="overflow-y-auto p-4 sm:p-5 space-y-4 flex-1">
+                {/* Title */}
                 <div>
-                  <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary mb-1">
-                    Author
+                  <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary mb-1 font-bold">
+                    Document Title *
                   </label>
                   <input
                     type="text"
-                    value={docModal.data.author || ""}
+                    required
+                    value={docModal.data.title}
                     onChange={(e) =>
                       setDocModal({
                         ...docModal,
-                        data: { ...docModal.data, author: e.target.value },
+                        data: { ...docModal.data, title: e.target.value },
                       })
                     }
-                    placeholder="e.g. Nusrat Jahan"
-                    className="w-full px-3 py-2 text-sm bg-surface-secondary border border-border-default rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-primary text-text-primary"
+                    placeholder="e.g. Segment Trees Crash Course &amp; Point Updates"
+                    className="w-full px-3.5 py-2.5 text-sm bg-surface-secondary border border-border-default rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-primary text-text-primary font-bold"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary mb-1">
-                    Difficulty *
-                  </label>
-                  <Select
-                    value={docModal.data.difficulty}
-                    onChange={(val) =>
-                      setDocModal({
-                        ...docModal,
-                        data: {
-                          ...docModal.data,
-                          difficulty: val as "beginner" | "intermediate" | "advanced",
-                        },
-                      })
-                    }
-                    options={DIFFICULTY_OPTIONS}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary mb-1">
-                    Resource Type *
-                  </label>
-                  <Select
-                    value={docModal.data.type}
-                    onChange={(val) =>
-                      setDocModal({
-                        ...docModal,
-                        data: { ...docModal.data, type: val },
-                      })
-                    }
-                    options={TYPE_OPTIONS}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary mb-1">
-                  Tags (comma-separated)
-                </label>
-                <input
-                  type="text"
-                  value={docModal.tagsInput}
-                  onChange={(e) => setDocModal({ ...docModal, tagsInput: e.target.value })}
-                  placeholder="e.g. segment-tree, range-query, binary-search"
-                  className="w-full px-3 py-2 text-sm bg-surface-secondary border border-border-default rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-primary text-text-primary font-mono"
-                />
-              </div>
-
-              {/* Redirection Destination Selector */}
-              <div className="p-4 bg-surface-secondary/70 border border-border-default rounded-xl space-y-3">
-                <label className="block text-xs font-mono font-bold uppercase tracking-wider text-text-primary">
-                  Redirection Link / Document Source:
-                </label>
-
-                {/* Link Type Switcher */}
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setDocModal({
-                        ...docModal,
-                        linkType: "custom-page",
-                        data: {
-                          ...docModal.data,
-                          url: customPageOptions.length > 0 ? customPageOptions[0].value : "",
-                        },
-                      })
-                    }
-                    className={`py-2 px-2 text-xs font-bold rounded-lg border transition ${
-                      docModal.linkType === "custom-page"
-                        ? "bg-accent-primary text-black border-text-primary shadow-[2px_2px_0px_var(--border-brutalist)]"
-                        : "bg-surface-elevated text-text-secondary border-border-default hover:bg-surface-secondary"
-                    }`}
-                  >
-                    Custom Page
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setDocModal({
-                        ...docModal,
-                        linkType: "pdf",
-                        data: {
-                          ...docModal.data,
-                          url: docModal.data.pdfUrl || docModal.data.url || "",
-                        },
-                      })
-                    }
-                    className={`py-2 px-2 text-xs font-bold rounded-lg border transition ${
-                      docModal.linkType === "pdf"
-                        ? "bg-accent-primary text-black border-text-primary shadow-[2px_2px_0px_var(--border-brutalist)]"
-                        : "bg-surface-elevated text-text-secondary border-border-default hover:bg-surface-secondary"
-                    }`}
-                  >
-                    Upload PDF
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setDocModal({ ...docModal, linkType: "external" })}
-                    className={`py-2 px-2 text-xs font-bold rounded-lg border transition ${
-                      docModal.linkType === "external"
-                        ? "bg-accent-primary text-black border-text-primary shadow-[2px_2px_0px_var(--border-brutalist)]"
-                        : "bg-surface-elevated text-text-secondary border-border-default hover:bg-surface-secondary"
-                    }`}
-                  >
-                    Web Link
-                  </button>
-                </div>
-
-                {/* Mode 1: Custom Page Redirection */}
-                {docModal.linkType === "custom-page" && (
-                  <div className="space-y-2 pt-1">
-                    {customPageOptions.length > 0 && (
-                      <div>
-                        <label className="block text-[11px] text-text-tertiary mb-1">
-                          Select from pages created via Page Editor:
-                        </label>
-                        <Select
-                          value={docModal.data.url}
-                          onChange={(val) =>
-                            setDocModal({
-                              ...docModal,
-                              data: { ...docModal.data, url: val },
-                            })
-                          }
-                          options={customPageOptions}
-                          placeholder="Select custom page..."
-                        />
-                      </div>
+                {/* Author Field with Club Member Support */}
+                <div className="relative" ref={authorDropdownRef}>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary font-bold">
+                      Author (Club Member or Custom)
+                    </label>
+                    {user && (
+                      <button
+                        type="button"
+                        onClick={handleSetSelfAsAuthor}
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-accent-primary hover:underline"
+                      >
+                        <UserCheck size={12} /> Set Me as Author
+                      </button>
                     )}
-                    <div>
-                      <label className="block text-[11px] text-text-tertiary mb-1">
-                        Page Path:
-                      </label>
+                  </div>
+
+                  {selectedMember ? (
+                    <div className="flex items-center justify-between p-2.5 bg-surface-secondary border border-border-default rounded-xl">
+                      <div className="flex items-center gap-2.5 overflow-hidden">
+                        <div className="w-7 h-7 rounded-full bg-accent-primary/20 border border-accent-primary/40 flex items-center justify-center text-xs font-bold text-text-primary shrink-0 overflow-hidden">
+                          {selectedMember.imageUrl ? (
+                            <img
+                              src={selectedMember.imageUrl}
+                              alt={selectedMember.fullName}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            selectedMember.fullName?.charAt(0) || "M"
+                          )}
+                        </div>
+                        <div className="truncate">
+                          <p className="text-xs font-bold text-text-primary truncate">
+                            {selectedMember.fullName}
+                          </p>
+                          <p className="text-[10px] text-text-secondary font-mono truncate">
+                            Verified Club Member {selectedMember.studentId ? `· ${selectedMember.studentId}` : ""}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleClearMemberAuthor}
+                        className="p-1 rounded-lg text-text-secondary hover:text-accent-error hover:bg-surface-elevated transition"
+                        title="Remove member selection and enter custom name"
+                      >
+                        <X size={15} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="relative">
                       <input
                         type="text"
+                        value={docModal.data.author || ""}
+                        onFocus={() => setShowMemberDropdown(true)}
+                        onChange={(e) => {
+                          setDocModal({
+                            ...docModal,
+                            data: { ...docModal.data, author: e.target.value },
+                          });
+                          setShowMemberDropdown(true);
+                        }}
+                        placeholder="Type author name or select from club members..."
+                        className="w-full px-3.5 py-2.5 text-sm bg-surface-secondary border border-border-default rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-primary text-text-primary"
+                      />
+
+                      {/* Club member suggestions dropdown */}
+                      {showMemberDropdown && (
+                        <div className="absolute top-[calc(100%+4px)] left-0 w-full bg-surface-elevated border border-border-default rounded-xl shadow-[4px_4px_0px_0px_var(--border-default)] z-50 max-h-48 overflow-y-auto">
+                          {clubMembers.length > 0 && (
+                            <div className="p-2 border-b border-border-default bg-surface-secondary/50 text-[10px] font-mono text-text-tertiary uppercase font-bold">
+                              Verified Club Members
+                            </div>
+                          )}
+                          {filteredMembers.length > 0 ? (
+                            filteredMembers.slice(0, 8).map((m) => (
+                              <button
+                                key={m._id || m.id || m.studentId}
+                                type="button"
+                                onClick={() => handleSelectMemberAuthor(m)}
+                                className="w-full px-3 py-2 text-left flex items-center justify-between hover:bg-surface-secondary border-b border-border-default last:border-b-0 transition-colors"
+                              >
+                                <div className="flex items-center gap-2 overflow-hidden">
+                                  <div className="w-6 h-6 rounded-full bg-surface-secondary flex items-center justify-center font-bold text-[10px] text-text-primary overflow-hidden border border-border-default shrink-0">
+                                    {m.imageUrl ? (
+                                      <img src={m.imageUrl} alt={m.fullName} className="w-full h-full object-cover" />
+                                    ) : (
+                                      m.fullName?.charAt(0) || "U"
+                                    )}
+                                  </div>
+                                  <div className="truncate">
+                                    <p className="text-xs font-bold text-text-primary truncate">{m.fullName}</p>
+                                    <p className="text-[10px] text-text-secondary font-mono truncate">
+                                      {m.studentId ? `ID: ${m.studentId}` : m.department || "MEC CSE"}
+                                    </p>
+                                  </div>
+                                </div>
+                                <span className="text-[10px] font-bold text-accent-primary shrink-0 ml-2">
+                                  Select
+                                </span>
+                              </button>
+                            ))
+                          ) : (
+                            <div className="px-3 py-2.5 text-center text-xs text-text-secondary">
+                              No member match found. Custom name &quot;{docModal.data.author}&quot; will be used.
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Difficulty & Type Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary mb-1 font-bold">
+                      Difficulty *
+                    </label>
+                    <Select
+                      value={docModal.data.difficulty}
+                      onChange={(val) =>
+                        setDocModal({
+                          ...docModal,
+                          data: {
+                            ...docModal.data,
+                            difficulty: val as "beginner" | "intermediate" | "advanced",
+                          },
+                        })
+                      }
+                      options={DIFFICULTY_OPTIONS}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary mb-1 font-bold">
+                      Resource Type *
+                    </label>
+                    <Select
+                      value={docModal.data.type}
+                      onChange={(val) =>
+                        setDocModal({
+                          ...docModal,
+                          data: { ...docModal.data, type: val },
+                        })
+                      }
+                      options={TYPE_OPTIONS}
+                    />
+                  </div>
+                </div>
+
+                {/* Tags */}
+                <div>
+                  <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary mb-1 font-bold">
+                    Tags (comma-separated)
+                  </label>
+                  <input
+                    type="text"
+                    value={docModal.tagsInput}
+                    onChange={(e) => setDocModal({ ...docModal, tagsInput: e.target.value })}
+                    placeholder="e.g. segment-tree, range-query, binary-search"
+                    className="w-full px-3.5 py-2.5 text-sm bg-surface-secondary border border-border-default rounded-xl focus:outline-none focus:ring-2 focus:ring-accent-primary text-text-primary font-mono"
+                  />
+                </div>
+
+                {/* Redirection Destination Selector */}
+                <div className="p-4 bg-surface-secondary/70 border border-border-default rounded-xl space-y-3">
+                  <label className="block text-xs font-mono font-bold uppercase tracking-wider text-text-primary">
+                    Redirection Link / Document Source:
+                  </label>
+
+                  {/* Link Type Segmented Switcher with Theme-Safe Colors */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: "custom-page" as const, label: "Custom Page" },
+                      { id: "pdf" as const, label: "Upload PDF" },
+                      { id: "external" as const, label: "Web Link" },
+                    ].map((tab) => {
+                      const isActive = docModal.linkType === tab.id;
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => {
+                            if (tab.id === "custom-page") {
+                              setDocModal({
+                                ...docModal,
+                                linkType: "custom-page",
+                                data: {
+                                  ...docModal.data,
+                                  url: customPageOptions.length > 0 ? customPageOptions[0].value : "",
+                                },
+                              });
+                            } else if (tab.id === "pdf") {
+                              setDocModal({
+                                ...docModal,
+                                linkType: "pdf",
+                                data: {
+                                  ...docModal.data,
+                                  url: docModal.data.pdfUrl || docModal.data.url || "",
+                                },
+                              });
+                            } else {
+                              setDocModal({
+                                ...docModal,
+                                linkType: "external",
+                              });
+                            }
+                          }}
+                          className={`py-2 px-2 text-xs font-bold rounded-lg border-2 transition-all duration-150 ${
+                            isActive
+                              ? "bg-accent-primary !text-accent-primary-text border-text-primary dark:border-border-default shadow-[2px_2px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_var(--accent-primary)]"
+                              : "bg-surface-elevated text-text-secondary hover:text-text-primary hover:bg-surface-secondary border-border-default font-semibold"
+                          }`}
+                        >
+                          {tab.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Mode 1: Custom Page Redirection */}
+                  {docModal.linkType === "custom-page" && (
+                    <div className="space-y-2 pt-1">
+                      {customPageOptions.length > 0 && (
+                        <div>
+                          <label className="block text-[11px] text-text-tertiary mb-1 font-semibold">
+                            Select from pages created via Page Editor:
+                          </label>
+                          <Select
+                            value={docModal.data.url}
+                            onChange={(val) =>
+                              setDocModal({
+                                ...docModal,
+                                data: { ...docModal.data, url: val },
+                              })
+                            }
+                            options={customPageOptions}
+                            placeholder="Select custom page..."
+                          />
+                        </div>
+                      )}
+                      <div>
+                        <label className="block text-[11px] text-text-tertiary mb-1 font-semibold">
+                          Page Path:
+                        </label>
+                        <input
+                          type="text"
+                          value={docModal.data.url}
+                          onChange={(e) =>
+                            setDocModal({
+                              ...docModal,
+                              data: { ...docModal.data, url: e.target.value },
+                            })
+                          }
+                          placeholder="/pages/segment-tree-guide"
+                          className="w-full px-3 py-2 text-xs bg-surface-elevated border border-border-default rounded-xl font-mono text-text-primary"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Mode 2: PDF Upload */}
+                  {docModal.linkType === "pdf" && (
+                    <div className="space-y-3 pt-1">
+                      <label className="block text-[11px] text-text-tertiary font-semibold">
+                        Upload PDF Document (opens with full reader and download capabilities):
+                      </label>
+
+                      <div className="flex items-center gap-3">
+                        <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-elevated border-2 border-dashed border-accent-primary hover:bg-accent-primary-light text-text-primary text-xs font-bold transition">
+                          <UploadCloud size={16} className="text-accent-primary" />
+                          <span>{uploadingPdf ? "Uploading..." : "Choose PDF Document"}</span>
+                          <input
+                            type="file"
+                            accept=".pdf,application/pdf"
+                            onChange={handlePdfFileSelect}
+                            disabled={uploadingPdf}
+                            className="hidden"
+                          />
+                        </label>
+
+                        {uploadingPdf && <Loader2 size={18} className="animate-spin text-accent-primary" />}
+                      </div>
+
+                      {docModal.data.pdfUrl ? (
+                        <div className="flex items-center justify-between p-2.5 rounded-xl bg-green-500/10 border border-green-500/30 text-xs">
+                          <div className="flex items-center gap-2 overflow-hidden">
+                            <CheckCircle2 size={16} className="text-green-600 shrink-0" />
+                            <span className="font-mono truncate text-green-700 dark:text-green-300 font-semibold">
+                              {docModal.data.pdfUrl}
+                            </span>
+                          </div>
+                          <a
+                            href={docModal.data.pdfUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-accent-primary hover:underline font-bold shrink-0 ml-2"
+                          >
+                            Preview
+                          </a>
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-text-tertiary">
+                          No PDF uploaded yet. Click &quot;Choose PDF Document&quot; above.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Mode 3: External URL */}
+                  {docModal.linkType === "external" && (
+                    <div className="space-y-1 pt-1">
+                      <label className="block text-[11px] text-text-tertiary font-semibold">
+                        External URL (e.g. GitHub repository, Codeforces article, or website):
+                      </label>
+                      <input
+                        type="url"
                         value={docModal.data.url}
                         onChange={(e) =>
                           setDocModal({
@@ -1348,103 +1611,37 @@ function CPHubViewContent({
                             data: { ...docModal.data, url: e.target.value },
                           })
                         }
-                        placeholder="/pages/segment-tree-guide"
+                        placeholder="https://..."
                         className="w-full px-3 py-2 text-xs bg-surface-elevated border border-border-default rounded-xl font-mono text-text-primary"
                       />
                     </div>
-                  </div>
-                )}
-
-                {/* Mode 2: PDF Upload */}
-                {docModal.linkType === "pdf" && (
-                  <div className="space-y-3 pt-1">
-                    <label className="block text-[11px] text-text-tertiary">
-                      Upload PDF Document (Redirection will open in dedicated PDF viewer &amp; download portal):
-                    </label>
-
-                    <div className="flex items-center gap-3">
-                      <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-elevated border-2 border-dashed border-accent-primary hover:bg-accent-primary-light text-text-primary text-xs font-bold transition">
-                        <UploadCloud size={16} className="text-accent-primary" />
-                        <span>{uploadingPdf ? "Uploading..." : "Choose PDF Document"}</span>
-                        <input
-                          type="file"
-                          accept=".pdf,application/pdf"
-                          onChange={handlePdfFileSelect}
-                          disabled={uploadingPdf}
-                          className="hidden"
-                        />
-                      </label>
-
-                      {uploadingPdf && <Loader2 size={18} className="animate-spin text-accent-primary" />}
-                    </div>
-
-                    {docModal.data.pdfUrl ? (
-                      <div className="flex items-center justify-between p-2.5 rounded-xl bg-green-500/10 border border-green-500/30 text-xs">
-                        <div className="flex items-center gap-2 overflow-hidden">
-                          <CheckCircle2 size={16} className="text-green-600 shrink-0" />
-                          <span className="font-mono truncate text-green-700 dark:text-green-300 font-semibold">
-                            {docModal.data.pdfUrl}
-                          </span>
-                        </div>
-                        <a
-                          href={docModal.data.pdfUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-accent-primary hover:underline font-bold shrink-0 ml-2"
-                        >
-                          Preview
-                        </a>
-                      </div>
-                    ) : (
-                      <p className="text-[11px] text-text-tertiary">
-                        No PDF uploaded yet. Click &quot;Choose PDF Document&quot; above.
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Mode 3: External URL */}
-                {docModal.linkType === "external" && (
-                  <div className="space-y-1 pt-1">
-                    <label className="block text-[11px] text-text-tertiary">
-                      External URL (e.g. GitHub repo, Codeforces post, or article):
-                    </label>
-                    <input
-                      type="url"
-                      value={docModal.data.url}
-                      onChange={(e) =>
-                        setDocModal({
-                          ...docModal,
-                          data: { ...docModal.data, url: e.target.value },
-                        })
-                      }
-                      placeholder="https://..."
-                      className="w-full px-3 py-2 text-xs bg-surface-elevated border border-border-default rounded-xl font-mono text-text-primary"
-                    />
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-border-default">
-                <button
+              {/* Modal Sticky Footer */}
+              <div className="flex items-center justify-end gap-3 p-4 border-t border-border-default bg-surface-secondary/60 shrink-0">
+                <Button
+                  variant="secondary"
+                  size="md"
                   type="button"
                   onClick={() => setDocModal({ ...docModal, open: false })}
-                  className="px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl border border-border-default hover:bg-surface-secondary text-text-secondary transition"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="primary"
+                  size="md"
                   type="submit"
                   disabled={docModal.saving || uploadingPdf}
-                  className="inline-flex items-center gap-2 px-5 py-2 text-xs sm:text-sm font-bold rounded-xl bg-accent-primary text-black border-2 border-text-primary shadow-[2px_2px_0px_var(--border-brutalist)] disabled:opacity-50 transition"
+                  icon={docModal.saving ? <Loader2 size={15} className="animate-spin" /> : undefined}
                 >
-                  {docModal.saving && <Loader2 size={15} className="animate-spin" />}
                   {docModal.saving
                     ? "Saving..."
                     : docModal.mode === "add"
                     ? "Add Document"
                     : "Update Document"}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -1455,10 +1652,10 @@ function CPHubViewContent({
       {/* 3. PDF VIEWER & DOWNLOAD MODAL */}
       {/* ────────────────────────────────────────────────────────────────────── */}
       {viewingPdfDoc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="bg-surface-primary border border-border-brutalist dark:border-border-default rounded-2xl w-full max-w-5xl shadow-[8px_8px_0px_var(--accent-primary)] overflow-hidden flex flex-col max-h-[92vh]">
+        <div className="fixed inset-0 z-[1200] flex items-start sm:items-center justify-center p-3 sm:p-6 pt-20 sm:pt-24 pb-12 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150 overflow-y-auto">
+          <div className="bg-surface-primary border border-border-brutalist dark:border-border-default rounded-2xl w-full max-w-5xl shadow-[8px_8px_0px_var(--accent-primary)] overflow-hidden my-auto flex flex-col max-h-[88vh]">
             {/* Modal Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-5 border-b border-border-default bg-surface-secondary gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-5 border-b border-border-default bg-surface-secondary shrink-0 gap-3">
               <div>
                 <div className="flex items-center gap-2 flex-wrap mb-1">
                   <Badge variant="active" size="sm">
@@ -1479,30 +1676,31 @@ function CPHubViewContent({
               </div>
 
               {/* Header Action Buttons */}
-              <div className="flex items-center gap-2 shrink-0">
-                <a
+              <div className="flex items-center gap-2.5 shrink-0">
+                <Button
+                  variant="primary"
+                  size="sm"
                   href={viewingPdfDoc.pdfUrl || viewingPdfDoc.url}
-                  download={`${viewingPdfDoc.title.replace(/[^a-zA-Z0-9_-]/g, "_")}.pdf`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-accent-primary text-black border border-text-primary shadow-[2px_2px_0px_var(--border-brutalist)] hover:translate-x-0.5 hover:translate-y-0.5 transition"
+                  icon={<Download size={14} />}
                 >
-                  <Download size={14} />
-                  <span>Download PDF</span>
-                </a>
+                  Download PDF
+                </Button>
 
-                <a
+                <Button
+                  variant="secondary"
+                  size="sm"
                   href={viewingPdfDoc.pdfUrl || viewingPdfDoc.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-border-default bg-surface-elevated text-text-primary hover:bg-surface-secondary transition"
-                  title="Open in new tab"
+                  icon={<ExternalLink size={14} />}
                 >
-                  <ExternalLink size={14} />
-                  <span className="hidden sm:inline">New Tab</span>
-                </a>
+                  New Tab
+                </Button>
 
                 <button
+                  type="button"
                   onClick={() => setViewingPdfDoc(null)}
                   className="p-2 text-text-secondary hover:text-text-primary rounded-xl hover:bg-surface-elevated transition ml-1"
                   title="Close"

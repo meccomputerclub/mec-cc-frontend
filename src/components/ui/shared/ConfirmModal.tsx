@@ -46,7 +46,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-75 backdrop-blur-sm transition-opacity">
+    <div className="fixed inset-0 z-[1300] flex items-center justify-center p-4 pt-20 bg-gray-900/80 backdrop-blur-sm transition-opacity">
       <div
         className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 transform transition-all border border-gray-200 dark:border-gray-700"
         role="dialog"
