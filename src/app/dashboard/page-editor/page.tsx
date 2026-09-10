@@ -1,13 +1,15 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import axios from "axios";
 import { API_BASE_URL } from "@/lib/api";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   Plus, Pencil, Trash2, Eye, Globe, Lock,
-  RefreshCw, FileCode, ExternalLink,
+  RefreshCw, FileCode, ExternalLink, FileText,
 } from "lucide-react";
 import ImageUpload from "@/components/ui/shared/ImageUpload";
+import PageContentManager from "./components/PageContentManager";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface CustomPage {
@@ -48,8 +50,12 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 
 const INPUT = "w-full px-3 py-2.5 rounded-xl border border-border-default bg-surface-elevated text-text-primary focus:ring-2 focus:ring-accent-primary outline-none text-sm";
 
-// ── Main component ─────────────────────────────────────────────────────────
-export default function PageEditorPage() {
+function PageEditorContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const initialTab = searchParams.get("tab") === "content" || searchParams.get("tab") === "sections" ? "content" : "pages";
+  const [mainTab, setMainTab] = useState<"pages" | "content">(initialTab);
+
   const [pages, setPages] = useState<CustomPage[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -59,6 +65,22 @@ export default function PageEditorPage() {
   const [form, setForm] = useState(EMPTY);
   const [showPreview, setShowPreview] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  // Sync tab with search param if changed
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam === "content" || tabParam === "sections") {
+      setMainTab("content");
+    } else if (tabParam === "pages") {
+      setMainTab("pages");
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (tab: "pages" | "content") => {
+    setMainTab(tab);
+    const newUrl = tab === "content" ? "/dashboard/page-editor?tab=content" : "/dashboard/page-editor";
+    router.replace(newUrl, { scroll: false });
+  };
 
   // ── Fetch all pages ──────────────────────────────────────────────────────
   const fetchPages = async () => {
@@ -154,26 +176,61 @@ export default function PageEditorPage() {
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border-default pb-4">
-        <div>
-          <h2 className="text-2xl sm:text-3xl font-semibold text-text-primary flex items-center gap-2">
-            <FileCode className="text-accent-primary" size={28} /> Page Editor
-          </h2>
-          <p className="text-sm text-text-secondary mt-1">
-            Create and manage custom pages. Each page is served at <code className="bg-surface-secondary px-1 rounded">/pages/[slug]</code>
-          </p>
-        </div>
+      {/* ── Top Level Mode Tabs ── */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-border-default pb-3">
         <button
-          onClick={openNew}
-          className="flex items-center gap-2 px-5 py-2.5 bg-text-primary hover:bg-surface-inverse text-surface-primary border border-border-default rounded-xl font-semibold text-sm transition shadow-sm"
+          onClick={() => handleTabChange("pages")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+            mainTab === "pages"
+              ? "bg-accent-primary text-white shadow-[3px_3px_0px_var(--border-brutalist)]"
+              : "bg-surface-secondary text-text-secondary hover:text-text-primary border border-border-default"
+          }`}
         >
-          <Plus size={16} /> New Page
+          <FileCode className="w-4 h-4" />
+          Custom Standalone Pages
+          {pages.length > 0 && (
+            <span className={`ml-1 px-1.5 py-0.5 rounded text-[11px] ${mainTab === "pages" ? "bg-white/20 text-white" : "bg-surface-elevated text-text-secondary"}`}>
+              {pages.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => handleTabChange("content")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+            mainTab === "content"
+              ? "bg-accent-primary text-white shadow-[3px_3px_0px_var(--border-brutalist)]"
+              : "bg-surface-secondary text-text-secondary hover:text-text-primary border border-border-default"
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          Core Page Content (Home / CP Hub / Contact)
         </button>
       </div>
 
-      {/* ── Editor form ── */}
-      {showForm && (
+      {mainTab === "content" ? (
+        <PageContentManager />
+      ) : (
+        <>
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border-default pb-4">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-semibold text-text-primary flex items-center gap-2">
+                <FileCode className="text-accent-primary" size={28} /> Custom Pages
+              </h2>
+              <p className="text-sm text-text-secondary mt-1">
+                Create and manage custom pages. Each page is served at <code className="bg-surface-secondary px-1 rounded">/pages/[slug]</code>
+              </p>
+            </div>
+            <button
+              onClick={openNew}
+              className="flex items-center gap-2 px-5 py-2.5 bg-text-primary hover:bg-surface-inverse text-surface-primary border border-border-default rounded-xl font-semibold text-sm transition shadow-sm"
+            >
+              <Plus size={16} /> New Page
+            </button>
+          </div>
+
+          {/* ── Editor form ── */}
+          {showForm && (
         <div className="bg-surface-elevated rounded-2xl border border-border-default shadow-[4px_4px_0px_0px_var(--border-default)] overflow-hidden">
           {/* Form header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-border-default bg-surface-secondary">
@@ -400,17 +457,23 @@ export default function PageEditorPage() {
         </div>
       )}
 
-      {/* Refresh */}
-      {!loading && pages.length > 0 && (
-        <div className="flex justify-end">
-          <button
-            onClick={fetchPages}
-            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition"
-          >
-            <RefreshCw size={13} /> Refresh
-          </button>
-        </div>
+        </>
       )}
     </div>
+  );
+}
+
+export default function PageEditorPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-12 text-center text-text-tertiary flex items-center justify-center gap-2">
+          <RefreshCw className="w-5 h-5 animate-spin text-accent-primary" />
+          <span>Loading page editor...</span>
+        </div>
+      }
+    >
+      <PageEditorContent />
+    </Suspense>
   );
 }

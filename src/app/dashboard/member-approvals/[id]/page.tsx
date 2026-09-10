@@ -268,7 +268,7 @@ export default function MemberApplicationReviewPage() {
           <p style={{ color: "var(--text-secondary)", margin: "8px 0 24px" }}>
             {error || "The requested application does not exist or has been removed."}
           </p>
-          <Button href="/dashboard?tab=members-management">← Back to Member Approvals</Button>
+          <Button href="/dashboard/members">← Back to Member Approvals</Button>
         </div>
       </div>
     );
@@ -759,7 +759,7 @@ export default function MemberApplicationReviewPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => router.push("/dashboard?tab=members-management")}
+                    onClick={() => router.push("/dashboard/members")}
                     style={{ width: "100%", justifyContent: "center" }}
                   >
                     <ArrowLeft size={13} style={{ marginRight: "4px" }} /> Back to Approvals
