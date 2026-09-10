@@ -98,19 +98,19 @@ export default function SiteSettingsPage() {
     return (
       <div
         key={setting.key}
-        className="bg-surface-elevated rounded-xl border border-border-default p-5 shadow-[3px_3px_0px_0px_var(--border-default)] transition hover:shadow-[4px_4px_0px_0px_var(--border-default)]"
+        className="bg-surface-elevated rounded-xl border border-border-default p-5 shadow-[3px_3px_0px_0px_var(--border-default)] transition hover:shadow-[4px_4px_0px_0px_var(--border-default)] flex flex-col justify-between"
       >
-        <div className="flex items-center justify-between gap-2 mb-1">
+        <div className={`flex items-center justify-between gap-2 ${isBatchSetting ? "mb-3" : "mb-1"}`}>
           <label className="block text-sm font-bold text-text-primary">
             {setting.label}
           </label>
           {isBatchSetting && (
-            <span className="text-[11px] font-mono px-2 py-0.5 bg-accent-primary-light text-text-primary border border-border-default rounded font-bold">
+            <span className="text-[11px] font-mono px-2 py-0.5 bg-accent-primary-light text-text-primary border border-border-default rounded font-bold shrink-0">
               Latest Batch: #{setting.value}
             </span>
           )}
         </div>
-        {setting.description && (
+        {!isBatchSetting && setting.description && (
           <p className="text-xs text-text-secondary font-medium mb-3">
             {setting.description}
           </p>
@@ -147,7 +147,39 @@ export default function SiteSettingsPage() {
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Section 1: Academic Batch Settings */}
+          {/* Section 1: General Information */}
+          {generalSettings.length > 0 && (
+            <div className="space-y-4">
+              <div className="border-b border-border-default pb-2">
+                <div className="flex items-center gap-2 text-lg font-bold text-text-primary">
+                  <Building2 className="text-accent-primary" size={20} />
+                  General Club Information
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {generalSettings.map(renderSettingInput)}
+              </div>
+            </div>
+          )}
+
+          {/* Section 2: Contact & Socials */}
+          {contactSettings.length > 0 && (
+            <div className="space-y-4">
+              <div className="border-b border-border-default pb-2">
+                <div className="flex items-center gap-2 text-lg font-bold text-text-primary">
+                  <Globe className="text-accent-primary" size={20} />
+                  Contact Channels &amp; Social Links
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {contactSettings.map(renderSettingInput)}
+              </div>
+            </div>
+          )}
+
+          {/* Section 3: Academic Batch Settings */}
           {batchSettings.length > 0 && (
             <div className="space-y-4">
               <div className="border-b border-border-default pb-2">
@@ -165,38 +197,6 @@ export default function SiteSettingsPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {batchSettings.map(renderSettingInput)}
-              </div>
-            </div>
-          )}
-
-          {/* Section 2: General Information */}
-          {generalSettings.length > 0 && (
-            <div className="space-y-4">
-              <div className="border-b border-border-default pb-2">
-                <div className="flex items-center gap-2 text-lg font-bold text-text-primary">
-                  <Building2 className="text-accent-primary" size={20} />
-                  General Club Information
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                {generalSettings.map(renderSettingInput)}
-              </div>
-            </div>
-          )}
-
-          {/* Section 3: Contact & Socials */}
-          {contactSettings.length > 0 && (
-            <div className="space-y-4">
-              <div className="border-b border-border-default pb-2">
-                <div className="flex items-center gap-2 text-lg font-bold text-text-primary">
-                  <Globe className="text-accent-primary" size={20} />
-                  Contact Channels &amp; Social Links
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                {contactSettings.map(renderSettingInput)}
               </div>
             </div>
           )}
