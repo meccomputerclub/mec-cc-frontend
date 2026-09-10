@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import Link from "next/link";
 import {
   Save,
   RefreshCw,
@@ -12,6 +13,8 @@ import {
   Home,
   Code2,
   MessageSquare,
+  Award,
+  BookOpen,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { API_BASE_URL } from "@/lib/api";
@@ -566,6 +569,45 @@ export default function PageContentManager() {
                 placeholder="Leaderboard, curated roadmaps..."
                 className="w-full px-3 py-2 text-sm bg-surface-secondary border border-border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-primary text-text-primary"
               />
+            </div>
+
+            {/* Quick Links for Achievements and Club Docs */}
+            <div className="pt-4 border-t border-border-default grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl border border-border-default bg-surface-secondary flex flex-col justify-between">
+                <div>
+                  <h4 className="font-bold text-sm text-text-primary flex items-center gap-1.5 mb-1">
+                    <Award className="w-4 h-4 text-accent-primary" /> Contest Achievements
+                  </h4>
+                  <p className="text-xs text-text-tertiary mb-3">
+                    Add, edit, or delete official team finishes, ICPC regional awards, and contest accolades with live interactive controls.
+                  </p>
+                </div>
+                <Link
+                  href="/cp-hub?tab=achievements"
+                  target="_blank"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-accent-primary hover:underline"
+                >
+                  Manage Achievements <ExternalLink className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+
+              <div className="p-4 rounded-xl border border-border-default bg-surface-secondary flex flex-col justify-between">
+                <div>
+                  <h4 className="font-bold text-sm text-text-primary flex items-center gap-1.5 mb-1">
+                    <BookOpen className="w-4 h-4 text-accent-primary" /> Club Docs, Tutorials &amp; PDFs
+                  </h4>
+                  <p className="text-xs text-text-tertiary mb-3">
+                    Publish tutorials, algorithm guides, and upload PDF sheets with embedded reader and download capabilities.
+                  </p>
+                </div>
+                <Link
+                  href="/cp-hub?tab=resources"
+                  target="_blank"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-accent-primary hover:underline"
+                >
+                  Manage Club Docs &amp; PDFs <ExternalLink className="w-3.5 h-3.5" />
+                </Link>
+              </div>
             </div>
           </div>
         </div>

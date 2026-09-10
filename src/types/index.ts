@@ -156,12 +156,23 @@ export interface CPContest {
   };
 }
 
+export interface CPAchievement {
+  id?: string;
+  _id?: string;
+  title: string;
+  highlight: string;
+  desc: string;
+  year: string;
+}
+
 export interface CPResource {
   id: string;
   title: string;
-  type: "editorial" | "tutorial" | "problem-set" | "video";
+  type: "editorial" | "tutorial" | "problem-set" | "video" | "doc" | "sheet" | "algorithm" | string;
   difficulty: "beginner" | "intermediate" | "advanced";
   url: string;
+  pdfUrl?: string;
+  linkType?: "custom-page" | "pdf" | "external";
   tags: string[];
   author?: string;
   date?: string;
