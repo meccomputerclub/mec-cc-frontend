@@ -152,14 +152,6 @@ export default function EventsManagementPage() {
               <FilePlus size={16} />
               Create Form
             </Link>
-            <Link
-              href="/dashboard/manage-events/create-project"
-              className="flex items-center gap-2 whitespace-nowrap bg-text-primary hover:bg-surface-inverse text-white px-4 py-2.5 rounded-lg font-semibold transition-all shadow-[3px_3px_0px_0px_var(--border-default)] text-sm border border-border-default"
-              style={{ color: "#FFFFFF" }}
-            >
-              <Plus size={16} />
-              New Project
-            </Link>
           </div>
         </div>
 

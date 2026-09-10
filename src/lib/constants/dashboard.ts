@@ -15,6 +15,7 @@ import {
   BookOpen,
   Award,
   FileText,
+  FolderGit2,
 } from "lucide-react";
 
 export interface MenuItem {
@@ -42,6 +43,7 @@ export const DASHBOARD_MENU: DashboardMenuConfig = {
     { key: "overview", label: "Admin Overview", icon: LayoutDashboard },
     { key: "members", label: "Members & Apps", icon: Users },
     { key: "manage-events", label: "Events & Content", icon: Calendar },
+    { key: "manage-projects", label: "Software & Projects", icon: FolderGit2 },
     { key: "manage-certificates", label: "Certificates", icon: Award },
     { key: "blogs", label: "Blog Management", icon: BookOpen },
     { key: "page-content", label: "Page Content", icon: FileText },
@@ -56,6 +58,7 @@ export const DASHBOARD_MENU: DashboardMenuConfig = {
     { key: "overview", label: "Admin Overview", icon: LayoutDashboard },
     { key: "members", label: "Members & Apps", icon: Users },
     { key: "manage-events", label: "Events & Content", icon: Calendar },
+    { key: "manage-projects", label: "Software & Projects", icon: FolderGit2 },
     { key: "manage-certificates", label: "Certificates", icon: Award },
     { key: "blogs", label: "Blog Management", icon: BookOpen },
     { key: "page-content", label: "Page Content", icon: FileText },

@@ -10,6 +10,7 @@ import { Select } from "@/components/ui/Select";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
 import toast from "react-hot-toast";
+import { ProjectModal } from "@/components/projects/ProjectModal";
 import {
   Plus,
   Search,
@@ -66,18 +67,6 @@ export function ProjectsClient({ initialProjects }: ProjectsClientProps) {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState({
-    title: "",
-    department: "webdev",
-    status: "in-progress",
-    description: "",
-    techStack: "",
-    githubLink: "",
-    liveDemoLink: "",
-    imageUrl: "",
-    featured: false,
-  });
 
   const isAdmin = user?.role === "admin" || user?.role === "moderator";
 
@@ -110,84 +99,36 @@ export function ProjectsClient({ initialProjects }: ProjectsClientProps) {
       setShowAuthPrompt(true);
       return;
     }
-    setForm({
-      title: "",
-      department: "webdev",
-      status: "in-progress",
-      description: "",
-      techStack: "",
-      githubLink: "",
-      liveDemoLink: "",
-      imageUrl: "",
-      featured: false,
-    });
     setIsModalOpen(true);
   };
 
-  // Submit Project
-  const handleSubmitProject = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.title.trim() || !form.description.trim()) {
-      toast.error("Please enter a title and description.");
-      return;
-    }
+  const handleProjectSuccess = (newDoc: any) => {
+    const skills = Array.isArray(newDoc.techStack) && newDoc.techStack.length > 0
+      ? newDoc.techStack
+      : Array.isArray(newDoc.requiredSkills)
+      ? newDoc.requiredSkills
+      : [];
 
-    setSubmitting(true);
-    try {
-      const payload = {
-        title: form.title.trim(),
-        department: form.department,
-        status: form.status === "in-progress" ? "in_progress" : form.status,
-        description: form.description.trim(),
-        requiredSkills: form.techStack
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean),
-        techStack: form.techStack
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean),
-        githubLink: form.githubLink.trim() || undefined,
-        liveDemoLink: form.liveDemoLink.trim() || undefined,
-        imageUrl: form.imageUrl.trim() || undefined,
-        featured: isAdmin ? form.featured : false,
-      };
+    const newProject: Project = {
+      id: newDoc._id || newDoc.id || String(Date.now()),
+      slug: newDoc.slug || newDoc._id || newDoc.id,
+      title: newDoc.title,
+      description: newDoc.description || "",
+      department: newDoc.department || "webdev",
+      techStack: skills.length > 0 ? skills : ["Code"],
+      image: newDoc.imageUrl || newDoc.image || "/images/projects/cp-tracker.jpg",
+      team: Array.isArray(newDoc.teamMembers) && newDoc.teamMembers.length > 0
+        ? newDoc.teamMembers.map((m: any) => m.fullName || m.name || "Member")
+        : [user?.fullName || "Club Member"],
+      liveUrl: newDoc.liveDemoLink || newDoc.liveUrl || undefined,
+      repoUrl: newDoc.githubLink || newDoc.repoUrl || undefined,
+      status: newDoc.status === "completed" ? "completed" : "in-progress",
+      featured: Boolean(newDoc.featured),
+      createdBy: newDoc.createdBy?._id || newDoc.createdBy || user?.id,
+    };
 
-      const res = await api.post("/api/projects", payload);
-      const newDoc = res.data || res;
-
-      // Transform backend response to Project interface
-      const skills = Array.isArray(newDoc.techStack) && newDoc.techStack.length > 0
-        ? newDoc.techStack
-        : Array.isArray(newDoc.requiredSkills)
-        ? newDoc.requiredSkills
-        : [];
-
-      const newProject: Project = {
-        id: newDoc._id || newDoc.id || String(Date.now()),
-        slug: newDoc.slug || newDoc._id || newDoc.id,
-        title: newDoc.title,
-        description: newDoc.description || "",
-        department: newDoc.department || "webdev",
-        techStack: skills.length > 0 ? skills : ["Code"],
-        image: newDoc.imageUrl || newDoc.image || "/images/projects/cp-tracker.jpg",
-        team: user?.fullName ? [user.fullName] : ["Club Member"],
-        liveUrl: newDoc.liveDemoLink || newDoc.liveUrl || undefined,
-        repoUrl: newDoc.githubLink || newDoc.repoUrl || undefined,
-        status: newDoc.status === "completed" ? "completed" : "in-progress",
-        featured: Boolean(newDoc.featured),
-        createdBy: user?.id,
-      };
-
-      setProjectsList((prev) => [newProject, ...prev]);
-      setIsModalOpen(false);
-      toast.success("Project added and published immediately!");
-      router.refresh();
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to create project");
-    } finally {
-      setSubmitting(false);
-    }
+    setProjectsList((prev) => [newProject, ...prev]);
+    router.refresh();
   };
 
   // Toggle Featured (Admin only)
@@ -358,194 +299,13 @@ export function ProjectsClient({ initialProjects }: ProjectsClientProps) {
         </div>
       </section>
 
-      {/* ── Add Project Modal ── */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-[fadeIn_0.15s_ease-out]">
-          <div
-            className="bg-surface-elevated border-2 border-border-brutalist dark:border-border-default rounded-2xl shadow-[8px_8px_0px_0px_var(--border-brutalist)] dark:shadow-[8px_8px_0px_0px_var(--border-default)] w-full max-w-xl max-h-[90vh] overflow-y-auto"
-            role="dialog"
-            aria-modal="true"
-          >
-            {/* Modal Header */}
-            <div className="sticky top-0 bg-surface-elevated z-10 px-5 py-4 border-b border-border-default flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-accent-primary text-white flex items-center justify-center font-bold">
-                  <Code2 size={18} />
-                </div>
-                <div>
-                  <h2 className="text-base sm:text-lg font-extrabold text-text-primary m-0">
-                    Add Club Project
-                  </h2>
-                  <p className="text-xs text-text-secondary m-0">
-                    Your project will appear immediately on the projects page.
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-secondary transition-colors"
-                aria-label="Close"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <form onSubmit={handleSubmitProject} className="p-5 sm:p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-mono font-bold uppercase tracking-wider text-text-secondary mb-1.5">
-                  Project Title <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. MEC Judge, Campus Chatbot, Alumni Platform"
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-surface-secondary border border-border-default text-text-primary text-sm focus:outline-none focus:border-accent-primary"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-mono font-bold uppercase tracking-wider text-text-secondary mb-1.5">
-                    Department <span className="text-red-500">*</span>
-                  </label>
-                  <Select
-                    value={form.department}
-                    onChange={(val) => setForm({ ...form, department: val })}
-                    options={FORM_DEPARTMENT_OPTIONS}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-mono font-bold uppercase tracking-wider text-text-secondary mb-1.5">
-                    Status
-                  </label>
-                  <Select
-                    value={form.status}
-                    onChange={(val) => setForm({ ...form, status: val })}
-                    options={STATUS_OPTIONS}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-mono font-bold uppercase tracking-wider text-text-secondary mb-1.5">
-                  Short Description <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  required
-                  rows={3}
-                  placeholder="What does this project do? What technologies and problems does it address?"
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-surface-secondary border border-border-default text-text-primary text-sm focus:outline-none focus:border-accent-primary resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-mono font-bold uppercase tracking-wider text-text-secondary mb-1.5">
-                  Tech Stack (comma-separated)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Next.js, Node.js, PostgreSQL, Docker"
-                  value={form.techStack}
-                  onChange={(e) => setForm({ ...form, techStack: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-surface-secondary border border-border-default text-text-primary text-sm focus:outline-none focus:border-accent-primary"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-mono font-bold uppercase tracking-wider text-text-secondary mb-1.5">
-                    GitHub Repository Link
-                  </label>
-                  <input
-                    type="url"
-                    placeholder="https://github.com/..."
-                    value={form.githubLink}
-                    onChange={(e) => setForm({ ...form, githubLink: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-lg bg-surface-secondary border border-border-default text-text-primary text-sm focus:outline-none focus:border-accent-primary"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-mono font-bold uppercase tracking-wider text-text-secondary mb-1.5">
-                    Live Demo Link
-                  </label>
-                  <input
-                    type="url"
-                    placeholder="https://..."
-                    value={form.liveDemoLink}
-                    onChange={(e) => setForm({ ...form, liveDemoLink: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-lg bg-surface-secondary border border-border-default text-text-primary text-sm focus:outline-none focus:border-accent-primary"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-mono font-bold uppercase tracking-wider text-text-secondary mb-1.5">
-                  Cover Image URL (optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="https://... or /images/projects/..."
-                  value={form.imageUrl}
-                  onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-surface-secondary border border-border-default text-text-primary text-sm focus:outline-none focus:border-accent-primary"
-                />
-              </div>
-
-              {/* Admin Highlight Checkbox */}
-              {isAdmin && (
-                <div className="pt-2 border-t border-dashed border-border-default">
-                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={form.featured}
-                      onChange={(e) => setForm({ ...form, featured: e.target.checked })}
-                      className="w-4 h-4 rounded text-accent-primary border-border-default focus:ring-accent-primary cursor-pointer"
-                    />
-                    <div>
-                      <span className="text-sm font-bold text-text-primary flex items-center gap-1">
-                        <Star size={14} className="text-amber-500 fill-amber-500" />
-                        Highlight on Home Page
-                      </span>
-                      <span className="text-xs text-text-secondary block">
-                        Will appear in the &quot;Successfully Deployed Projects&quot; showcase on the homepage.
-                      </span>
-                    </div>
-                  </label>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="pt-4 border-t border-border-default flex items-center justify-end gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsModalOpen(false)}
-                  disabled={submitting}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="sm"
-                  disabled={submitting}
-                  className="min-w-[120px]"
-                >
-                  {submitting ? "Publishing..." : "Publish Project"}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* ── Unified Project Modal ── */}
+      <ProjectModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={handleProjectSuccess}
+        isAdmin={isAdmin}
+      />
 
       {/* ── Not Logged In Auth Prompt ── */}
       {showAuthPrompt && (

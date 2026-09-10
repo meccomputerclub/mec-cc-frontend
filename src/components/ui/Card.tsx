@@ -114,6 +114,8 @@ interface ProjectCardProps {
   slug: string;
   image?: string;
   liveUrl?: string;
+  repoUrl?: string;
+  githubLink?: string;
   featured?: boolean;
   onToggleFeatured?: (e: React.MouseEvent) => void;
   onDelete?: (e: React.MouseEvent) => void;
