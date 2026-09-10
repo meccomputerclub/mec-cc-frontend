@@ -105,6 +105,8 @@ export interface Project {
   team: string[];
   liveUrl?: string;
   repoUrl?: string;
+  repositories?: Array<{ label?: string; url: string }>;
+  githubLinks?: string[];
   status: "in-progress" | "completed" | "archived";
   featured?: boolean;
   completedDate?: string;

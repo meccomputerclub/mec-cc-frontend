@@ -1,4 +1,5 @@
 import { Project } from "@/types";
+import { getProjectCoverImage, extractProjectRepositories } from "@/lib/projectUtils";
 
 export const projects: Project[] = [
   {
@@ -110,6 +111,9 @@ function mapBackendProject(p: any): Project {
     ? p.technologies
     : ["TypeScript", "React"];
 
+  const repos = extractProjectRepositories(p);
+  const coverImage = getProjectCoverImage(p);
+
   return {
     id: p._id || p.id,
     slug: p.slug || p._id || p.id,
@@ -118,10 +122,12 @@ function mapBackendProject(p: any): Project {
     longDescription: p.longDescription || p.description || "",
     department: p.department || "webdev",
     techStack: skills,
-    image: p.imageUrl || p.image || p.coverImageUrl || "/images/projects/cp-tracker.jpg",
+    image: coverImage,
     team: teamMembers.length > 0 ? teamMembers : ["Club Member"],
     liveUrl: p.liveDemoLink || p.liveUrl || p.projectUrl || undefined,
-    repoUrl: p.githubLink || p.repoUrl || p.githubUrl || undefined,
+    repoUrl: p.githubLink || p.repoUrl || (repos[0]?.url) || undefined,
+    repositories: repos,
+    githubLinks: p.githubLinks || repos.map((r: any) => r.url),
     status: p.status === "completed" ? "completed" : p.status === "archived" ? "archived" : "in-progress",
     featured: Boolean(p.featured),
     completedDate: p.endDate ? String(p.endDate).slice(0, 7) : p.completedDate,

@@ -22,6 +22,7 @@ import { api } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { ProjectModal } from "@/components/projects/ProjectModal";
 import FilterSelect from "@/app/dashboard/components/FilterSelect";
+import { getProjectCoverImage, extractProjectRepositories } from "@/lib/projectUtils";
 
 export default function AdminProjectsPage() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -123,7 +124,7 @@ export default function AdminProjectsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border-default pb-6">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-accent-primary text-black flex items-center justify-center border border-border-default font-black shadow-[2px_2px_0px_0px_var(--border-default)]">
+            <div className="w-10 h-10 rounded-xl bg-accent-primary-light/50 dark:bg-accent-primary/20 text-accent-text-on-surface dark:text-accent-primary flex items-center justify-center border border-accent-primary/30 font-black shadow-[2px_2px_0px_0px_var(--border-default)]">
               <FolderGit2 size={22} />
             </div>
             <div>
@@ -232,6 +233,9 @@ export default function AdminProjectsPage() {
               ? project.requiredSkills
               : [];
 
+            const coverImg = getProjectCoverImage(project);
+            const projectRepos = extractProjectRepositories(project);
+
             return (
               <div
                 key={id}
@@ -239,9 +243,9 @@ export default function AdminProjectsPage() {
               >
                 {/* Card Thumbnail / Header */}
                 <div className="relative h-40 w-full bg-surface-secondary overflow-hidden border-b border-border-default">
-                  {project.imageUrl || project.image ? (
+                  {coverImg ? (
                     <img
-                      src={project.imageUrl || project.image}
+                      src={coverImg}
                       alt={project.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
@@ -257,7 +261,7 @@ export default function AdminProjectsPage() {
                       {project.status?.replace("_", " ") || "In Progress"}
                     </span>
                     {project.featured && (
-                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-accent-primary text-black border border-black shadow-sm flex items-center gap-1">
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-accent-primary text-accent-primary-text border border-text-primary shadow-sm flex items-center gap-1">
                         <Sparkles size={11} /> Featured
                       </span>
                     )}
@@ -270,7 +274,7 @@ export default function AdminProjectsPage() {
                       title={project.featured ? "Remove from Home Showcase" : "Feature on Home Showcase"}
                       className={`p-1.5 rounded-lg border border-border-default transition-colors shadow-sm ${
                         project.featured
-                          ? "bg-accent-primary text-black"
+                          ? "bg-accent-primary text-accent-primary-text"
                           : "bg-surface-elevated text-text-secondary hover:text-text-primary"
                       }`}
                     >
@@ -335,18 +339,22 @@ export default function AdminProjectsPage() {
                     </div>
 
                     {/* Links */}
-                    <div className="flex items-center gap-2">
-                      {project.githubLink && (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {projectRepos.map((repo, rIdx) => (
                         <a
-                          href={project.githubLink}
+                          key={rIdx}
+                          href={repo.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          title="GitHub Repository"
-                          className="p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-secondary transition-colors"
+                          title={repo.label ? `${repo.label}: ${repo.url}` : "GitHub Repository"}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-surface-secondary hover:bg-surface-elevated border border-border-default text-xs font-semibold text-text-primary hover:text-accent-primary transition-colors"
                         >
-                          <FaGithub size={15} />
+                          <FaGithub size={13} />
+                          {projectRepos.length > 1 && (
+                            <span className="text-[10px] text-text-secondary font-mono">{repo.label}</span>
+                          )}
                         </a>
-                      )}
+                      ))}
                       {project.liveDemoLink && (
                         <a
                           href={project.liveDemoLink}

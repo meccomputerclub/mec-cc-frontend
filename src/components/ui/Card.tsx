@@ -132,6 +132,7 @@ export function ProjectCard({
   team = [],
   status = "in-progress",
   slug,
+  image,
   liveUrl,
   featured,
   onToggleFeatured,
@@ -150,6 +151,16 @@ export function ProjectCard({
       className="flex flex-col w-full h-full min-h-[230px] bg-surface-elevated border border-border-brutalist dark:border-border-default rounded-xl overflow-hidden transition-all duration-200 hover:shadow-[6px_6px_0px_var(--accent-primary)] hover:-translate-x-0.5 hover:-translate-y-0.5 no-underline text-inherit group relative"
       id={`project-${slug}`}
     >
+      {image && (
+        <div className="relative h-36 sm:h-40 w-full bg-surface-secondary overflow-hidden border-b border-border-brutalist dark:border-border-default">
+          <img
+            src={image}
+            alt={title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            loading="lazy"
+          />
+        </div>
+      )}
       <div className="p-4 flex flex-col gap-2 flex-1 h-full">
         <div className="flex items-start justify-between mb-1 gap-2 flex-wrap">
           <div className="flex items-center gap-1.5 flex-wrap">

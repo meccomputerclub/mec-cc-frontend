@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { getProjects, getProjectBySlug } from "@/data/projects";
+import { FaGithub } from "react-icons/fa";
 
 export async function generateStaticParams() {
   const allProjects = await getProjects();
@@ -30,6 +31,18 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-text-primary my-3">
           {project.title}
         </h1>
+
+        {/* Project Cover Banner */}
+        {project.image && (
+          <div className="relative w-full h-64 sm:h-80 md:h-96 rounded-2xl overflow-hidden border-2 border-border-brutalist dark:border-border-default shadow-[6px_6px_0px_0px_var(--border-brutalist)] dark:shadow-[6px_6px_0px_0px_var(--border-default)] my-6 bg-surface-secondary">
+            <img
+              src={project.image}
+              alt={project.title}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
+
         <p className="text-lg text-text-secondary leading-relaxed mb-6 whitespace-pre-line">
           {project.longDescription || project.description}
         </p>
@@ -58,14 +71,43 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
               {project.team.map((m) => <li key={m}>{m}</li>)}
             </ul>
           </div>
-          {(project.liveUrl || project.repoUrl) && (
+          {((project.repositories && project.repositories.length > 0) || project.repoUrl || project.liveUrl) && (
             <div>
               <h4 className="text-xs font-mono [font-feature-settings:'liga'_0,'calt'_0] uppercase tracking-wider text-text-tertiary mb-3 font-semibold">
-                Links
+                Links &amp; Codebases
               </h4>
               <div className="flex gap-3 flex-wrap">
-                {project.liveUrl && <Button href={project.liveUrl} size="sm">Live Demo ↗</Button>}
-                {project.repoUrl && <Button href={project.repoUrl} variant="secondary" size="sm">GitHub ↗</Button>}
+                {project.liveUrl && (
+                  <Button href={project.liveUrl} target="_blank" rel="noopener noreferrer" size="sm">
+                    Live Demo ↗
+                  </Button>
+                )}
+                {project.repositories && project.repositories.length > 0 ? (
+                  project.repositories.map((repo, idx) => (
+                    <Button
+                      key={idx}
+                      href={repo.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      variant="secondary"
+                      size="sm"
+                    >
+                      <FaGithub style={{ marginRight: "6px" }} />
+                      {repo.label || "GitHub"} ↗
+                    </Button>
+                  ))
+                ) : project.repoUrl ? (
+                  <Button
+                    href={project.repoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    variant="secondary"
+                    size="sm"
+                  >
+                    <FaGithub style={{ marginRight: "6px" }} />
+                    GitHub ↗
+                  </Button>
+                ) : null}
               </div>
             </div>
           )}

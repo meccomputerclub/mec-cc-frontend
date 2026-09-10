@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { X, Plus, Globe, Sparkles, Users, Search, Check, FolderGit2 } from "lucide-react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { X, Plus, Globe, Sparkles, Users, Search, Check, FolderGit2, Trash2 } from "lucide-react";
 import { FaGithub } from "react-icons/fa";
 import toast from "react-hot-toast";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import ImageUpload from "@/components/ui/shared/ImageUpload";
+import { extractProjectRepositories } from "@/lib/projectUtils";
 
 export interface ProjectModalProps {
   isOpen: boolean;
@@ -52,7 +53,9 @@ export function ProjectModal({
   const [description, setDescription] = useState("");
   const [department, setDepartment] = useState("webdev");
   const [status, setStatus] = useState("in_progress");
-  const [githubLink, setGithubLink] = useState("");
+  const [repositories, setRepositories] = useState<Array<{ label: string; url: string }>>([
+    { label: "Frontend", url: "" },
+  ]);
   const [liveDemoLink, setLiveDemoLink] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [techStackInput, setTechStackInput] = useState("");
@@ -96,7 +99,14 @@ export function ProjectModal({
       setDescription(initialData.description || "");
       setDepartment(initialData.department || "webdev");
       setStatus(initialData.status === "in-progress" ? "in_progress" : initialData.status || "in_progress");
-      setGithubLink(initialData.githubLink || initialData.repoUrl || "");
+
+      const extractedRepos = extractProjectRepositories(initialData);
+      if (extractedRepos.length > 0) {
+        setRepositories(extractedRepos);
+      } else {
+        setRepositories([{ label: "Frontend", url: initialData.githubLink || initialData.repoUrl || "" }]);
+      }
+
       setLiveDemoLink(initialData.liveDemoLink || initialData.liveUrl || "");
       setImageUrl(initialData.imageUrl || initialData.image || "");
       setFeatured(Boolean(initialData.featured));
@@ -118,7 +128,7 @@ export function ProjectModal({
       setDescription("");
       setDepartment("webdev");
       setStatus("in_progress");
-      setGithubLink("");
+      setRepositories([{ label: "Frontend", url: "" }]);
       setLiveDemoLink("");
       setImageUrl("");
       setTechStackInput("");
@@ -126,6 +136,23 @@ export function ProjectModal({
       setFeatured(false);
     }
   }, [isOpen, initialData]);
+
+  // Dynamic preview fallback if no custom image was uploaded
+  const autoCoverPreview = useMemo(() => {
+    if (imageUrl.trim()) return "";
+    const live = liveDemoLink.trim();
+    if (live && (live.startsWith("http://") || live.startsWith("https://"))) {
+      return `https://s0.wp.com/mshots/v1/${encodeURIComponent(live)}?w=600`;
+    }
+    const primaryRepo = repositories[0]?.url.trim() || "";
+    const ghMatch = primaryRepo.match(/github\.com\/([^\/]+)\/([^\/\#\?]+)/i);
+    if (ghMatch) {
+      const owner = ghMatch[1];
+      const repoName = ghMatch[2].replace(/\.git$/i, "");
+      return `https://opengraph.githubassets.com/1/${owner}/${repoName}`;
+    }
+    return "";
+  }, [imageUrl, liveDemoLink, repositories]);
 
   if (!isOpen) return null;
 
@@ -149,10 +176,39 @@ export function ProjectModal({
     setSelectedMembers((prev) => prev.filter((m) => m._id !== id));
   };
 
+  // Repository management
+  const handleAddRepo = () => {
+    const nextLabel = repositories.length === 1 ? "Backend" : `Repository #${repositories.length + 1}`;
+    setRepositories((prev) => [...prev, { label: nextLabel, url: "" }]);
+  };
+
+  const handleUpdateRepo = (index: number, field: "label" | "url", value: string) => {
+    setRepositories((prev) => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], [field]: value };
+      return copy;
+    });
+  };
+
+  const handleRemoveRepo = (index: number) => {
+    if (repositories.length <= 1) {
+      toast.error("At least one GitHub repository link is required.");
+      return;
+    }
+    setRepositories((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !description.trim()) {
       toast.error("Project title and description are required.");
+      return;
+    }
+
+    // Validation: at least one GitHub repository link is mandatory
+    const validRepos = repositories.filter((r) => r.url.trim().length > 0);
+    if (validRepos.length === 0) {
+      toast.error("At least one GitHub repository link is mandatory.");
       return;
     }
 
@@ -168,7 +224,12 @@ export function ProjectModal({
         description: description.trim(),
         department,
         status,
-        githubLink: githubLink.trim() || undefined,
+        githubLink: validRepos[0].url.trim(),
+        githubRepositories: validRepos.map((r) => ({
+          label: r.label.trim() || "Repository",
+          url: r.url.trim(),
+        })),
+        githubLinks: validRepos.map((r) => r.url.trim()),
         liveDemoLink: liveDemoLink.trim() || undefined,
         imageUrl: imageUrl.trim() || undefined,
         techStack: skills,
@@ -210,7 +271,7 @@ export function ProjectModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b-2 border-border-default bg-surface-secondary">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-accent-primary text-black flex items-center justify-center border border-border-default font-black shadow-[2px_2px_0px_0px_var(--border-default)]">
+            <div className="w-10 h-10 rounded-xl bg-accent-primary-light/50 dark:bg-accent-primary/20 text-accent-text-on-surface dark:text-accent-primary flex items-center justify-center border border-accent-primary/30 font-black shadow-[2px_2px_0px_0px_var(--border-default)]">
               <FolderGit2 size={20} />
             </div>
             <div>
@@ -233,15 +294,36 @@ export function ProjectModal({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
-          {/* Banner Image */}
+          {/* Banner Image with Auto-Preview Fallback */}
           <div>
             <ImageUpload
               value={imageUrl}
               onChange={(url) => setImageUrl(url)}
               label="Project Banner / Thumbnail"
-              hint="Recommended aspect ratio 16:9. Used as the card thumbnail in the public showcase."
+              hint="Images are auto-compressed to WebP under 1.5MB before upload. 16:9 ratio recommended."
               folder="projects"
             />
+            {!imageUrl && autoCoverPreview && (
+              <div className="mt-2.5 p-3 rounded-xl border border-dashed border-accent-primary/50 bg-accent-primary/5 flex flex-col sm:flex-row items-center gap-3">
+                <div className="relative w-28 h-16 rounded-lg overflow-hidden border border-border-default shrink-0 bg-surface-secondary">
+                  <img
+                    src={autoCoverPreview}
+                    alt="Auto preview"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="text-xs text-text-secondary flex-1">
+                  <span className="font-bold text-text-primary inline-flex items-center gap-1">
+                    <Sparkles size={12} className="text-accent-primary" />
+                    Auto-preview fallback:
+                  </span>{" "}
+                  {liveDemoLink.trim()
+                    ? "Live website screenshot will be displayed automatically in the project cards."
+                    : "GitHub repository card will be displayed automatically in the project cards."}
+                  {" "}Upload an image above to use a custom banner.
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Title & Department */}
@@ -276,7 +358,7 @@ export function ProjectModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-text-secondary mb-1.5">
-                Development Status <span className="text-accent-error">*</span>
+                Project Status <span className="text-accent-error">*</span>
               </label>
               <Select
                 value={status}
@@ -287,23 +369,22 @@ export function ProjectModal({
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-text-secondary mb-1.5">
-                Tech Stack / Skills
+                Tech Stack <span className="text-text-secondary font-normal lowercase">(comma-separated)</span>
               </label>
               <input
                 type="text"
                 value={techStackInput}
                 onChange={(e) => setTechStackInput(e.target.value)}
-                placeholder="e.g. Next.js, Node.js, Python, MongoDB"
+                placeholder="Next.js, TypeScript, MongoDB, Tailwind"
                 className="w-full px-3.5 py-2.5 rounded-xl border border-border-default bg-surface-primary text-text-primary text-sm font-medium focus:ring-2 focus:ring-accent-primary outline-none transition-all"
               />
-              <span className="text-[11px] text-text-secondary mt-1 block">Comma-separated tags</span>
             </div>
           </div>
 
           {/* Description */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-text-secondary mb-1.5">
-              Project Description <span className="text-accent-error">*</span>
+              Description &amp; Overview <span className="text-accent-error">*</span>
             </label>
             <textarea
               required
@@ -315,33 +396,67 @@ export function ProjectModal({
             />
           </div>
 
-          {/* Links */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-text-secondary mb-1.5">
-                <FaGithub size={13} /> GitHub / Repository URL
+          {/* GitHub Repositories (Multi-repo with + icon) */}
+          <div className="space-y-2 p-3.5 rounded-xl bg-surface-secondary/40 border border-border-default">
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-text-secondary">
+                <FaGithub size={13} /> GitHub Repositories <span className="text-accent-error">*</span>
               </label>
-              <input
-                type="url"
-                value={githubLink}
-                onChange={(e) => setGithubLink(e.target.value)}
-                placeholder="https://github.com/..."
-                className="w-full px-3.5 py-2.5 rounded-xl border border-border-default bg-surface-primary text-text-primary text-sm font-medium focus:ring-2 focus:ring-accent-primary outline-none transition-all"
-              />
+              <button
+                type="button"
+                onClick={handleAddRepo}
+                className="inline-flex items-center gap-1 text-xs font-bold text-accent-text-on-surface dark:text-accent-primary hover:underline"
+              >
+                <Plus size={13} /> Add Extra Repo (e.g. Backend, Frontend)
+              </button>
             </div>
 
-            <div>
-              <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-text-secondary mb-1.5">
-                <Globe size={13} /> Live Demo URL
-              </label>
-              <input
-                type="url"
-                value={liveDemoLink}
-                onChange={(e) => setLiveDemoLink(e.target.value)}
-                placeholder="https://..."
-                className="w-full px-3.5 py-2.5 rounded-xl border border-border-default bg-surface-primary text-text-primary text-sm font-medium focus:ring-2 focus:ring-accent-primary outline-none transition-all"
-              />
-            </div>
+            {repositories.map((repo, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={repo.label}
+                  onChange={(e) => handleUpdateRepo(idx, "label", e.target.value)}
+                  placeholder="e.g. Frontend / Backend"
+                  className="w-28 sm:w-36 px-3 py-2 rounded-xl border border-border-default bg-surface-primary text-text-primary text-xs font-bold focus:ring-2 focus:ring-accent-primary outline-none shrink-0"
+                />
+                <input
+                  type="url"
+                  value={repo.url}
+                  onChange={(e) => handleUpdateRepo(idx, "url", e.target.value)}
+                  placeholder="https://github.com/organization/repo"
+                  required={idx === 0}
+                  className="flex-1 px-3.5 py-2 rounded-xl border border-border-default bg-surface-primary text-text-primary text-sm font-medium focus:ring-2 focus:ring-accent-primary outline-none min-w-0"
+                />
+                {repositories.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveRepo(idx)}
+                    className="p-2 rounded-lg text-accent-error hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors shrink-0"
+                    title="Remove Repository"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                )}
+              </div>
+            ))}
+            <p className="text-[11px] text-text-secondary">
+              Link your repository (frontend, backend, or full-stack). At least one GitHub repository is mandatory.
+            </p>
+          </div>
+
+          {/* Live Demo URL */}
+          <div>
+            <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-text-secondary mb-1.5">
+              <Globe size={13} /> Live Demo URL <span className="text-text-secondary font-normal lowercase">(optional)</span>
+            </label>
+            <input
+              type="url"
+              value={liveDemoLink}
+              onChange={(e) => setLiveDemoLink(e.target.value)}
+              placeholder="https://your-project.vercel.app"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-border-default bg-surface-primary text-text-primary text-sm font-medium focus:ring-2 focus:ring-accent-primary outline-none transition-all"
+            />
           </div>
 
           {/* Contributor / Teammate Picker */}
@@ -368,19 +483,20 @@ export function ProjectModal({
                     <button
                       type="button"
                       onClick={() => handleRemoveMember(m._id)}
-                      className="hover:text-accent-error transition-colors ml-0.5"
+                      className="text-text-secondary hover:text-accent-error p-0.5 rounded transition-colors"
+                      aria-label={`Remove ${m.fullName}`}
                     >
-                      <X size={12} />
+                      <X size={13} />
                     </button>
                   </span>
                 ))}
               </div>
             )}
 
-            {/* Search Input & Dropdown */}
+            {/* Searchable dropdown input */}
             <div className="relative" ref={memberDropdownRef}>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none" size={15} />
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary" />
                 <input
                   type="text"
                   value={memberSearch}
@@ -390,37 +506,44 @@ export function ProjectModal({
                     setShowMemberDropdown(true);
                   }}
                   placeholder="Search club members by name, student ID, or email..."
-                  className="w-full pl-9 pr-4 py-2 rounded-xl border border-border-default bg-surface-primary text-text-primary text-sm focus:ring-2 focus:ring-accent-primary outline-none transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-border-default bg-surface-primary text-text-primary text-sm font-medium focus:ring-2 focus:ring-accent-primary outline-none transition-all"
                 />
               </div>
 
+              {/* Suggestions Dropdown */}
               {showMemberDropdown && (
-                <div className="absolute left-0 right-0 top-full mt-1.5 max-h-48 overflow-y-auto bg-surface-elevated rounded-xl border border-border-default shadow-[4px_4px_0px_0px_var(--border-default)] z-30 py-1">
+                <div className="absolute top-[calc(100%+4px)] left-0 w-full bg-surface-elevated border border-border-default rounded-xl shadow-[4px_4px_0px_0px_var(--border-default)] z-50 max-h-52 overflow-y-auto">
                   {filteredMembers.length > 0 ? (
-                    filteredMembers.slice(0, 15).map((m) => (
+                    filteredMembers.slice(0, 10).map((m) => (
                       <button
-                        type="button"
                         key={m._id}
+                        type="button"
                         onClick={() => handleAddMember(m)}
-                        className="flex items-center justify-between w-full px-3.5 py-2 text-left hover:bg-surface-secondary transition-colors text-xs font-semibold text-text-primary"
+                        className="w-full px-4 py-2.5 text-left flex items-center justify-between hover:bg-surface-secondary border-b border-border-default last:border-b-0 transition-colors"
                       >
-                        <div className="flex items-center gap-2">
-                          <span className="w-6 h-6 rounded-full bg-accent-primary/20 text-accent-primary flex items-center justify-center font-bold text-[10px]">
-                            {(m.fullName || "M").charAt(0)}
-                          </span>
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-full bg-surface-secondary flex items-center justify-center font-bold text-xs text-text-primary overflow-hidden border border-border-default">
+                            {m.imageUrl ? (
+                              <img src={m.imageUrl} alt={m.fullName} className="w-full h-full object-cover" />
+                            ) : (
+                              m.fullName?.charAt(0) || "U"
+                            )}
+                          </div>
                           <div>
-                            <span className="font-bold">{m.fullName}</span>
-                            {m.studentId && <span className="text-[10px] text-text-secondary ml-1 font-mono">({m.studentId})</span>}
+                            <p className="text-xs font-bold text-text-primary">{m.fullName}</p>
+                            <p className="text-[10px] text-text-secondary font-mono">
+                              ID: {m.studentId || "N/A"} · {m.department || "CSE"}
+                            </p>
                           </div>
                         </div>
-                        <span className="text-[10px] text-accent-primary flex items-center gap-1 font-bold">
+                        <span className="text-[11px] font-bold text-accent-primary flex items-center gap-1">
                           <Plus size={12} /> Add
                         </span>
                       </button>
                     ))
                   ) : (
-                    <div className="px-4 py-3 text-xs text-text-secondary text-center">
-                      {memberSearch ? "No members found matching that search" : "All members are already selected"}
+                    <div className="px-4 py-3 text-center text-xs text-text-secondary">
+                      No matching verified club members found.
                     </div>
                   )}
                 </div>
@@ -428,18 +551,18 @@ export function ProjectModal({
             </div>
           </div>
 
-          {/* Admin Toggle: Featured on Home Showcase */}
+          {/* Admin Spotlight / Featured Toggle */}
           {isAdmin && (
-            <div className="flex items-center justify-between p-3.5 bg-surface-secondary rounded-xl border border-border-default">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-lg bg-accent-primary/20 text-accent-primary">
-                  <Sparkles size={16} />
+            <div className="flex items-center justify-between p-4 rounded-xl border border-border-default bg-surface-secondary">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-accent-primary-light/50 dark:bg-accent-primary/20 flex items-center justify-center text-accent-text-on-surface dark:text-accent-primary border border-accent-primary/30">
+                  <Sparkles size={18} />
                 </div>
                 <div>
-                  <span className="text-xs font-bold text-text-primary block">Feature on Home Showcase</span>
-                  <span className="text-[11px] text-text-secondary block">
+                  <h4 className="text-sm font-bold text-text-primary">Feature on Home Showcase</h4>
+                  <p className="text-xs text-text-secondary">
                     Featured projects are highlighted prominently on the website homepage.
-                  </span>
+                  </p>
                 </div>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -449,7 +572,7 @@ export function ProjectModal({
                   onChange={(e) => setFeatured(e.target.checked)}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-surface-elevated border-2 border-border-default peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text-primary after:border-border-default after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-primary peer-checked:after:bg-black"></div>
+                <div className="w-11 h-6 bg-surface-elevated border-2 border-border-default peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text-primary after:border-border-default after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-primary peer-checked:after:bg-surface-elevated"></div>
               </label>
             </div>
           )}

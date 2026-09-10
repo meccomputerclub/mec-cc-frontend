@@ -11,6 +11,7 @@ import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
 import toast from "react-hot-toast";
 import { ProjectModal } from "@/components/projects/ProjectModal";
+import { getProjectCoverImage, extractProjectRepositories } from "@/lib/projectUtils";
 import {
   Plus,
   Search,
@@ -116,12 +117,14 @@ export function ProjectsClient({ initialProjects }: ProjectsClientProps) {
       description: newDoc.description || "",
       department: newDoc.department || "webdev",
       techStack: skills.length > 0 ? skills : ["Code"],
-      image: newDoc.imageUrl || newDoc.image || "/images/projects/cp-tracker.jpg",
+      image: getProjectCoverImage(newDoc),
       team: Array.isArray(newDoc.teamMembers) && newDoc.teamMembers.length > 0
         ? newDoc.teamMembers.map((m: any) => m.fullName || m.name || "Member")
         : [user?.fullName || "Club Member"],
       liveUrl: newDoc.liveDemoLink || newDoc.liveUrl || undefined,
-      repoUrl: newDoc.githubLink || newDoc.repoUrl || undefined,
+      repoUrl: newDoc.githubLink || newDoc.repoUrl || (extractProjectRepositories(newDoc)[0]?.url) || undefined,
+      repositories: extractProjectRepositories(newDoc),
+      githubLinks: newDoc.githubLinks || extractProjectRepositories(newDoc).map((r) => r.url),
       status: newDoc.status === "completed" ? "completed" : "in-progress",
       featured: Boolean(newDoc.featured),
       createdBy: newDoc.createdBy?._id || newDoc.createdBy || user?.id,

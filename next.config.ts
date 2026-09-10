@@ -33,6 +33,18 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "userpic.codeforces.org",
       },
+      {
+        protocol: "https",
+        hostname: "s0.wp.com",
+      },
+      {
+        protocol: "https",
+        hostname: "opengraph.githubassets.com",
+      },
+      {
+        protocol: "https",
+        hostname: "api.microlink.io",
+      },
     ],
   },
 };
