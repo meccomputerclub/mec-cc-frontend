@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Cookies from "js-cookie";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
 import toast from "react-hot-toast";
@@ -40,9 +41,42 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [statusAlert, setStatusAlert] = useState<ExtendedLoginState | null>(null);
 
-  // If already authenticated, redirect to destination
+  // If already authenticated, redirect to destination (with loop-protection)
   useEffect(() => {
-    if (!authLoading && isAuthenticated) {
+    if (authLoading) return;
+
+    if (isAuthenticated) {
+      // Loop protection: if redirected here by middleware/guard, check if we bounced
+      if (typeof window !== "undefined" && redirectParam) {
+        const lastRedirect = sessionStorage.getItem("last_auto_redirect");
+        const redirectCount = Number(sessionStorage.getItem("redirect_loop_count") || "0");
+
+        if (redirectCount >= 1 && lastRedirect === redirectParam) {
+          // Bounced back from protected route! Clear stale credentials to break the loop!
+          sessionStorage.removeItem("redirect_loop_count");
+          sessionStorage.removeItem("last_auto_redirect");
+          localStorage.removeItem("auth_token");
+          localStorage.removeItem("user");
+          Cookies.remove("auth_token", { path: "/" });
+          Cookies.remove("role", { path: "/" });
+          setStatusAlert({
+            type: "error",
+            message: "Your session requires re-authentication. Please sign in with your credentials.",
+          });
+          return;
+        }
+
+        // Verify that token exists in cookies before redirecting to prevent bounce
+        const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+        if (!token) {
+          // No token cookie available to authenticate with the server!
+          return;
+        }
+
+        sessionStorage.setItem("last_auto_redirect", redirectParam);
+        sessionStorage.setItem("redirect_loop_count", String(redirectCount + 1));
+      }
+
       const isExecutive =
         user?.role === "admin" ||
         user?.role === "moderator" ||
@@ -73,6 +107,10 @@ function LoginForm() {
     try {
       const res = await login(identifier.trim(), password);
       if (res.success) {
+        if (typeof window !== "undefined") {
+          sessionStorage.removeItem("redirect_loop_count");
+          sessionStorage.removeItem("last_auto_redirect");
+        }
         toast.success("Welcome back to MEC CC!");
         const isExecutive =
           res.user?.role === "admin" ||

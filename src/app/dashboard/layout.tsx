@@ -17,11 +17,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
+  const userRole = String(user?.role || "").toLowerCase();
   const isExecutive =
-    user?.role === "admin" ||
-    user?.role === "moderator" ||
-    user?.role === "executive" ||
-    user?.clubRole === "executive";
+    userRole === "admin" ||
+    userRole === "moderator" ||
+    userRole === "executive" ||
+    String(user?.clubRole || "").toLowerCase() === "executive";
 
   // Redirect to login if not authenticated, or to /profile if not executive
   useEffect(() => {

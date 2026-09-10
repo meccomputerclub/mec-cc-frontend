@@ -4,7 +4,7 @@ import { verifyAuthToken, CustomJWTPayload } from "./lib/jwt";
 
 export async function middleware(req: NextRequest) {
   const invitationCookie = req.cookies.get("invitation_validated")?.value;
-  const token = req.cookies.get("auth_token")?.value;
+  const token = req.cookies.get("auth_token")?.value || req.cookies.get("token")?.value;
   const { pathname } = req.nextUrl;
 
   let payload: CustomJWTPayload | null = null;
@@ -14,7 +14,6 @@ export async function middleware(req: NextRequest) {
     try {
       payload = await verifyAuthToken(token);
     } catch {
-      // Treat any verification error as invalid token
       payload = null;
     }
   }
@@ -26,16 +25,20 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // Helper to clear cookies reliably
+  const clearAuthCookies = (res: NextResponse) => {
+    res.cookies.set("auth_token", "", { path: "/", maxAge: 0 });
+    res.cookies.set("token", "", { path: "/", maxAge: 0 });
+    res.cookies.set("role", "", { path: "/", maxAge: 0 });
+  };
+
   // --- 2. Profile-protected pages ---
   if (pathname === "/profile") {
     if (!payload) {
       const loginUrl = new URL("/login", req.url);
       loginUrl.searchParams.set("redirect", pathname + req.nextUrl.search);
       const response = NextResponse.redirect(loginUrl);
-      if (token) {
-        response.cookies.delete("auth_token");
-        response.cookies.delete("role");
-      }
+      if (token) clearAuthCookies(response);
       return response;
     }
   }
@@ -46,19 +49,16 @@ export async function middleware(req: NextRequest) {
       const loginUrl = new URL("/login", req.url);
       loginUrl.searchParams.set("redirect", pathname + req.nextUrl.search);
       const response = NextResponse.redirect(loginUrl);
-      // Clear stale/invalid cookies
-      if (token) {
-        response.cookies.delete("auth_token");
-        response.cookies.delete("role");
-      }
+      if (token) clearAuthCookies(response);
       return response;
     }
 
-    const roleCookie = req.cookies.get("role")?.value;
+    const userRole = String(payload.role || "").toLowerCase();
+    const roleCookie = String(req.cookies.get("role")?.value || "").toLowerCase();
     const isExecutive =
-      payload.role === "admin" ||
-      payload.role === "moderator" ||
-      payload.role === "executive" ||
+      userRole === "admin" ||
+      userRole === "moderator" ||
+      userRole === "executive" ||
       roleCookie === "admin" ||
       roleCookie === "moderator" ||
       roleCookie === "executive";
@@ -74,10 +74,7 @@ export async function middleware(req: NextRequest) {
       const loginUrl = new URL("/login", req.url);
       loginUrl.searchParams.set("redirect", pathname + req.nextUrl.search);
       const response = NextResponse.redirect(loginUrl);
-      if (token) {
-        response.cookies.delete("auth_token");
-        response.cookies.delete("role");
-      }
+      if (token) clearAuthCookies(response);
       return response;
     }
   }

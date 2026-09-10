@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import Cookies from "js-cookie";
+import { decodeJwt } from "jose";
 import { AuthUser } from "@/types";
 import { api, ApiError } from "@/lib/api";
 
@@ -23,6 +24,45 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Synchronize token and role into document.cookie with 7-day expiration
+const syncAuthCookie = (rawToken: string | null, role?: string | null): boolean => {
+  if (typeof window === "undefined" || !rawToken) return false;
+  const token = rawToken.startsWith("Bearer ") ? rawToken.slice(7).trim() : rawToken.trim();
+  if (!token) return false;
+
+  try {
+    const decoded = decodeJwt(token);
+    const now = Math.floor(Date.now() / 1000);
+    if (decoded.exp && decoded.exp < now) {
+      // Token expired
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("user");
+      Cookies.remove("auth_token", { path: "/" });
+      Cookies.remove("role", { path: "/" });
+      return false;
+    }
+
+    const isHttps = window.location.protocol === "https:";
+    Cookies.set("auth_token", token, {
+      expires: 7,
+      path: "/",
+      sameSite: "lax",
+      secure: isHttps,
+    });
+
+    const userRole = role || (decoded.role as string) || "member";
+    Cookies.set("role", userRole, {
+      expires: 7,
+      path: "/",
+      sameSite: "lax",
+      secure: isHttps,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -35,31 +75,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshUser = useCallback(async () => {
     try {
+      const storedToken = typeof window !== "undefined"
+        ? localStorage.getItem("auth_token") || Cookies.get("auth_token")
+        : null;
+
+      if (!storedToken) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      // Ensure cookie is in sync before calling backend
+      const isValid = syncAuthCookie(storedToken);
+      if (!isValid) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
       const response = await api.get<{ success: boolean; user: AuthUser }>("/api/users/me");
       if (response && response.user) {
         setUser(response.user);
         if (typeof window !== "undefined") {
           localStorage.setItem("user", JSON.stringify(response.user));
-          if (response.user.role) {
-            Cookies.set("role", response.user.role, {
-              expires: 7,
-              path: "/",
-              sameSite: "lax",
-              secure: window.location.protocol === "https:",
-            });
-          }
+          syncAuthCookie(storedToken, response.user.role);
         }
       } else {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("auth_token");
+          localStorage.removeItem("user");
+          Cookies.remove("auth_token", { path: "/" });
+          Cookies.remove("role", { path: "/" });
+        }
         setUser(null);
       }
-    } catch {
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("auth_token");
-        localStorage.removeItem("user");
-        Cookies.remove("auth_token", { path: "/" });
-        Cookies.remove("role", { path: "/" });
+    } catch (err: any) {
+      if (err?.status === 401 || err?.status === 403) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("auth_token");
+          localStorage.removeItem("user");
+          Cookies.remove("auth_token", { path: "/" });
+          Cookies.remove("role", { path: "/" });
+        }
+        setUser(null);
       }
-      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -68,9 +127,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
-        const cachedUser = localStorage.getItem("user");
-        if (cachedUser) {
-          setUser(JSON.parse(cachedUser));
+        const cachedToken = localStorage.getItem("auth_token") || Cookies.get("auth_token");
+        const cachedUserStr = localStorage.getItem("user");
+        const cachedUser = cachedUserStr ? JSON.parse(cachedUserStr) : null;
+
+        if (cachedToken) {
+          const isValid = syncAuthCookie(cachedToken, cachedUser?.role);
+          if (isValid && cachedUser) {
+            setUser(cachedUser);
+          } else if (!isValid) {
+            setUser(null);
+          }
+        } else {
+          setUser(null);
         }
       } catch {
         // ignore

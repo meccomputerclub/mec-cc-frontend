@@ -8,7 +8,9 @@ export interface CustomJWTPayload extends JWTPayload {
   role: AuthUser["role"];
 }
 
-export async function verifyAuthToken(token: string): Promise<CustomJWTPayload | null> {
+export async function verifyAuthToken(rawToken: string): Promise<CustomJWTPayload | null> {
+  if (!rawToken) return null;
+  const token = rawToken.startsWith("Bearer ") ? rawToken.slice(7).trim() : rawToken.trim();
   if (!token) return null;
 
   try {
