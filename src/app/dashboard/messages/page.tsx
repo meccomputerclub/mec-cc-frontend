@@ -1,5 +1,6 @@
 "use client";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import axios from "axios";
 import { API_BASE_URL } from "@/lib/api";
 import {
@@ -28,7 +29,7 @@ interface ContactMessage {
 
 const API = `${API_BASE_URL}/api/contact-messages`;
 
-export default function MessagesPage() {
+function MessagesPageContent() {
   const { user } = useAuth();
   const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,7 +55,35 @@ export default function MessagesPage() {
     }
   };
 
-  useEffect(() => { fetchMessages(); }, []);
+  const searchParams = useSearchParams();
+  const messageIdParam = searchParams.get("id");
+  const openedParamRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    fetchMessages();
+  }, []);
+
+  // When id query parameter is present, auto-open that specific message
+  useEffect(() => {
+    if (!messageIdParam) return;
+    if (openedParamRef.current === messageIdParam) return;
+
+    const found = messages.find((m) => m._id === messageIdParam);
+    if (found) {
+      openedParamRef.current = messageIdParam;
+      openMessage(found);
+    } else if (!loading && messages.length > 0) {
+      axios
+        .get(`${API}/${messageIdParam}`, { withCredentials: true })
+        .then((res) => {
+          if (res.data?.data) {
+            openedParamRef.current = messageIdParam;
+            openMessage(res.data.data);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [messageIdParam, messages, loading]);
 
   // Open a message — mark as read automatically
   const openMessage = async (msg: ContactMessage) => {
@@ -379,5 +408,22 @@ export default function MessagesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-4">
+          <div className="h-8 w-48 bg-surface-secondary rounded animate-pulse" />
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-16 bg-surface-secondary rounded-xl animate-pulse" />
+          ))}
+        </div>
+      }
+    >
+      <MessagesPageContent />
+    </Suspense>
   );
 }

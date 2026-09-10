@@ -20,6 +20,7 @@ import {
   Sparkles,
   Inbox,
 } from "lucide-react";
+import toast from "react-hot-toast";
 
 export interface NotificationItem {
   id: string;
@@ -51,6 +52,39 @@ function formatRelativeTime(dateStr?: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+function playNotificationChime() {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = "sine";
+    osc1.frequency.setValueAtTime(587.33, now); // D5
+    gain1.gain.setValueAtTime(0.12, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.35);
+
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = "sine";
+    osc2.frequency.setValueAtTime(880, now + 0.12); // A5
+    gain2.gain.setValueAtTime(0.15, now + 0.12);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(now + 0.12);
+    osc2.stop(now + 0.55);
+  } catch {
+    // Audio context may be restricted before user gesture
+  }
+}
+
 export function NotificationCenter() {
   const { user, isAdmin } = useAuth();
   const router = useRouter();
@@ -60,7 +94,33 @@ export function NotificationCenter() {
   const [serverUnreadCount, setServerUnreadCount] = useState<number>(0);
   const [clientDismissedIds, setClientDismissedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [browserPermission, setBrowserPermission] = useState<NotificationPermission>("default");
   const containerRef = useRef<HTMLDivElement>(null);
+  const notifiedIdsRef = useRef<Set<string>>(new Set());
+  const isInitialFetchRef = useRef(true);
+
+  // Check browser notification permission status
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setBrowserPermission(Notification.permission);
+    }
+  }, []);
+
+  const requestBrowserPermission = async () => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      try {
+        const res = await Notification.requestPermission();
+        setBrowserPermission(res);
+        if (res === "granted") {
+          toast.success("Desktop alerts enabled! You will receive alerts when new messages arrive.");
+        } else if (res === "denied") {
+          toast.error("Notifications blocked in your browser settings.");
+        }
+      } catch {
+        // ignore
+      }
+    }
+  };
 
   const userId = user?.id || user?._id || "";
   const storageKey = userId ? `mcc_dismissed_${userId}` : null;
@@ -133,6 +193,74 @@ export function NotificationCenter() {
           fetchedItems.unshift(clientVerifyItem);
         }
 
+        // Detect newly arrived notifications
+        const newlyArrivedItems: NotificationItem[] = [];
+        fetchedItems.forEach((item) => {
+          if (!item.read && !notifiedIdsRef.current.has(item.id)) {
+            if (!isInitialFetchRef.current) {
+              newlyArrivedItems.push(item);
+            }
+            notifiedIdsRef.current.add(item.id);
+          }
+        });
+
+        if (isInitialFetchRef.current) {
+          isInitialFetchRef.current = false;
+        } else if (newlyArrivedItems.length > 0) {
+          playNotificationChime();
+
+          newlyArrivedItems.forEach((item) => {
+            // Trigger browser notification if permission granted
+            if (
+              typeof window !== "undefined" &&
+              "Notification" in window &&
+              Notification.permission === "granted"
+            ) {
+              try {
+                const n = new window.Notification(item.title, {
+                  body: item.message,
+                  icon: "/logo-icon-lime-dark.png",
+                  badge: "/favicon-32x32.png",
+                  tag: item.id,
+                });
+                n.onclick = () => {
+                  window.focus();
+                  if (item.link) {
+                    router.push(item.link);
+                  }
+                };
+              } catch (e) {
+                console.warn("Could not dispatch desktop notification:", e);
+              }
+            }
+
+            // In-app interactive toast
+            toast(
+              (t) => (
+                <div
+                  onClick={() => {
+                    toast.dismiss(t.id);
+                    if (item.link) router.push(item.link);
+                  }}
+                  className="cursor-pointer select-none"
+                >
+                  <p className="font-bold text-xs text-text-primary flex items-center gap-1.5">
+                    <Mail size={14} className="text-accent-primary" />
+                    {item.title}
+                  </p>
+                  <p className="text-xs text-text-secondary mt-1 line-clamp-2">{item.message}</p>
+                  {item.actionLabel && (
+                    <span className="text-[11px] font-bold text-accent-primary mt-1.5 inline-block hover:underline">
+                      {item.actionLabel} →
+                    </span>
+                  )}
+                </div>
+              ),
+              { duration: 8000, position: "top-right" }
+            );
+          });
+        }
+
         setNotifications(fetchedItems);
         setServerUnreadCount(res.data.unreadCount ?? fetchedItems.filter((i) => !i.read).length);
       }
@@ -141,16 +269,16 @@ export function NotificationCenter() {
     } finally {
       if (!isSilent) setLoading(false);
     }
-  }, [user]);
+  }, [user, router]);
 
-  // Initial fetch and auto-polling every 45 seconds + on window focus
+  // Initial fetch and auto-polling every 25 seconds + on window focus
   useEffect(() => {
     if (!user) return;
     fetchNotifications(false);
 
     const interval = setInterval(() => {
       fetchNotifications(true);
-    }, 45000);
+    }, 25000);
 
     const handleFocus = () => {
       fetchNotifications(true);
@@ -413,7 +541,17 @@ export function NotificationCenter() {
               )}
             </div>
 
-            <div className="notif-header__actions">
+            <div className="notif-header__actions flex items-center gap-1.5">
+              {browserPermission !== "granted" && (
+                <button
+                  type="button"
+                  className="notif-header__btn text-[10px]"
+                  onClick={requestBrowserPermission}
+                  title="Enable browser alerts"
+                >
+                  🔔 Enable Alerts
+                </button>
+              )}
               {unreadCount > 0 && (
                 <button
                   type="button"

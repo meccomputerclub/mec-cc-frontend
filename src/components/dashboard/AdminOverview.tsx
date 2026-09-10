@@ -25,8 +25,9 @@ export default function AdminOverview() {
   const { user } = useAuth();
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
+    let isMounted = true;
+    const fetchData = async (isSilent = false) => {
+      if (!isSilent) setLoading(true);
       try {
         const [statsRes, msgsRes] = await Promise.all([
           axios.get(
@@ -38,15 +39,30 @@ export default function AdminOverview() {
             { withCredentials: true }
           ),
         ]);
-        setStats(statsRes.data.data);
-        setRecentMessages(msgsRes.data.data || []);
+        if (isMounted) {
+          setStats(statsRes.data.data);
+          setRecentMessages(msgsRes.data.data || []);
+        }
       } catch (error) {
         console.error("Error fetching overview data:", error);
       } finally {
-        setLoading(false);
+        if (isMounted && !isSilent) {
+          setLoading(false);
+        }
       }
     };
-    fetchData();
+
+    fetchData(false);
+
+    // Auto-refresh stats and messages every 30 seconds
+    const interval = setInterval(() => {
+      fetchData(true);
+    }, 30000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [user]);
 
   const quickActions = [
@@ -101,6 +117,7 @@ export default function AdminOverview() {
       value: stats?.activities.totalCertificates ?? "—",
       icon: FileText,
       color: "text-accent-warning",
+      link: "/dashboard/manage-certificates",
     },
   ];
 
@@ -183,20 +200,29 @@ export default function AdminOverview() {
           ) : (
             <ul className="space-y-1">
               {recentMessages.map((msg) => (
-                <li
-                  key={msg._id}
-                  className={`p-3 rounded-lg border-b border-border-default last:border-0 hover:bg-surface-secondary transition-colors cursor-pointer ${!msg.isRead ? "font-semibold" : ""
+                <li key={msg._id}>
+                  <Link
+                    href={`/dashboard/messages?id=${msg._id}`}
+                    className={`block p-3 rounded-lg border-b border-border-default last:border-0 hover:bg-surface-secondary transition-colors group ${
+                      !msg.isRead ? "bg-accent-primary-light/15 font-semibold" : ""
                     }`}
-                >
-                  <p className={`text-sm truncate ${!msg.isRead ? "font-semibold text-text-primary" : "font-semibold text-text-secondary"}`}>
-                    {!msg.isRead && (
-                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent-primary mr-1.5 mb-0.5" />
-                    )}
-                    {msg.subject}
-                  </p>
-                  <p className="text-xs text-text-secondary mt-0.5">
-                    From: {msg.senderName}
-                  </p>
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className={`text-sm truncate group-hover:text-accent-primary transition-colors ${!msg.isRead ? "font-bold text-text-primary" : "font-medium text-text-secondary"}`}>
+                        {!msg.isRead && (
+                          <span className="inline-block w-2 h-2 rounded-full bg-accent-primary mr-1.5 align-middle" />
+                        )}
+                        {msg.subject || "No Subject"}
+                      </p>
+                      <span className="text-[10px] text-text-tertiary font-mono shrink-0">
+                        {new Date(msg.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <p className="text-xs text-text-secondary mt-1 flex items-center justify-between">
+                      <span>From: <strong className="text-text-primary">{msg.senderName}</strong></span>
+                      <span className="text-[11px] text-accent-primary opacity-0 group-hover:opacity-100 transition-opacity">Open →</span>
+                    </p>
+                  </Link>
                 </li>
               ))}
             </ul>

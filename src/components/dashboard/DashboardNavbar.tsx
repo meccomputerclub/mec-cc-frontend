@@ -7,6 +7,7 @@ import { useAccent } from "@/components/AccentProvider";
 import { Menu, User, ChevronDown, LogOut, Settings } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import { NotificationCenter } from "@/components/layout/NotificationCenter";
 import { AuthUser } from "@/types";
 
 interface DashboardNavbarProps {
@@ -93,23 +94,36 @@ export const DashboardNavbar: React.FC<DashboardNavbarProps> = ({
             </Link>
           </div>
 
-          {/* Right side — User menu */}
-          <div className="ml-auto relative" ref={menuRef}>
-            <button
-              onClick={() => setIsMenuOpen((v) => !v)}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-surface-secondary border border-transparent hover:border-border-default transition"
-            >
-              <div className="w-8 h-8 rounded-full bg-accent-primary flex items-center justify-center text-accent-primary-text font-semibold text-sm flex-shrink-0">
-                {user?.fullName?.charAt(0)?.toUpperCase() || <User size={16} />}
-              </div>
-              <span className="font-semibold text-sm text-text-primary hidden sm:inline">
-                {user?.fullName || "User"}
-              </span>
-              <ChevronDown
-                size={15}
-                className={`text-text-secondary transition-transform duration-200 ${isMenuOpen ? "rotate-180" : ""}`}
-              />
-            </button>
+          {/* Right side — Notifications & User menu */}
+          <div className="ml-auto flex items-center gap-2">
+            <NotificationCenter />
+
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setIsMenuOpen((v) => !v)}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-surface-secondary border border-transparent hover:border-border-default transition"
+              >
+                <div className="w-8 h-8 rounded-full overflow-hidden bg-accent-primary flex items-center justify-center text-accent-primary-text font-semibold text-sm flex-shrink-0 relative border border-border-default">
+                  {user?.imageUrl ? (
+                    <Image
+                      src={user.imageUrl}
+                      alt={user.fullName || "User avatar"}
+                      width={32}
+                      height={32}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    user?.fullName?.charAt(0)?.toUpperCase() || <User size={16} />
+                  )}
+                </div>
+                <span className="font-semibold text-sm text-text-primary hidden sm:inline">
+                  {user?.fullName || "User"}
+                </span>
+                <ChevronDown
+                  size={15}
+                  className={`text-text-secondary transition-transform duration-200 ${isMenuOpen ? "rotate-180" : ""}`}
+                />
+              </button>
 
             {isMenuOpen && (
               <div className="absolute right-0 mt-2 w-56 bg-surface-elevated rounded-xl shadow-[4px_4px_0px_0px_var(--border-default)] ring-1 ring-black/5 z-50 border border-border-default overflow-hidden animate-fade-in">
@@ -161,6 +175,7 @@ export const DashboardNavbar: React.FC<DashboardNavbarProps> = ({
                 </div>
               </div>
             )}
+            </div>
           </div>
         </div>
       </div>
