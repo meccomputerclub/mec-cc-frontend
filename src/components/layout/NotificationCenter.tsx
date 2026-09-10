@@ -145,125 +145,120 @@ export function NotificationCenter() {
     if (!isSilent) setLoading(true);
 
     try {
-      const res = await api.get<{
-        success: boolean;
-        data?: {
-          notifications: Array<{
-            id: string;
-            type: NotificationItem["type"];
-            title: string;
-            message: string;
-            link?: string;
-            actionLabel?: string;
-            priority: "normal" | "high" | "urgent";
-            createdAt: string;
-            read: boolean;
-          }>;
-          unreadCount: number;
+      const res = await api.get<any>("/api/notifications?limit=40");
+
+      const rawList: any[] =
+        (Array.isArray(res?.data) ? res.data : null) ||
+        (Array.isArray(res?.notifications) ? res.notifications : null) ||
+        (Array.isArray(res?.data?.notifications) ? res.data.notifications : null) ||
+        (Array.isArray(res?.items) ? res.items : null) ||
+        [];
+
+      const fetchedItems: NotificationItem[] = rawList.map((item: any) => ({
+        id: String(item.id || item._id),
+        type: item.type || "message",
+        title: item.title,
+        message: item.message,
+        timeAgo: formatRelativeTime(item.createdAt),
+        link: item.link,
+        actionLabel: item.actionLabel,
+        priority: item.priority || "normal",
+        read: item.read ?? item.isRead ?? false,
+        createdAt: item.createdAt,
+      }));
+
+      // Client fallback alert for unverified email if applicable
+      if (!user.isVerified) {
+        const clientVerifyItem: NotificationItem = {
+          id: "client-email-verify",
+          type: "security",
+          title: "Email Verification Required",
+          message: "Please complete email verification to ensure full access.",
+          timeAgo: "Action Needed",
+          link: `/verify-email?email=${encodeURIComponent(user.email || "")}`,
+          actionLabel: "Verify Email",
+          priority: "urgent",
+          read: false,
         };
-      }>("/api/notifications?limit=40");
-
-      if (res?.data?.notifications) {
-        const fetchedItems: NotificationItem[] = res.data.notifications.map((item) => ({
-          id: item.id,
-          type: item.type,
-          title: item.title,
-          message: item.message,
-          timeAgo: formatRelativeTime(item.createdAt),
-          link: item.link,
-          actionLabel: item.actionLabel,
-          priority: item.priority,
-          read: item.read,
-          createdAt: item.createdAt,
-        }));
-
-        // Client fallback alert for unverified email if applicable
-        if (!user.isVerified) {
-          const clientVerifyItem: NotificationItem = {
-            id: "client-email-verify",
-            type: "security",
-            title: "Email Verification Required",
-            message: "Please complete email verification to ensure full access.",
-            timeAgo: "Action Needed",
-            link: `/verify-email?email=${encodeURIComponent(user.email || "")}`,
-            actionLabel: "Verify Email",
-            priority: "urgent",
-            read: false,
-          };
-          fetchedItems.unshift(clientVerifyItem);
-        }
-
-        // Detect newly arrived notifications
-        const newlyArrivedItems: NotificationItem[] = [];
-        fetchedItems.forEach((item) => {
-          if (!item.read && !notifiedIdsRef.current.has(item.id)) {
-            if (!isInitialFetchRef.current) {
-              newlyArrivedItems.push(item);
-            }
-            notifiedIdsRef.current.add(item.id);
-          }
-        });
-
-        if (isInitialFetchRef.current) {
-          isInitialFetchRef.current = false;
-        } else if (newlyArrivedItems.length > 0) {
-          playNotificationChime();
-
-          newlyArrivedItems.forEach((item) => {
-            // Trigger browser notification if permission granted
-            if (
-              typeof window !== "undefined" &&
-              "Notification" in window &&
-              Notification.permission === "granted"
-            ) {
-              try {
-                const n = new window.Notification(item.title, {
-                  body: item.message,
-                  icon: "/logo-icon-lime-dark.png",
-                  badge: "/favicon-32x32.png",
-                  tag: item.id,
-                });
-                n.onclick = () => {
-                  window.focus();
-                  if (item.link) {
-                    router.push(item.link);
-                  }
-                };
-              } catch (e) {
-                console.warn("Could not dispatch desktop notification:", e);
-              }
-            }
-
-            // In-app interactive toast
-            toast(
-              (t) => (
-                <div
-                  onClick={() => {
-                    toast.dismiss(t.id);
-                    if (item.link) router.push(item.link);
-                  }}
-                  className="cursor-pointer select-none"
-                >
-                  <p className="font-bold text-xs text-text-primary flex items-center gap-1.5">
-                    <Mail size={14} className="text-accent-primary" />
-                    {item.title}
-                  </p>
-                  <p className="text-xs text-text-secondary mt-1 line-clamp-2">{item.message}</p>
-                  {item.actionLabel && (
-                    <span className="text-[11px] font-bold text-accent-primary mt-1.5 inline-block hover:underline">
-                      {item.actionLabel} →
-                    </span>
-                  )}
-                </div>
-              ),
-              { duration: 8000, position: "top-right" }
-            );
-          });
-        }
-
-        setNotifications(fetchedItems);
-        setServerUnreadCount(res.data.unreadCount ?? fetchedItems.filter((i) => !i.read).length);
+        fetchedItems.unshift(clientVerifyItem);
       }
+
+      // Detect newly arrived notifications
+      const newlyArrivedItems: NotificationItem[] = [];
+      fetchedItems.forEach((item) => {
+        if (!item.read && !notifiedIdsRef.current.has(item.id)) {
+          if (!isInitialFetchRef.current) {
+            newlyArrivedItems.push(item);
+          }
+          notifiedIdsRef.current.add(item.id);
+        }
+      });
+
+      if (isInitialFetchRef.current) {
+        isInitialFetchRef.current = false;
+      } else if (newlyArrivedItems.length > 0) {
+        playNotificationChime();
+
+        newlyArrivedItems.forEach((item) => {
+          // Trigger browser notification if permission granted
+          if (
+            typeof window !== "undefined" &&
+            "Notification" in window &&
+            Notification.permission === "granted"
+          ) {
+            try {
+              const n = new window.Notification(item.title, {
+                body: item.message,
+                icon: "/logo-icon-lime-dark.png",
+                badge: "/favicon-32x32.png",
+                tag: item.id,
+              });
+              n.onclick = () => {
+                window.focus();
+                if (item.link) {
+                  router.push(item.link);
+                }
+              };
+            } catch (e) {
+              console.warn("Could not dispatch desktop notification:", e);
+            }
+          }
+
+          // In-app interactive toast
+          toast(
+            (t) => (
+              <div
+                onClick={() => {
+                  toast.dismiss(t.id);
+                  if (item.link) router.push(item.link);
+                }}
+                className="cursor-pointer select-none"
+              >
+                <p className="font-bold text-xs text-text-primary flex items-center gap-1.5">
+                  <Mail size={14} className="text-accent-primary" />
+                  {item.title}
+                </p>
+                <p className="text-xs text-text-secondary mt-1 line-clamp-2">{item.message}</p>
+                {item.actionLabel && (
+                  <span className="text-[11px] font-bold text-accent-primary mt-1.5 inline-block hover:underline">
+                    {item.actionLabel} →
+                  </span>
+                )}
+              </div>
+            ),
+            { duration: 8000, position: "top-right" }
+          );
+        });
+      }
+
+      setNotifications(fetchedItems);
+      const computedUnread =
+        typeof res?.unreadCount === "number"
+          ? res.unreadCount
+          : typeof res?.data?.unreadCount === "number"
+          ? res.data.unreadCount
+          : fetchedItems.filter((i) => !i.read).length;
+      setServerUnreadCount(computedUnread);
     } catch {
       // Graceful fallback if backend is momentarily unreachable
     } finally {
