@@ -41,23 +41,13 @@ const navItems = [
       { label: "Past Event", href: "/events#past" },
     ],
   },
-  {
-    label: "CP Hub",
-    href: "#",
-    children: [
-      { label: "Roadmaps", href: "/cp-hub/roadmaps" },
-      { label: "Resources", href: "/cp-hub/resources" },
-      { label: "Problem Sets", href: "/cp-hub/problem-sets" },
-      { label: "Leaderboard", href: "/cp-hub/leaderboard" },
-      { label: "Achievements", href: "/cp-hub/achievements" },
-    ],
-  },
+  { label: "Blog", href: "/blog" },
   {
     label: "Resources",
     href: "#",
     children: [
+      { label: "CP Hub", href: "/cp-hub" },
       { label: "Projects", href: "/projects" },
-      { label: "Blog", href: "/blog" },
       { label: "Verify & Lookup", href: "/verify" },
     ],
   },
@@ -170,6 +160,19 @@ export function Navbar() {
 
   const toggleMobileSubmenu = (label: string) => {
     setMobileExpandedItem(prev => prev === label ? null : label);
+  };
+
+  const isItemActive = (item: (typeof navItems)[number]) => {
+    if (!pathname) return false;
+    if (item.href && item.href !== "#" && item.href !== "/") {
+      if (pathname === item.href || pathname.startsWith(item.href + "/")) return true;
+    }
+    if (item.children) {
+      return item.children.some(
+        (c) => pathname === c.href || (c.href !== "/" && pathname.startsWith(c.href + "/"))
+      );
+    }
+    return pathname === item.href;
   };
 
   return (
@@ -318,7 +321,7 @@ export function Navbar() {
             >
               <Link
                 href={item.href}
-                className={`navbar__link ${pathname === item.href ? "navbar__link--active" : ""}`}
+                className={`navbar__link ${isItemActive(item) ? "navbar__link--active" : ""}`}
                 role="menuitem"
                 aria-haspopup={item.children ? "true" : undefined}
                 aria-expanded={item.children ? activeDropdown === item.label : undefined}
@@ -532,7 +535,7 @@ export function Navbar() {
                     ) : (
                       <Link
                         href={item.href}
-                        className={`navbar__mobile-nav-link ${pathname === item.href ? "navbar__mobile-nav-link--active" : ""}`}
+                        className={`navbar__mobile-nav-link ${isItemActive(item) ? "navbar__mobile-nav-link--active" : ""}`}
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         {item.label}
