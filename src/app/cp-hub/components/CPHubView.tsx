@@ -28,13 +28,14 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { LeaderboardEntry, CPResource, CPAchievement } from "@/types";
-import LeaderboardTable from "../leaderboard/components/LeaderboardTable";
+import LeaderboardTable from "./LeaderboardTable";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE_URL } from "@/lib/api";
 import ConfirmationModal from "@/components/ui/shared/ConfirmModal";
 import { Select } from "@/components/ui/Select";
+import { getPdfProxyUrl, isPdfDocument } from "@/lib/pdfUtils";
 
 interface CPHubViewProps {
   initialLeaderboard: LeaderboardEntry[];
@@ -240,8 +241,6 @@ function CPHubViewContent({
 
   const [uploadingPdf, setUploadingPdf] = useState(false);
 
-  // PDF Viewer Modal State
-  const [viewingPdfDoc, setViewingPdfDoc] = useState<CPResource | null>(null);
 
   // Delete Confirmation Modal State
   const [deleteModal, setDeleteModal] = useState<{
@@ -647,23 +646,20 @@ function CPHubViewContent({
     }
   };
 
-  // Handle card redirection or viewer
+  // Handle card redirection directly to dedicated page
   const handleDocClick = (doc: CPResource) => {
-    const isPdf = Boolean(
-      doc.pdfUrl ||
-        doc.linkType === "pdf" ||
-        doc.url?.toLowerCase().endsWith(".pdf") ||
-        doc.url?.includes("/raw/upload/")
-    );
+    const isPdf = isPdfDocument(doc);
 
-    if (isPdf) {
-      setViewingPdfDoc(doc);
+    // If it points to an internal page created by Page Editor (e.g. /pages/[slug]) and is not a PDF
+    if (doc.linkType === "custom-page" || (doc.url?.startsWith("/pages/") && !isPdf)) {
+      router.push(doc.url);
+    } else if (isPdf || !doc.url || doc.url === "#") {
+      // Dedicated document viewer page
+      router.push(`/cp-hub/docs/${encodeURIComponent(doc.id)}`);
     } else if (doc.url?.startsWith("/")) {
       router.push(doc.url);
-    } else if (doc.url && doc.url !== "#") {
-      window.open(doc.url, "_blank", "noopener,noreferrer");
     } else {
-      toast("No redirection link specified for this card yet.");
+      window.open(doc.url, "_blank", "noopener,noreferrer");
     }
   };
 
@@ -1580,7 +1576,7 @@ function CPHubViewContent({
                             </span>
                           </div>
                           <a
-                            href={docModal.data.pdfUrl}
+                            href={getPdfProxyUrl(docModal.data.pdfUrl, false, `${docModal.data.title || "document"}.pdf`)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-accent-primary hover:underline font-bold shrink-0 ml-2"
@@ -1648,85 +1644,6 @@ function CPHubViewContent({
         </div>
       )}
 
-      {/* ────────────────────────────────────────────────────────────────────── */}
-      {/* 3. PDF VIEWER & DOWNLOAD MODAL */}
-      {/* ────────────────────────────────────────────────────────────────────── */}
-      {viewingPdfDoc && (
-        <div className="fixed inset-0 z-[1200] flex items-start sm:items-center justify-center p-3 sm:p-6 pt-20 sm:pt-24 pb-12 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150 overflow-y-auto">
-          <div className="bg-surface-primary border border-border-brutalist dark:border-border-default rounded-2xl w-full max-w-5xl shadow-[8px_8px_0px_var(--accent-primary)] overflow-hidden my-auto flex flex-col max-h-[88vh]">
-            {/* Modal Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-5 border-b border-border-default bg-surface-secondary shrink-0 gap-3">
-              <div>
-                <div className="flex items-center gap-2 flex-wrap mb-1">
-                  <Badge variant="active" size="sm">
-                    {viewingPdfDoc.difficulty}
-                  </Badge>
-                  <span className="font-mono text-xs text-text-tertiary uppercase font-bold">
-                    {viewingPdfDoc.type}
-                  </span>
-                  {viewingPdfDoc.author && (
-                    <span className="text-xs text-text-tertiary font-semibold">
-                      • By {viewingPdfDoc.author}
-                    </span>
-                  )}
-                </div>
-                <h3 className="font-bold text-lg sm:text-xl text-text-primary">
-                  {viewingPdfDoc.title}
-                </h3>
-              </div>
-
-              {/* Header Action Buttons */}
-              <div className="flex items-center gap-2.5 shrink-0">
-                <Button
-                  variant="primary"
-                  size="sm"
-                  href={viewingPdfDoc.pdfUrl || viewingPdfDoc.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  icon={<Download size={14} />}
-                >
-                  Download PDF
-                </Button>
-
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  href={viewingPdfDoc.pdfUrl || viewingPdfDoc.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  icon={<ExternalLink size={14} />}
-                >
-                  New Tab
-                </Button>
-
-                <button
-                  type="button"
-                  onClick={() => setViewingPdfDoc(null)}
-                  className="p-2 text-text-secondary hover:text-text-primary rounded-xl hover:bg-surface-elevated transition ml-1"
-                  title="Close"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-            </div>
-
-            {/* Modal Body: Embedded PDF viewer */}
-            <div className="flex-1 p-2 sm:p-4 bg-surface-secondary/40 overflow-hidden flex flex-col">
-              <iframe
-                src={viewingPdfDoc.pdfUrl || viewingPdfDoc.url}
-                className="w-full flex-1 min-h-[55vh] border border-border-default rounded-xl bg-white dark:bg-slate-900 shadow-inner"
-                title={viewingPdfDoc.title}
-              />
-              <div className="pt-2 px-1 flex items-center justify-between text-[11px] text-text-tertiary">
-                <span>Rendering club document</span>
-                <span>
-                  Having trouble previewing? Click &quot;Download PDF&quot; or &quot;New Tab&quot; above.
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ────────────────────────────────────────────────────────────────────── */}
       {/* 4. CONFIRMATION MODAL FOR DELETION */}

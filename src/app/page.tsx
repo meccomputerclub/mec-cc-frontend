@@ -351,7 +351,7 @@ export default async function HomePage() {
               </div>
             </div>
             <div className="flex justify-center mt-[var(--space-4)]">
-              <Button href="/cp-hub/leaderboard" variant="secondary" id="home-cp-hub">
+              <Button href="/cp-hub?tab=leaderboard" variant="secondary" id="home-cp-hub">
                 Full leaderboard →
               </Button>
             </div>

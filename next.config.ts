@@ -47,6 +47,45 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: "/cp-hub/achievements",
+        destination: "/cp-hub?tab=achievements",
+        permanent: true,
+      },
+      {
+        source: "/cp-hub/leaderboard",
+        destination: "/cp-hub?tab=leaderboard",
+        permanent: true,
+      },
+      {
+        source: "/cp-hub/problem-sets",
+        destination: "/cp-hub?tab=problem-sets",
+        permanent: true,
+      },
+      {
+        source: "/cp-hub/resources",
+        destination: "/cp-hub?tab=resources",
+        permanent: true,
+      },
+      {
+        source: "/cp-hub/roadmaps",
+        destination: "/cp-hub?tab=roadmaps",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/page-content",
+        destination: "/dashboard/page-editor?tab=content",
+        permanent: true,
+      },
+      {
+        source: "/profiles/:id",
+        destination: "/profile/:id",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
