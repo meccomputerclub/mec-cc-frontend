@@ -80,7 +80,16 @@ export function ContactForm() {
 
     setSending(true);
     try {
-      await api.post("/api/contact-messages", formData);
+      const payload = {
+        senderName: formData.name.trim(),
+        senderEmail: formData.email.trim(),
+        subject: formData.subject || "General Inquiry",
+        body: formData.message.trim(),
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        message: formData.message.trim(),
+      };
+      await api.post("/api/contact-messages", payload);
       toast.success("Transmission received! We'll get back to you shortly.");
       setFormData({
         name: "",
