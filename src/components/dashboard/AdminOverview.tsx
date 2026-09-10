@@ -56,7 +56,7 @@ export default function AdminOverview() {
     { href: "/dashboard/assets", icon: HardHat, label: "Manage Assets" },
     { href: "/dashboard/overview/home-page-edit", icon: LayoutDashboard, label: "Home Page Editor" },
     { href: "/dashboard/messages", icon: MessageSquare, label: "View Messages" },
-    { href: "/dashboard/manage-events/create-blog", icon: PenLine, label: "Write Blog" },
+    { href: "/dashboard/blogs", icon: PenLine, label: "Write Blog" },
     { href: "/dashboard/manage-events/create-project", icon: FolderOpen, label: "Add Project" },
     { href: "/dashboard/sponsors/create", icon: DollarSign, label: "Add Sponsor" },
   ];

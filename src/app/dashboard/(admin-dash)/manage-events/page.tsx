@@ -153,14 +153,6 @@ export default function EventsManagementPage() {
               Create Form
             </Link>
             <Link
-              href="/dashboard/manage-events/create-blog"
-              className="flex items-center gap-2 whitespace-nowrap bg-text-primary hover:bg-surface-inverse text-white px-4 py-2.5 rounded-lg font-semibold transition-all shadow-[3px_3px_0px_0px_var(--border-default)] text-sm border border-border-default"
-              style={{ color: "#FFFFFF" }}
-            >
-              <FilePlus size={16} />
-              New Blog
-            </Link>
-            <Link
               href="/dashboard/manage-events/create-project"
               className="flex items-center gap-2 whitespace-nowrap bg-text-primary hover:bg-surface-inverse text-white px-4 py-2.5 rounded-lg font-semibold transition-all shadow-[3px_3px_0px_0px_var(--border-default)] text-sm border border-border-default"
               style={{ color: "#FFFFFF" }}
@@ -223,32 +215,55 @@ export default function EventsManagementPage() {
               {filteredEvents.map((event) => (
                 <div
                   key={event._id}
-                  className="group relative bg-surface-elevated p-6 rounded-2xl shadow-[4px_4px_0px_0px_var(--border-default)] hover:shadow-[6px_6px_0px_0px_var(--border-default)] border border-border-default transition-all duration-300 flex flex-col justify-between"
+                  onClick={() => router.push(`/dashboard/manage-events/event-detail/${event._id}`)}
+                  className="group relative bg-surface-elevated p-6 rounded-2xl shadow-[4px_4px_0px_0px_var(--border-default)] hover:shadow-[6px_6px_0px_0px_var(--border-default)] hover:-translate-y-0.5 border border-border-default transition-all duration-200 flex flex-col justify-between cursor-pointer"
                 >
                   {/* Dropdown */}
-                  <div className="absolute top-4 right-4" ref={openDropdown === event._id ? dropdownRef : null}>
+                  <div
+                    className="absolute top-4 right-4 z-10"
+                    ref={openDropdown === event._id ? dropdownRef : null}
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <button
-                      onClick={() => setOpenDropdown(openDropdown === event._id ? null : event._id)}
-                      className="p-1.5 hover:bg-surface-secondary rounded-lg text-text-secondary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenDropdown(openDropdown === event._id ? null : event._id);
+                      }}
+                      className="p-1.5 hover:bg-surface-secondary rounded-lg text-text-secondary transition-colors"
+                      aria-label="Options"
                     >
                       <MoreVertical size={18} />
                     </button>
                     {openDropdown === event._id && (
-                      <div className="absolute right-0 mt-1 w-44 bg-surface-elevated rounded-xl shadow-[4px_4px_0px_0px_var(--border-default)] border border-border-default z-20 py-1 overflow-hidden">
+                      <div
+                        className="absolute right-0 mt-1 w-44 bg-surface-elevated rounded-xl shadow-[4px_4px_0px_0px_var(--border-default)] border border-border-default z-20 py-1 overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <button
-                          onClick={() => { router.push(`/dashboard/manage-events/event-detail/${event._id}`); setOpenDropdown(null); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/dashboard/manage-events/event-detail/${event._id}`);
+                            setOpenDropdown(null);
+                          }}
                           className="flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold text-text-primary hover:bg-surface-secondary transition"
                         >
                           <Pencil size={13} /> Edit / Manage
                         </button>
                         <button
-                          onClick={() => { router.push(`/dashboard/manage-events/event-detail/${event._id}`); setOpenDropdown(null); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/dashboard/manage-events/event-detail/${event._id}`);
+                            setOpenDropdown(null);
+                          }}
                           className="flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold text-text-primary hover:bg-surface-secondary transition"
                         >
                           <Eye size={13} /> View Details
                         </button>
                         <button
-                          onClick={() => handleDelete(event._id, "event")}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(event._id, "event");
+                          }}
                           className="flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold text-accent-error hover:bg-surface-secondary transition"
                         >
                           <Trash2 size={13} /> Delete Event
@@ -281,13 +296,19 @@ export default function EventsManagementPage() {
 
                   <div className="mt-6 pt-4 border-t border-border-default flex items-center justify-between">
                     <button
-                      onClick={() => router.push(`/dashboard/manage-events/event-detail/${event._id}`)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/dashboard/manage-events/event-detail/${event._id}`);
+                      }}
                       className="text-sm font-semibold text-accent-primary flex items-center gap-1 hover:underline"
                     >
                       Manage <ChevronRight size={16} />
                     </button>
                     <button
-                      onClick={() => router.push(`/dashboard/manage-events/event-detail/${event._id}`)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/dashboard/manage-events/event-detail/${event._id}`);
+                      }}
                       className="text-sm font-semibold text-text-secondary hover:text-text-primary"
                     >
                       Details
@@ -319,32 +340,55 @@ export default function EventsManagementPage() {
               {filteredForms.map((form) => (
                 <div
                   key={form._id}
-                  className="group relative bg-surface-elevated p-6 rounded-2xl shadow-[4px_4px_0px_0px_var(--border-default)] hover:shadow-[6px_6px_0px_0px_var(--border-default)] border border-border-default transition-all duration-300 flex flex-col justify-between"
+                  onClick={() => router.push(`/dashboard/manage-events/forms/${form._id}`)}
+                  className="group relative bg-surface-elevated p-6 rounded-2xl shadow-[4px_4px_0px_0px_var(--border-default)] hover:shadow-[6px_6px_0px_0px_var(--border-default)] hover:-translate-y-0.5 border border-border-default transition-all duration-200 flex flex-col justify-between cursor-pointer"
                 >
                   {/* Dropdown */}
-                  <div className="absolute top-4 right-4" ref={openDropdown === form._id ? dropdownRef : null}>
+                  <div
+                    className="absolute top-4 right-4 z-10"
+                    ref={openDropdown === form._id ? dropdownRef : null}
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <button
-                      onClick={() => setOpenDropdown(openDropdown === form._id ? null : form._id)}
-                      className="p-1.5 hover:bg-surface-secondary rounded-lg text-text-secondary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenDropdown(openDropdown === form._id ? null : form._id);
+                      }}
+                      className="p-1.5 hover:bg-surface-secondary rounded-lg text-text-secondary transition-colors"
+                      aria-label="Options"
                     >
                       <MoreVertical size={18} />
                     </button>
                     {openDropdown === form._id && (
-                      <div className="absolute right-0 mt-1 w-44 bg-surface-elevated rounded-xl shadow-[4px_4px_0px_0px_var(--border-default)] border border-border-default z-20 py-1 overflow-hidden">
+                      <div
+                        className="absolute right-0 mt-1 w-44 bg-surface-elevated rounded-xl shadow-[4px_4px_0px_0px_var(--border-default)] border border-border-default z-20 py-1 overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <button
-                          onClick={() => { router.push(`/dashboard/manage-events/forms/${form._id}/edit`); setOpenDropdown(null); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/dashboard/manage-events/forms/${form._id}/edit`);
+                            setOpenDropdown(null);
+                          }}
                           className="flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold text-text-primary hover:bg-surface-secondary transition"
                         >
                           <Pencil size={13} /> Edit
                         </button>
                         <button
-                          onClick={() => { router.push(`/dashboard/manage-events/forms/${form._id}`); setOpenDropdown(null); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/dashboard/manage-events/forms/${form._id}`);
+                            setOpenDropdown(null);
+                          }}
                           className="flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold text-text-primary hover:bg-surface-secondary transition"
                         >
                           <Eye size={13} /> View Details
                         </button>
                         <button
-                          onClick={() => handleDelete(form._id, "form")}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(form._id, "form");
+                          }}
                           className="flex items-center gap-2 w-full px-3 py-2 text-xs font-semibold text-accent-error hover:bg-surface-secondary transition"
                         >
                           <Trash2 size={13} /> Delete Form
@@ -370,13 +414,19 @@ export default function EventsManagementPage() {
 
                   <div className="mt-6 pt-4 border-t border-border-default flex items-center justify-between">
                     <button
-                      onClick={() => router.push(`/dashboard/manage-events/forms/${form._id}`)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/dashboard/manage-events/forms/${form._id}`);
+                      }}
                       className="text-sm font-semibold text-accent-primary flex items-center gap-1 hover:underline"
                     >
                       View Responses <ChevronRight size={16} />
                     </button>
                     <button
-                      onClick={() => router.push(`/dashboard/manage-events/forms/${form._id}/edit`)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/dashboard/manage-events/forms/${form._id}/edit`);
+                      }}
                       className="text-sm font-semibold text-text-secondary hover:text-accent-primary transition"
                     >
                       Edit Form
@@ -438,17 +488,22 @@ interface CMSCardProps {
 }
 
 function CMSCard({ title, desc, icon, btnText, link }: CMSCardProps) {
+  const router = useRouter();
   return (
-    <div className="flex items-center justify-between p-5 bg-surface-elevated rounded-2xl border border-border-default shadow-[4px_4px_0px_0px_var(--border-default)] hover:shadow-md transition-shadow">
+    <div
+      onClick={() => router.push(link)}
+      className="flex items-center justify-between p-5 bg-surface-elevated rounded-2xl border border-border-default shadow-[4px_4px_0px_0px_var(--border-default)] hover:shadow-[6px_6px_0px_0px_var(--border-default)] hover:-translate-y-0.5 transition-all cursor-pointer group"
+    >
       <div className="flex items-center gap-4">
-        <div className="p-3 bg-surface-secondary rounded-xl">{icon}</div>
+        <div className="p-3 bg-surface-secondary rounded-xl group-hover:bg-accent-primary-light transition-colors">{icon}</div>
         <div>
-          <h4 className="font-semibold text-text-primary text-sm">{title}</h4>
+          <h4 className="font-semibold text-text-primary text-sm group-hover:text-accent-primary transition-colors">{title}</h4>
           <p className="text-xs text-text-secondary">{desc}</p>
         </div>
       </div>
       <Link
         href={link}
+        onClick={(e) => e.stopPropagation()}
         className="bg-text-primary hover:bg-surface-inverse text-white px-4 py-2 rounded-lg text-xs font-semibold transition-all shadow-[2px_2px_0px_0px_var(--border-default)] whitespace-nowrap"
         style={{ color: "#FFFFFF" }}
       >
@@ -457,3 +512,4 @@ function CMSCard({ title, desc, icon, btnText, link }: CMSCardProps) {
     </div>
   );
 }
+
