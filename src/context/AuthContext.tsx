@@ -6,11 +6,22 @@ import { decodeJwt } from "jose";
 import { AuthUser } from "@/types";
 import { api, ApiError } from "@/lib/api";
 
+export interface LoginResponse {
+  success: boolean;
+  message?: string;
+  user?: AuthUser;
+  requiresSecurityCode?: boolean;
+  isLocked?: boolean;
+  lockRemainingMinutes?: number;
+  isDeviceBlocked?: boolean;
+  attemptsRemaining?: number;
+}
+
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
   isLoading: boolean; // alias for loading — used by new dashboard
-  login: (identifier: string, password: string) => Promise<{ success: boolean; message?: string; user?: AuthUser }>;
+  login: (identifier: string, password: string, securityCode?: string) => Promise<LoginResponse>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   isAuthenticated: boolean;
@@ -148,13 +159,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshUser();
   }, [refreshUser]);
 
-  const login = async (identifier: string, password: string) => {
+  const login = async (identifier: string, password: string, securityCode?: string): Promise<LoginResponse> => {
     try {
       const res = await api.post("/api/users/login", {
         email: identifier,
         studentId: identifier,
         identifier,
-        password
+        password,
+        securityCode: securityCode ? securityCode.trim() : undefined,
       });
       if (res && res.user) {
         if (typeof window !== "undefined") {
@@ -185,9 +197,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return { success: false, message: res.message || "Failed to login" };
     } catch (err: any) {
+      const errData = err instanceof ApiError ? err.data : null;
       const message =
-        err instanceof ApiError ? err.message : err?.message || "Invalid credentials or network error";
-      return { success: false, message };
+        (errData && errData.message) ||
+        (err instanceof ApiError ? err.message : err?.message) ||
+        "Invalid credentials or network error";
+
+      return {
+        success: false,
+        message,
+        requiresSecurityCode: Boolean(errData?.requiresSecurityCode),
+        isLocked: Boolean(errData?.isLocked),
+        lockRemainingMinutes: errData?.lockRemainingMinutes,
+        isDeviceBlocked: Boolean(errData?.isDeviceBlocked),
+        attemptsRemaining: errData?.attemptsRemaining,
+      };
     }
   };
 

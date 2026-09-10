@@ -15,13 +15,15 @@ import {
   Clock,
   ShieldAlert,
   ArrowRight,
+  KeyRound,
 } from "lucide-react";
 
 interface ExtendedLoginState {
-  type: "error" | "pending" | "unverified" | "rejected";
+  type: "error" | "pending" | "unverified" | "rejected" | "locked" | "device_blocked";
   message: string;
   email?: string;
   rejectionReason?: string;
+  lockRemainingMinutes?: number;
 }
 
 function LoginForm() {
@@ -37,6 +39,8 @@ function LoginForm() {
   const { user, login, isAuthenticated, loading: authLoading } = useAuth();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [securityCode, setSecurityCode] = useState("");
+  const [showSecurityCodeInput, setShowSecurityCodeInput] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [statusAlert, setStatusAlert] = useState<ExtendedLoginState | null>(null);
@@ -105,7 +109,7 @@ function LoginForm() {
 
     setLoading(true);
     try {
-      const res = await login(identifier.trim(), password);
+      const res = await login(identifier.trim(), password, securityCode.trim());
       if (res.success) {
         if (typeof window !== "undefined") {
           sessionStorage.removeItem("redirect_loop_count");
@@ -124,30 +128,51 @@ function LoginForm() {
             : "/profile";
         window.location.href = destination;
       } else {
-        // Evaluate specific error messages from backend
-        const msg = res.message || "";
-        if (msg.toLowerCase().includes("not approved") || msg.toLowerCase().includes("pending")) {
+        // Evaluate specific security/lockout responses from backend
+        if (res.isDeviceBlocked) {
           setStatusAlert({
-            type: "pending",
-            message: "Your application is currently under review by club administrators.",
+            type: "device_blocked",
+            message: res.message || "This device has been blocked from attempting to log into this account.",
+          });
+        } else if (res.isLocked) {
+          setShowSecurityCodeInput(true);
+          setStatusAlert({
+            type: "locked",
+            message: res.message || "Your account has been temporarily locked due to multiple failed login attempts.",
+            lockRemainingMinutes: res.lockRemainingMinutes || 30,
             email: identifier.trim(),
           });
-        } else if (msg.toLowerCase().includes("not verified") || msg.toLowerCase().includes("verify")) {
-          setStatusAlert({
-            type: "unverified",
-            message: "Your institutional email address has not been verified yet.",
-            email: identifier.trim(),
-          });
-        } else if (msg.toLowerCase().includes("rejected")) {
-          setStatusAlert({
-            type: "rejected",
-            message: "Your membership application was not approved.",
-          });
-        } else {
+        } else if (res.requiresSecurityCode) {
+          setShowSecurityCodeInput(true);
           setStatusAlert({
             type: "error",
-            message: msg || "Invalid institutional credentials.",
+            message: res.message || "A security code has been sent to your registered email. Enter it below to proceed.",
           });
+        } else {
+          const msg = res.message || "";
+          if (msg.toLowerCase().includes("not approved") || msg.toLowerCase().includes("pending")) {
+            setStatusAlert({
+              type: "pending",
+              message: "Your application is currently under review by club administrators.",
+              email: identifier.trim(),
+            });
+          } else if (msg.toLowerCase().includes("not verified") || msg.toLowerCase().includes("verify")) {
+            setStatusAlert({
+              type: "unverified",
+              message: "Your institutional email address has not been verified yet.",
+              email: identifier.trim(),
+            });
+          } else if (msg.toLowerCase().includes("rejected")) {
+            setStatusAlert({
+              type: "rejected",
+              message: "Your membership application was not approved.",
+            });
+          } else {
+            setStatusAlert({
+              type: "error",
+              message: msg || "Invalid institutional credentials.",
+            });
+          }
         }
       }
     } catch (err: any) {
@@ -225,6 +250,40 @@ function LoginForm() {
                 </div>
               )}
 
+              {statusAlert.type === "locked" && (
+                <div className="bg-red-500/10 border-2 border-red-500/30 rounded-xl p-4 text-text-primary">
+                  <div className="flex items-center gap-2 text-accent-error font-bold mb-1 text-sm sm:text-base">
+                    <ShieldAlert size={18} /> Account Temporarily Locked
+                  </div>
+                  <p className="text-xs text-text-secondary mb-3 leading-relaxed">
+                    {statusAlert.message}
+                  </p>
+                  <div className="flex items-center gap-2 text-xs font-semibold text-text-primary bg-surface-primary/80 border border-border-default px-3 py-2 rounded-md">
+                    <Clock size={14} className="text-accent-warning shrink-0" />
+                    <span>
+                      Lockout period: <strong>{statusAlert.lockRemainingMinutes || 30} minutes remaining</strong>
+                    </span>
+                  </div>
+                  <div className="mt-2.5 text-[11px] text-text-secondary leading-relaxed">
+                    💡 <strong>Bypass Lockout:</strong> Enter the 6-digit security code sent to your registered email below along with your credentials to unlock and sign in immediately.
+                  </div>
+                </div>
+              )}
+
+              {statusAlert.type === "device_blocked" && (
+                <div className="bg-red-600/15 border-2 border-red-500/40 rounded-xl p-4 text-text-primary">
+                  <div className="flex items-center gap-2 text-accent-error font-bold mb-1 text-sm sm:text-base">
+                    <ShieldAlert size={18} /> Device Login Blocked
+                  </div>
+                  <p className="text-xs text-text-secondary leading-relaxed mb-2">
+                    {statusAlert.message}
+                  </p>
+                  <div className="text-[11px] text-text-secondary">
+                    If this is your legitimate device, please ensure other active sessions are signed out or use the password reset portal to regain access.
+                  </div>
+                </div>
+              )}
+
               {statusAlert.type === "error" && (
                 <div className="text-accent-error p-3 bg-red-500/10 border border-accent-error/30 rounded-lg text-sm">
                   <div className="flex items-center gap-2">
@@ -288,6 +347,48 @@ function LoginForm() {
                 </button>
               </div>
             </div>
+
+            {/* Security Code Input Field */}
+            {showSecurityCodeInput ? (
+              <div className="w-full flex flex-col gap-1.5 p-3.5 bg-amber-500/10 border-2 border-amber-500/30 dark:border-amber-500/40 rounded-lg transition-all">
+                <div className="flex justify-between items-center">
+                  <label htmlFor="login-security-code" className="flex items-center gap-1.5 font-bold text-xs sm:text-sm text-text-primary">
+                    <KeyRound size={15} className="text-accent-warning" />
+                    Email Security Code (6-Digits)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowSecurityCodeInput(false)}
+                    className="text-[11px] text-text-tertiary hover:text-text-primary transition-colors hover:underline"
+                  >
+                    Hide
+                  </button>
+                </div>
+                <input
+                  id="login-security-code"
+                  type="text"
+                  maxLength={6}
+                  placeholder="e.g. 849201"
+                  value={securityCode}
+                  onChange={(e) => setSecurityCode(e.target.value.replace(/\D/g, ""))}
+                  disabled={loading}
+                  className="w-full px-3.5 py-2.5 tracking-widest font-mono text-center font-bold text-lg border border-border-brutalist dark:border-border-default rounded-md bg-surface-primary text-text-primary shadow-[2px_2px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_var(--border-default)] transition-all duration-200 focus:outline-none focus:border-accent-primary focus:shadow-[4px_4px_0px_var(--accent-primary)] disabled:opacity-70"
+                />
+                <p className="text-[11px] text-text-secondary mt-0.5 leading-snug">
+                  Enter the 6-digit code sent to your registered email to bypass or prevent account lockout.
+                </p>
+              </div>
+            ) : (
+              <div className="text-right -mt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSecurityCodeInput(true)}
+                  className="text-xs text-text-tertiary hover:text-accent-primary transition-colors hover:underline inline-flex items-center gap-1"
+                >
+                  <KeyRound size={12} /> Have an email security code?
+                </button>
+              </div>
+            )}
 
             <div className="flex justify-between items-center mt-1 mb-2 text-sm">
               <label className="flex items-center gap-2 cursor-pointer text-sm text-text-secondary select-none">
