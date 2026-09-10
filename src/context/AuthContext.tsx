@@ -197,19 +197,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return { success: false, message: res.message || "Failed to login" };
     } catch (err: any) {
-      const errData = err instanceof ApiError ? err.data : null;
+      const errData = err?.data || (err instanceof ApiError ? err.data : null);
+      const status = err?.status || (err instanceof ApiError ? err.status : 0);
       const message =
         (errData && errData.message) ||
-        (err instanceof ApiError ? err.message : err?.message) ||
+        err?.message ||
         "Invalid credentials or network error";
+
+      const isLocked =
+        Boolean(errData?.isLocked) ||
+        status === 423 ||
+        message.toLowerCase().includes("lock");
+
+      const requiresSecurityCode =
+        Boolean(errData?.requiresSecurityCode) ||
+        isLocked ||
+        message.toLowerCase().includes("security code") ||
+        message.toLowerCase().includes("lock");
+
+      const isDeviceBlocked =
+        Boolean(errData?.isDeviceBlocked) ||
+        message.toLowerCase().includes("device has been blocked") ||
+        message.toLowerCase().includes("device login blocked");
 
       return {
         success: false,
         message,
-        requiresSecurityCode: Boolean(errData?.requiresSecurityCode),
-        isLocked: Boolean(errData?.isLocked),
+        requiresSecurityCode,
+        isLocked,
         lockRemainingMinutes: errData?.lockRemainingMinutes,
-        isDeviceBlocked: Boolean(errData?.isDeviceBlocked),
+        isDeviceBlocked,
         attemptsRemaining: errData?.attemptsRemaining,
       };
     }

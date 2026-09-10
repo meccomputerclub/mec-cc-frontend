@@ -45,6 +45,26 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [statusAlert, setStatusAlert] = useState<ExtendedLoginState | null>(null);
 
+  // Restore security code input state across page refreshes
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedCodeState = sessionStorage.getItem("mec_show_security_code");
+      if (savedCodeState === "true") {
+        setShowSecurityCodeInput(true);
+      }
+    }
+  }, []);
+
+  const handleOpenSecurityCode = () => {
+    setShowSecurityCodeInput(true);
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("mec_show_security_code", "true");
+    }
+    setTimeout(() => {
+      document.getElementById("login-security-code")?.focus();
+    }, 100);
+  };
+
   // If already authenticated, redirect to destination (with loop-protection)
   useEffect(() => {
     if (authLoading) return;
@@ -128,22 +148,32 @@ function LoginForm() {
             : "/profile";
         window.location.href = destination;
       } else {
-        // Evaluate specific security/lockout responses from backend
-        if (res.isDeviceBlocked) {
+        // Robust detection of security/lockout responses from backend
+        const isLocked = Boolean(res.isLocked) || (res.message && res.message.toLowerCase().includes("lock"));
+        const requiresCode = Boolean(res.requiresSecurityCode) || isLocked || (res.message && res.message.toLowerCase().includes("security code"));
+        const isDeviceBlocked = Boolean(res.isDeviceBlocked) || (res.message && res.message.toLowerCase().includes("device has been blocked"));
+
+        if (isDeviceBlocked) {
           setStatusAlert({
             type: "device_blocked",
             message: res.message || "This device has been blocked from attempting to log into this account.",
           });
-        } else if (res.isLocked) {
+        } else if (isLocked) {
           setShowSecurityCodeInput(true);
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem("mec_show_security_code", "true");
+          }
           setStatusAlert({
             type: "locked",
             message: res.message || "Your account has been temporarily locked due to multiple failed login attempts.",
             lockRemainingMinutes: res.lockRemainingMinutes || 30,
             email: identifier.trim(),
           });
-        } else if (res.requiresSecurityCode) {
+        } else if (requiresCode) {
           setShowSecurityCodeInput(true);
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem("mec_show_security_code", "true");
+          }
           setStatusAlert({
             type: "error",
             message: res.message || "A security code has been sent to your registered email. Enter it below to proceed.",
@@ -251,21 +281,32 @@ function LoginForm() {
               )}
 
               {statusAlert.type === "locked" && (
-                <div className="bg-red-500/10 border-2 border-red-500/30 rounded-xl p-4 text-text-primary">
+                <div className="bg-red-500/10 border-2 border-red-500/40 rounded-xl p-4 text-text-primary shadow-[2px_2px_0px_#ef4444]">
                   <div className="flex items-center gap-2 text-accent-error font-bold mb-1 text-sm sm:text-base">
-                    <ShieldAlert size={18} /> Account Temporarily Locked
+                    <ShieldAlert size={20} className="shrink-0 text-accent-error" />
+                    <span>Account Temporarily Locked (5 Failed Attempts)</span>
                   </div>
                   <p className="text-xs text-text-secondary mb-3 leading-relaxed">
                     {statusAlert.message}
                   </p>
-                  <div className="flex items-center gap-2 text-xs font-semibold text-text-primary bg-surface-primary/80 border border-border-default px-3 py-2 rounded-md">
-                    <Clock size={14} className="text-accent-warning shrink-0" />
+                  <div className="flex items-center gap-2 text-xs font-semibold text-text-primary bg-surface-primary border border-border-default px-3 py-2 rounded-md mb-3">
+                    <Clock size={15} className="text-accent-warning shrink-0" />
                     <span>
-                      Lockout period: <strong>{statusAlert.lockRemainingMinutes || 30} minutes remaining</strong>
+                      Lockout duration: <strong>{statusAlert.lockRemainingMinutes || 30} minutes remaining</strong>
                     </span>
                   </div>
-                  <div className="mt-2.5 text-[11px] text-text-secondary leading-relaxed">
-                    💡 <strong>Bypass Lockout:</strong> Enter the 6-digit security code sent to your registered email below along with your credentials to unlock and sign in immediately.
+                  <div className="p-3 bg-amber-500/15 border-2 border-amber-500/50 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+                    <div className="text-xs font-bold text-text-primary flex items-center gap-1.5">
+                      <KeyRound size={16} className="text-amber-500 shrink-0" />
+                      <span>Got the 6-digit code in your email?</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleOpenSecurityCode}
+                      className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-md border border-black shadow-[1px_1px_0px_#000] active:translate-x-0.5 active:translate-y-0.5 transition-all shrink-0"
+                    >
+                      Enter Security Code Below ↓
+                    </button>
                   </div>
                 </div>
               )}
@@ -349,43 +390,56 @@ function LoginForm() {
             </div>
 
             {/* Security Code Input Field */}
-            {showSecurityCodeInput ? (
-              <div className="w-full flex flex-col gap-1.5 p-3.5 bg-amber-500/10 border-2 border-amber-500/30 dark:border-amber-500/40 rounded-lg transition-all">
+            {(showSecurityCodeInput || statusAlert?.type === "locked") ? (
+              <div className="w-full flex flex-col gap-2 p-4 bg-amber-500/10 border-2 border-amber-500/40 rounded-xl shadow-[3px_3px_0px_var(--accent-primary)] transition-all">
                 <div className="flex justify-between items-center">
                   <label htmlFor="login-security-code" className="flex items-center gap-1.5 font-bold text-xs sm:text-sm text-text-primary">
-                    <KeyRound size={15} className="text-accent-warning" />
+                    <KeyRound size={16} className="text-accent-warning" />
                     Email Security Code (6-Digits)
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowSecurityCodeInput(false)}
-                    className="text-[11px] text-text-tertiary hover:text-text-primary transition-colors hover:underline"
-                  >
-                    Hide
-                  </button>
+                  {statusAlert?.type !== "locked" && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowSecurityCodeInput(false);
+                        if (typeof window !== "undefined") {
+                          sessionStorage.removeItem("mec_show_security_code");
+                        }
+                      }}
+                      className="text-[11px] text-text-tertiary hover:text-text-primary transition-colors hover:underline"
+                    >
+                      Hide
+                    </button>
+                  )}
                 </div>
                 <input
                   id="login-security-code"
                   type="text"
                   maxLength={6}
-                  placeholder="e.g. 849201"
+                  required={statusAlert?.type === "locked"}
+                  placeholder="• • • • • •"
                   value={securityCode}
                   onChange={(e) => setSecurityCode(e.target.value.replace(/\D/g, ""))}
                   disabled={loading}
-                  className="w-full px-3.5 py-2.5 tracking-widest font-mono text-center font-bold text-lg border border-border-brutalist dark:border-border-default rounded-md bg-surface-primary text-text-primary shadow-[2px_2px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_var(--border-default)] transition-all duration-200 focus:outline-none focus:border-accent-primary focus:shadow-[4px_4px_0px_var(--accent-primary)] disabled:opacity-70"
+                  autoFocus
+                  className="w-full px-3.5 py-3 tracking-[0.35em] font-mono text-center font-black text-xl border-2 border-border-brutalist dark:border-border-default rounded-lg bg-surface-primary text-text-primary shadow-[2px_2px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_var(--border-default)] transition-all duration-200 focus:outline-none focus:border-accent-primary focus:shadow-[4px_4px_0px_var(--accent-primary)] focus:-translate-x-0.5 focus:-translate-y-0.5 disabled:opacity-70"
                 />
-                <p className="text-[11px] text-text-secondary mt-0.5 leading-snug">
-                  Enter the 6-digit code sent to your registered email to bypass or prevent account lockout.
+                <p className="text-xs text-text-secondary leading-snug">
+                  Enter the 6-digit one-time code sent to your email to safely unlock and sign in immediately.
                 </p>
               </div>
             ) : (
-              <div className="text-right -mt-2">
+              <div className="flex items-center justify-between py-2 px-3 bg-surface-secondary/60 border border-border-default rounded-md transition-colors hover:bg-surface-secondary">
+                <span className="text-xs text-text-secondary flex items-center gap-1.5 select-none">
+                  <KeyRound size={13} className="text-accent-warning" />
+                  Received a security code in your email?
+                </span>
                 <button
                   type="button"
-                  onClick={() => setShowSecurityCodeInput(true)}
-                  className="text-xs text-text-tertiary hover:text-accent-primary transition-colors hover:underline inline-flex items-center gap-1"
+                  onClick={handleOpenSecurityCode}
+                  className="text-xs font-bold text-accent-primary hover:underline hover:text-accent-primary-hover transition-colors"
                 >
-                  <KeyRound size={12} /> Have an email security code?
+                  Enter Code
                 </button>
               </div>
             )}
@@ -416,6 +470,8 @@ function LoginForm() {
                   <span className="w-4 h-4 border-2 border-text-primary/20 border-t-text-primary rounded-full animate-spin"></span>
                   Authenticating...
                 </div>
+              ) : (statusAlert?.type === "locked" || showSecurityCodeInput) ? (
+                "UNLOCK & SIGN IN"
               ) : (
                 "SIGN IN"
               )}
