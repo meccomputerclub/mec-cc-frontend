@@ -4,11 +4,19 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
-import { KeyRound, Mail, MapPin, MessageSquare } from "lucide-react";
+import { KeyRound, Mail, MapPin, MessageSquare, Phone, MessageCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import { api, ApiError } from "@/lib/api";
+import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 export function ContactForm() {
+  const { settings } = useSiteSettings();
+  const contactEmail = settings.contact_email || "meccomputerclub@gmail.com";
+  const contactPhone = settings.contact_phone || "+8801780667954";
+  const whatsappNumber = settings.whatsapp_number || "8801780667954";
+  const clubAddress = settings.address || "Department of CSE, Mymensingh Engineering College, Khagdahar, Mymensingh-2200";
+  const clubName = settings.club_name || "MEC Computer Club";
+
   const searchParams = useSearchParams();
   const urlSubject = searchParams.get("subject") || "general";
   const urlReason = searchParams.get("reason") || "";
@@ -65,11 +73,21 @@ export function ContactForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.name.trim() || !formData.email.trim() || !formData.message.trim()) {
+      toast.error("Please fill out all required transmission parameters.");
+      return;
+    }
+
     setSending(true);
     try {
       await api.post("/api/contact-messages", formData);
       toast.success("Transmission received! We'll get back to you shortly.");
-      setFormData({ name: "", email: "", subject: "general", message: "" });
+      setFormData({
+        name: "",
+        email: "",
+        subject: "general",
+        message: "",
+      });
     } catch (err: any) {
       const msg = err instanceof ApiError ? err.message : err?.message || "Failed to send message.";
       toast.error(msg);
@@ -116,13 +134,13 @@ export function ContactForm() {
                 Hate filling out forms?
               </h3>
               <p className="text-sm text-text-secondary mb-3 leading-relaxed">
-                Skip the wait. DM us directly on Discord or shoot us an email. We are highly active on both.
+                Skip the wait. Shoot us an email directly or reach out via our social channels.
               </p>
               <a
-                href="mailto:meccomputerclub@gmail.com"
+                href={`mailto:${contactEmail}`}
                 className="font-mono text-sm sm:text-base font-bold text-accent-primary-hover underline transition-colors hover:text-accent-primary break-all"
               >
-                meccomputerclub@gmail.com
+                {contactEmail}
               </a>
             </div>
 
@@ -135,10 +153,10 @@ export function ContactForm() {
                 Inquiring about offline recruitment, billing verification, or executive approval?
               </p>
               <a
-                href="mailto:meccomputerclub@gmail.com"
+                href={`mailto:${contactEmail}`}
                 className="font-mono text-sm sm:text-base font-bold text-accent-primary-hover underline transition-colors hover:text-accent-primary break-all"
               >
-                meccomputerclub@gmail.com
+                {contactEmail}
               </a>
             </div>
 
@@ -147,15 +165,39 @@ export function ContactForm() {
                 <MapPin size={18} className="text-accent-primary" />
                 Find Us IRL
               </h3>
-              <p className="text-sm text-text-secondary leading-relaxed">
-                <strong className="text-text-primary">MEC Campus, Building 2</strong>
-                <br />
-                Room 402 (The Club Room)
-                <br />
-                Murari Chand College (MEC), Tilagarh, Sylhet 3100
-                <br />
-                Open Mon-Thu, 10am - 4pm
-              </p>
+              <div className="text-sm text-text-secondary leading-relaxed">
+                <strong className="text-text-primary block mb-1">
+                  {clubName}
+                </strong>
+                <span>{clubAddress}</span>
+              </div>
+            </div>
+
+            <div className="bg-surface-secondary p-5 sm:p-6 rounded-[var(--radius-lg)] border border-border-brutalist transition-all duration-200 hover:shadow-[6px_6px_0px_var(--accent-primary)] hover:translate-x-[-2px] hover:translate-y-[-2px]">
+              <h3 className="text-base sm:text-lg font-heading font-bold text-text-primary mb-2 flex items-center gap-2">
+                <Phone size={18} className="text-accent-primary" />
+                Direct Hotline &amp; WhatsApp
+              </h3>
+              <div className="flex flex-col gap-2 font-mono text-sm">
+                {contactPhone && (
+                  <a
+                    href={`tel:${contactPhone.replace(/[^0-9+]/g, "")}`}
+                    className="font-bold text-accent-primary-hover hover:underline inline-flex items-center gap-1.5"
+                  >
+                    <Phone size={14} /> {contactPhone}
+                  </a>
+                )}
+                {whatsappNumber && (
+                  <a
+                    href={`https://wa.me/${whatsappNumber.replace(/[^0-9]/g, "")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-bold text-accent-primary-hover hover:underline inline-flex items-center gap-1.5"
+                  >
+                    <MessageCircle size={14} /> WhatsApp: +{whatsappNumber}
+                  </a>
+                )}
+              </div>
             </div>
           </div>
 

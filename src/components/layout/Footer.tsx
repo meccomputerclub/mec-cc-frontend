@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { useAccent } from "@/components/AccentProvider";
+import { useSiteSettings } from "@/context/SiteSettingsContext";
 import { Compass, BookOpen, Link2, ExternalLink, Heart } from "lucide-react";
 
 const footerLinks = {
@@ -21,12 +22,6 @@ const footerLinks = {
     { label: "Blog", href: "/blog" },
     { label: "Join Us", href: "/join" },
     { label: "Contact", href: "/contact" },
-  ],
-  connect: [
-    { label: "GitHub", href: "https://github.com", external: true },
-    { label: "Facebook", href: "https://facebook.com", external: true },
-    { label: "Discord", href: "https://discord.gg", external: true },
-    { label: "LinkedIn", href: "https://linkedin.com", external: true },
   ],
 };
 
@@ -48,6 +43,12 @@ const IconFacebook = () => (
   </svg>
 );
 
+const IconYouTube = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" width={18} height={18}>
+    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+  </svg>
+);
+
 const IconDiscord = () => (
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" width={18} height={18}>
     <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z" />
@@ -58,6 +59,7 @@ export function Footer() {
   const pathname = usePathname();
   const { currentVibe } = useAccent();
   const { resolvedTheme } = useTheme();
+  const { settings } = useSiteSettings();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -67,6 +69,20 @@ export function Footer() {
   if (pathname?.startsWith("/dashboard")) {
     return null;
   }
+
+  const githubUrl = settings.github_url || "https://github.com";
+  const facebookUrl = settings.facebook_url || "https://www.facebook.com/mec.programmingclub";
+  const linkedinUrl = settings.linkedin_url || "https://www.linkedin.com/in/mec-computer-club/";
+  const youtubeUrl = settings.youtube_url || "https://www.youtube.com/@MECComputerClub";
+  const clubName = settings.club_name || "MEC Computer Club";
+  const clubTagline = settings.club_tagline || "Weekly CP practice, real projects, one club. Building the next generation of developers at MEC.";
+
+  const connectLinks = [
+    { label: "Facebook", href: facebookUrl, external: true },
+    { label: "LinkedIn", href: linkedinUrl, external: true },
+    { label: "YouTube", href: youtubeUrl, external: true },
+    { label: "GitHub", href: githubUrl, external: true },
+  ];
 
   const socialLinkClass =
     "flex items-center justify-center w-9 h-9 rounded-[var(--radius-md)] bg-surface-elevated border border-border-brutalist text-text-secondary no-underline transition-all duration-200 hover:shadow-[4px_4px_0px_var(--accent-primary)] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:bg-accent-primary-hover hover:text-white";
@@ -86,11 +102,11 @@ export function Footer() {
 
           {/* Brand column — full-width on mobile & tablet, 2fr on desktop */}
           <div className="sm:col-span-2 lg:col-span-1 max-[640px]:text-center max-[640px]:flex max-[640px]:flex-col max-[640px]:items-center">
-            <Link href="/" className="flex items-center no-underline mb-[var(--space-3)] h-12 max-[640px]:justify-center" aria-label="MEC Computer Club">
+            <Link href="/" className="flex items-center no-underline mb-[var(--space-3)] h-12 max-[640px]:justify-center" aria-label={clubName}>
               {mounted ? (
                 <Image
                   src={`/logo-${currentVibe}-${resolvedTheme === 'dark' ? 'dark' : 'light'}.png`}
-                  alt="MEC Computer Club Logo"
+                  alt={`${clubName} Logo`}
                   width={180}
                   height={45}
                   className="object-contain"
@@ -98,7 +114,7 @@ export function Footer() {
               ) : (
                 <Image
                   src="/logo-lime-light.png"
-                  alt="MEC Computer Club Logo"
+                  alt={`${clubName} Logo`}
                   width={180}
                   height={45}
                   className="object-contain"
@@ -106,21 +122,20 @@ export function Footer() {
               )}
             </Link>
             <p className="text-sm text-text-tertiary leading-[var(--leading-relaxed)] max-w-[280px] mb-[var(--space-4)] max-[640px]:max-w-full max-[640px]:text-center">
-              Weekly CP practice, real projects, one club.
-              Building the next generation of developers at MEC.
+              {clubTagline}
             </p>
             <div className="flex gap-[var(--space-2)] max-[640px]:justify-center">
-              <a href="https://github.com" target="_blank" rel="noopener noreferrer" aria-label="GitHub" className={socialLinkClass}>
+              <a href={githubUrl} target="_blank" rel="noopener noreferrer" aria-label="GitHub" className={socialLinkClass}>
                 <IconGitHub />
               </a>
-              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className={socialLinkClass}>
+              <a href={facebookUrl} target="_blank" rel="noopener noreferrer" aria-label="Facebook" className={socialLinkClass}>
                 <IconFacebook />
               </a>
-              <a href="https://discord.gg" target="_blank" rel="noopener noreferrer" aria-label="Discord" className={socialLinkClass}>
-                <IconDiscord />
-              </a>
-              <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className={socialLinkClass}>
+              <a href={linkedinUrl} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className={socialLinkClass}>
                 <IconLinkedIn />
+              </a>
+              <a href={youtubeUrl} target="_blank" rel="noopener noreferrer" aria-label="YouTube" className={socialLinkClass}>
+                <IconYouTube />
               </a>
             </div>
           </div>
@@ -163,8 +178,8 @@ export function Footer() {
               <Link2 size={16} /> Connect
             </h4>
             <ul className="list-none p-0 m-0">
-              {footerLinks.connect.map((link) => (
-                <li key={link.href} className="mb-[var(--space-2)]">
+              {connectLinks.map((link) => (
+                <li key={link.label} className="mb-[var(--space-2)]">
                   <a
                     href={link.href}
                     className={`${footerLinkClass} inline-flex items-center gap-1`}
@@ -182,7 +197,7 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="flex items-center justify-between pt-[var(--space-4)] max-[480px]:flex-col max-[480px]:gap-[var(--space-2)] max-[480px]:items-center max-[480px]:text-center max-[480px]:pt-[var(--space-3)]">
           <p className="text-xs text-text-tertiary">
-            © {new Date().getFullYear()} MEC Computer Club. All rights reserved.
+            © {new Date().getFullYear()} {clubName}. All rights reserved.
           </p>
           <p className="text-xs text-text-tertiary flex items-center justify-center gap-1">
             Built with <Heart size={14} className="text-accent-primary-hover inline-block align-middle mx-0.5" /> by the Web Dev panel.

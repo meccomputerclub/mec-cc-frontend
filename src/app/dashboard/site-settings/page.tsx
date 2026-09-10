@@ -49,12 +49,16 @@ export default function SiteSettingsPage() {
     e.preventDefault();
     setSaving(true);
     try {
+      const filtered = settings.filter((s) => s.key !== "office_hours");
       await axios.put(
         `${API_BASE_URL}/api/site-settings`,
-        { settings },
+        { settings: filtered },
         { withCredentials: true }
       );
       setToast({ type: "success", message: "Settings saved successfully!" });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("site_settings_updated"));
+      }
     } catch {
       setToast({ type: "error", message: "Failed to save settings. Please try again." });
     } finally {
@@ -87,38 +91,82 @@ export default function SiteSettingsPage() {
     );
   }
 
-  // Categorize settings
-  const batchSettings = settings.filter((s) => s.key.startsWith("batch_current_"));
-  const contactKeys = ["contact_email", "contact_phone", "whatsapp_number", "facebook_url", "linkedin_url", "youtube_url"];
-  const contactSettings = settings.filter((s) => contactKeys.includes(s.key));
-  const generalSettings = settings.filter((s) => !s.key.startsWith("batch_current_") && !contactKeys.includes(s.key));
+  // Categorize settings & exclude office_hours
+  const activeSettings = settings.filter((s) => s.key !== "office_hours");
+  const batchSettings = activeSettings.filter((s) => s.key.startsWith("batch_current_"));
+  const contactKeys = [
+    "contact_email",
+    "contact_phone",
+    "whatsapp_number",
+    "facebook_url",
+    "linkedin_url",
+    "youtube_url",
+    "github_url",
+  ];
+  const contactSettings = activeSettings.filter((s) => contactKeys.includes(s.key));
 
-  const renderSettingInput = (setting: SiteSetting) => {
-    const isBatchSetting = setting.key.startsWith("batch_current_");
+  // General settings order: club_name, club_tagline, founded_year, membership_fee, address
+  const generalOrder = ["club_name", "club_tagline", "founded_year", "membership_fee", "address"];
+  const generalSettings = activeSettings
+    .filter((s) => !s.key.startsWith("batch_current_") && !contactKeys.includes(s.key))
+    .sort((a, b) => {
+      const idxA = generalOrder.indexOf(a.key);
+      const idxB = generalOrder.indexOf(b.key);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.key.localeCompare(b.key);
+    });
+
+  const renderBatchSettingInput = (setting: SiteSetting) => {
     return (
       <div
         key={setting.key}
         className="bg-surface-elevated rounded-xl border border-border-default p-5 shadow-[3px_3px_0px_0px_var(--border-default)] transition hover:shadow-[4px_4px_0px_0px_var(--border-default)] flex flex-col justify-between"
       >
-        <div className={`flex items-center justify-between gap-2 ${isBatchSetting ? "mb-3" : "mb-1"}`}>
+        <div>
+          {/* Row 1: Full label */}
+          <label className="block text-sm font-bold text-text-primary mb-1.5 leading-snug">
+            {setting.label}
+          </label>
+          {/* Row 2: Latest Batch badge */}
+          <div className="mb-3">
+            <span className="inline-block text-[11px] font-mono px-2 py-0.5 bg-accent-primary-light text-text-primary border border-border-default rounded font-bold">
+              Latest Batch: #{setting.value}
+            </span>
+          </div>
+        </div>
+        {/* Row 3: Number input */}
+        <input
+          type="number"
+          min={1}
+          max={100}
+          value={setting.value}
+          onChange={(e) => handleChange(setting.key, e.target.value)}
+          className="w-full px-3.5 py-2.5 border border-border-default rounded-lg bg-surface-secondary text-text-primary text-sm font-semibold focus:ring-2 focus:ring-accent-primary focus:outline-none transition"
+        />
+      </div>
+    );
+  };
+
+  const renderSettingInput = (setting: SiteSetting) => {
+    return (
+      <div
+        key={setting.key}
+        className="bg-surface-elevated rounded-xl border border-border-default p-5 shadow-[3px_3px_0px_0px_var(--border-default)] transition hover:shadow-[4px_4px_0px_0px_var(--border-default)] flex flex-col justify-between"
+      >
+        <div className="mb-1">
           <label className="block text-sm font-bold text-text-primary">
             {setting.label}
           </label>
-          {isBatchSetting && (
-            <span className="text-[11px] font-mono px-2 py-0.5 bg-accent-primary-light text-text-primary border border-border-default rounded font-bold shrink-0">
-              Latest Batch: #{setting.value}
-            </span>
-          )}
         </div>
-        {!isBatchSetting && setting.description && (
+        {setting.description && (
           <p className="text-xs text-text-secondary font-medium mb-3">
             {setting.description}
           </p>
         )}
         <input
-          type={isBatchSetting ? "number" : "text"}
-          min={isBatchSetting ? 1 : undefined}
-          max={isBatchSetting ? 100 : undefined}
+          type="text"
           value={setting.value}
           onChange={(e) => handleChange(setting.key, e.target.value)}
           className="w-full px-3.5 py-2.5 border border-border-default rounded-lg bg-surface-secondary text-text-primary text-sm font-semibold focus:ring-2 focus:ring-accent-primary focus:outline-none transition"
@@ -128,7 +176,7 @@ export default function SiteSettingsPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8 pb-12">
+    <div className="max-w-3xl mx-auto space-y-8 pb-28">
       <div className="flex items-center justify-between border-b pb-4 border-border-default">
         <div>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-text-primary flex items-center gap-2.5">
@@ -141,7 +189,7 @@ export default function SiteSettingsPage() {
         </div>
       </div>
 
-      {settings.length === 0 ? (
+      {activeSettings.length === 0 ? (
         <div className="text-center py-20 text-text-secondary font-semibold">
           No settings configured yet.
         </div>
@@ -196,16 +244,17 @@ export default function SiteSettingsPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {batchSettings.map(renderSettingInput)}
+                {batchSettings.map(renderBatchSettingInput)}
               </div>
             </div>
           )}
 
-          <div className="pt-2 sticky bottom-4 z-10">
+          {/* Floating Save Button on Bottom Right Corner */}
+          <div className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-50">
             <button
               type="submit"
               disabled={saving}
-              className="flex items-center gap-2 px-8 py-3 bg-accent-primary hover:bg-accent-primary-hover text-white border-2 border-text-primary rounded-xl text-sm font-extrabold shadow-[4px_4px_0px_0px_var(--text-primary)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_var(--text-primary)] transition disabled:opacity-60"
+              className="flex items-center gap-2.5 px-6 py-3.5 bg-accent-primary hover:bg-accent-primary-hover text-white border-2 border-border-brutalist dark:border-border-default rounded-xl text-sm font-extrabold shadow-[4px_4px_0px_0px_var(--border-brutalist)] dark:shadow-[4px_4px_0px_0px_var(--border-default)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_var(--border-brutalist)] transition-all disabled:opacity-60 cursor-pointer"
             >
               <Save size={18} />
               {saving ? "Saving Changes..." : "Save All Settings"}

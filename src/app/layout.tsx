@@ -8,6 +8,7 @@ import { AccentIndicator } from "@/components/AccentIndicator";
 import { ScaleWrapper } from "@/components/ScaleWrapper";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "@/context/AuthContext";
+import { SiteSettingsProvider } from "@/context/SiteSettingsContext";
 import "./globals.css";
 
 const jetbrainsMono = JetBrains_Mono({
@@ -180,15 +181,17 @@ export default async function RootLayout({
       <body suppressHydrationWarning>
         <ThemeProvider>
           <AuthProvider>
-            <ScaleWrapper>
-              <Toaster position="bottom-right" />
-              <Navbar />
-              <main id="main-content" className="w-full max-w-[1440px] mx-auto min-h-[calc(100vh-var(--nav-height))]">
-                {children}
-              </main>
-              <Footer />
-              <AccentIndicator />
-            </ScaleWrapper>
+            <SiteSettingsProvider>
+              <ScaleWrapper>
+                <Toaster position="bottom-right" />
+                <Navbar />
+                <main id="main-content" className="w-full max-w-[1440px] mx-auto min-h-[calc(100vh-var(--nav-height))]">
+                  {children}
+                </main>
+                <Footer />
+                <AccentIndicator />
+              </ScaleWrapper>
+            </SiteSettingsProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

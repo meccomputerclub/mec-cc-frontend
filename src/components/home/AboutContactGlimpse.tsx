@@ -1,7 +1,10 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { MapPin, Mail, Phone, Clock, ExternalLink, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 interface AboutContactGlimpseProps {
   contactData?: {
@@ -13,12 +16,15 @@ interface AboutContactGlimpseProps {
 }
 
 export function AboutContactGlimpse({ contactData }: AboutContactGlimpseProps = {}) {
-  const email = contactData?.email || "meccomputerclub@gmail.com";
-  const presidentPhone = contactData?.presidentPhone || "01773-758374";
+  const { settings } = useSiteSettings();
+  const email = contactData?.email || settings.contact_email || "meccomputerclub@gmail.com";
+  const presidentPhone = contactData?.presidentPhone || settings.contact_phone || "01773-758374";
   const generalSecretaryPhone = contactData?.generalSecretaryPhone || "01568985672";
   const location =
     contactData?.location ||
+    settings.address ||
     "Department of CSE, Mymensingh Engineering College, Khagdahar, Mymensingh-2200";
+  const clubName = settings.club_name || "MEC Computer Club";
   const mapsUrl =
     "https://maps.google.com/maps?q=Department%20of%20Computer%20Science%20and%20Engineering%2C%20Mymensingh%20Engineering%20College&t=&z=15&ie=UTF8&iwloc=&output=embed";
   const externalMapsUrl =
@@ -57,7 +63,7 @@ export function AboutContactGlimpse({ contactData }: AboutContactGlimpseProps = 
 
               {/* Club Identity */}
               <h3 className="text-2xl font-extrabold text-text-primary mb-1">
-                MEC Computer Club
+                {clubName}
               </h3>
               <p className="font-mono text-xs font-semibold text-accent-primary-hover mb-5 uppercase tracking-wide">
                 Dept. of Computer Science & Engineering
