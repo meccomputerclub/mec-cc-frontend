@@ -410,8 +410,9 @@ function RegisterContent() {
   const initialUrlCode = searchParams.get("code") || "";
   const initialRoleParam = searchParams.get("role") || "";
 
+  const ALL_INVITE_ROLES = ["member", "alumni", "advisor", "moderator", "admin", "executive"];
   const isValidRoleParam = Boolean(
-    initialRoleParam && ["member", "alumni", "advisor"].includes(initialRoleParam.toLowerCase())
+    initialRoleParam && ALL_INVITE_ROLES.includes(initialRoleParam.toLowerCase())
   );
 
   const [stage, setStage] = useState<1 | 2 | 3>(1);
@@ -421,9 +422,18 @@ function RegisterContent() {
   const [gateError, setGateError] = useState<string | null>(null);
   const [emailLocked, setEmailLocked] = useState(false);
 
+  // Exact system role from invitation clearance key
+  const [invitedRole, setInvitedRole] = useState<string>(
+    isValidRoleParam ? initialRoleParam.toLowerCase() : "member"
+  );
+
   // Role Type is locked to the specific invited role
   const [formRole, setFormRole] = useState<"member" | "alumni" | "advisor">(
-    (isValidRoleParam ? initialRoleParam.toLowerCase() : "member") as any
+    initialRoleParam.toLowerCase() === "advisor"
+      ? "advisor"
+      : initialRoleParam.toLowerCase() === "alumni"
+      ? "alumni"
+      : "member"
   );
 
   // Form State
@@ -503,10 +513,17 @@ function RegisterContent() {
 
   // Initialize role if provided in URL (DO NOT advance stage without clearance verification)
   useEffect(() => {
-    if (initialRoleParam && ["member", "alumni", "advisor"].includes(initialRoleParam.toLowerCase())) {
-      const role = initialRoleParam.toLowerCase() as any;
-      setFormRole(role);
-      if (role === "alumni") setIsGraduated(true);
+    if (initialRoleParam && ALL_INVITE_ROLES.includes(initialRoleParam.toLowerCase())) {
+      const role = initialRoleParam.toLowerCase();
+      setInvitedRole(role);
+      if (role === "advisor") {
+        setFormRole("advisor");
+      } else if (role === "alumni") {
+        setFormRole("alumni");
+        setIsGraduated(true);
+      } else {
+        setFormRole("member");
+      }
     }
   }, [initialRoleParam]);
 
@@ -537,10 +554,17 @@ function RegisterContent() {
           setEmail(res.data.email);
           setEmailLocked(true);
         }
-        if (res.data?.role && ["member", "alumni", "advisor"].includes(res.data.role.toLowerCase())) {
-          const role = res.data.role.toLowerCase() as any;
-          setFormRole(role);
-          if (role === "alumni") setIsGraduated(true);
+        if (res.data?.role) {
+          const role = res.data.role.toLowerCase();
+          setInvitedRole(role);
+          if (role === "advisor") {
+            setFormRole("advisor");
+          } else if (role === "alumni") {
+            setFormRole("alumni");
+            setIsGraduated(true);
+          } else {
+            setFormRole("member");
+          }
         }
         toast.success("Invitation clearance verified! Form unlocked.");
         setStage(2);
@@ -674,6 +698,7 @@ function RegisterContent() {
         fullName: formRole === "advisor" && hasHonorific ? `${honorific} ${fullName.trim()}` : fullName.trim(),
         email: email.trim(),
         password,
+        role: invitedRole,
         contactNumber: contactNumber.trim(),
         address: address.trim() || "MEC Campus",
         bio: bio.trim() || (
@@ -716,14 +741,21 @@ function RegisterContent() {
         payload.designation = companyTitleText || "Alumni";
         payload.customRole = payload.designation;
       } else {
-        // Student member
+        // Student member or Executive/Moderator/Admin
         payload.department = department || "CSE";
         payload.studentId = studentId.trim();
         payload.registrationNumber = registrationNumber.trim();
         payload.session = session.trim();
         payload.batch = batch.trim();
         payload.isGraduated = false;
-        payload.designation = "General Member";
+        payload.designation =
+          invitedRole === "admin"
+            ? "Administrator"
+            : invitedRole === "moderator"
+            ? "Club Moderator"
+            : invitedRole === "executive"
+            ? "Executive Member"
+            : "General Member";
       }
 
       payload.imagePosition = `${photoPosX}% ${photoPosY}%`;
@@ -946,6 +978,8 @@ function RegisterContent() {
                   ? "Guidance & Mentorship"
                   : formRole === "alumni"
                   ? "Hall of Fame & Legacy"
+                  : ["admin", "moderator", "executive"].includes(invitedRole)
+                  ? "Executive Clearance"
                   : "Join the Club"}
               </span>
               <h1>
@@ -953,6 +987,12 @@ function RegisterContent() {
                   ? "sudo induct advisor"
                   : formRole === "alumni"
                   ? "sudo register alumni"
+                  : invitedRole === "admin"
+                  ? "sudo grant admin"
+                  : invitedRole === "moderator"
+                  ? "sudo grant moderator"
+                  : invitedRole === "executive"
+                  ? "sudo grant executive"
                   : "sudo adduser"}
               </h1>
               <p>
@@ -960,8 +1000,29 @@ function RegisterContent() {
                   ? "Official onboarding for Faculty Advisors, Patrons, and Research Mentors of MEC Computer Club."
                   : formRole === "alumni"
                   ? "Connect with fellow MECians, mentor current students, and share career opportunities."
+                  : ["admin", "moderator", "executive"].includes(invitedRole)
+                  ? `Clearance key validated: You are onboarding as an official club ${invitedRole.toUpperCase()} with administrative permissions.`
                   : "Fill in your details and watch your member card come to life — live preview on the right."}
               </p>
+              {["admin", "moderator", "executive"].includes(invitedRole) && (
+                <div style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  marginTop: "10px",
+                  padding: "6px 14px",
+                  background: "var(--surface-secondary)",
+                  border: "1.5px solid var(--border-default)",
+                  borderRadius: "var(--radius-md)",
+                  boxShadow: "2px 2px 0px var(--accent-primary)",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  color: "var(--text-primary)",
+                }}>
+                  <ShieldCheck size={14} style={{ color: "var(--accent-primary)" }} />
+                  <span>PRE-ASSIGNED PRIVILEGE: {invitedRole.toUpperCase()}</span>
+                </div>
+              )}
             </div>
 
             <div className="jc-layout" style={{ marginBottom: 0 }}>
