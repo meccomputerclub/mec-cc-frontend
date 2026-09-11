@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ArrowUp,
   ArrowDown,
@@ -16,6 +16,7 @@ import {
   Search,
   RefreshCw,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { DesignationItem } from "@/types";
@@ -25,8 +26,8 @@ import Image from "next/image";
 
 interface DesignationManagerProps {
   category: "executive" | "advisor";
-  allMembers: any[];
-  onRefreshAllData: () => void;
+  allMembers?: any[];
+  onRefreshAllData?: () => void;
   isAdminUser: boolean;
 }
 
@@ -67,11 +68,14 @@ export function DesignationManager({
   const [formMaxSeats, setFormMaxSeats] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Assign Members Modal State
+  // Assign Members Modal State (Debounced Server-Side Search)
   const [assignTarget, setAssignTarget] = useState<DesignationItem | null>(null);
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [memberSearch, setMemberSearch] = useState("");
+  const [searchingMembers, setSearchingMembers] = useState(false);
+  const [searchedMembers, setSearchedMembers] = useState<any[]>([]);
   const [savingAssignments, setSavingAssignments] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch designations for this category
   const fetchDesignations = async () => {
@@ -143,7 +147,7 @@ export function DesignationManager({
 
       setIsAddModalOpen(false);
       await fetchDesignations();
-      onRefreshAllData();
+      onRefreshAllData?.();
     } catch (err: any) {
       const msg = err instanceof ApiError ? err.message : err?.message || "Failed to save designation";
       toast.error(msg);
@@ -177,7 +181,7 @@ export function DesignationManager({
         items: reorderedItems.map((item) => ({ id: item._id, order: item.order })),
       });
       toast.success(`Precedence updated: "${temp.title}" is now #${targetIndex + 1}!`);
-      onRefreshAllData();
+      onRefreshAllData?.();
     } catch (err: any) {
       toast.error("Failed to save reorder. Reverting...");
       fetchDesignations();
@@ -198,7 +202,7 @@ export function DesignationManager({
       await api.delete(`/api/designations/${d._id}`);
       toast.success(`Designation "${d.title}" deleted.`);
       await fetchDesignations();
-      onRefreshAllData();
+      onRefreshAllData?.();
     } catch (err: any) {
       const msg = err instanceof ApiError ? err.message : err?.message || "Failed to delete designation";
       toast.error(msg);
@@ -212,6 +216,42 @@ export function DesignationManager({
     const currentIds = (d.assignedMembers || []).map((m: any) => m._id || m.id);
     setSelectedMemberIds(currentIds);
     setMemberSearch("");
+    setSearchedMembers([]);
+    setSearchingMembers(false);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+  };
+
+  // Debounced server search for assignable members (triggers at >= 3 chars)
+  const handleMemberSearchChange = (value: string) => {
+    setMemberSearch(value);
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    const trimmed = value.trim();
+    if (trimmed.length < 3) {
+      setSearchingMembers(false);
+      setSearchedMembers([]);
+      return;
+    }
+
+    setSearchingMembers(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const res = await api.get<{ success: boolean; members: any[]; data: any[] }>(
+          `/api/users/search-assignable?q=${encodeURIComponent(trimmed)}`
+        );
+        const results = res?.members || res?.data || [];
+        setSearchedMembers(results);
+      } catch (err) {
+        console.error("Member search error:", err);
+      } finally {
+        setSearchingMembers(false);
+      }
+    }, 350);
   };
 
   // Toggle member selection in modal
@@ -237,7 +277,7 @@ export function DesignationManager({
       toast.success(`Updated member assignments for "${assignTarget.title}"!`);
       setAssignTarget(null);
       await fetchDesignations();
-      onRefreshAllData();
+      onRefreshAllData?.();
     } catch (err: any) {
       const msg = err instanceof ApiError ? err.message : err?.message || "Failed to assign members";
       toast.error(msg);
@@ -262,32 +302,28 @@ export function DesignationManager({
       });
       toast.success(`${memberName} unassigned from ${d.title}`);
       await fetchDesignations();
-      onRefreshAllData();
+      onRefreshAllData?.();
     } catch (err: any) {
       toast.error("Failed to unassign member");
     }
   };
 
-  // Filtered designations for search
+  // Filtered designations for search (matches role title, wing, and assigned member names/IDs)
   const filteredDesignations = designations.filter((d) => {
     const q = searchQuery.toLowerCase().trim();
     if (!q) return true;
-    return (
-      d.title.toLowerCase().includes(q) ||
-      (d.wing && d.wing.toLowerCase().includes(q))
+    const titleMatch = d.title.toLowerCase().includes(q);
+    const wingMatch = Boolean(d.wing && d.wing.toLowerCase().includes(q));
+    const memberMatch = Boolean(
+      d.assignedMembers?.some(
+        (m: any) =>
+          (m.fullName && m.fullName.toLowerCase().includes(q)) ||
+          (m.email && m.email.toLowerCase().includes(q)) ||
+          (m.studentId && m.studentId.toLowerCase().includes(q)) ||
+          (m.department && m.department.toLowerCase().includes(q))
+      )
     );
-  });
-
-  // Filtered members inside Assign Modal
-  const modalFilteredMembers = allMembers.filter((m) => {
-    const q = memberSearch.toLowerCase().trim();
-    if (!q) return true;
-    return (
-      (m.fullName && m.fullName.toLowerCase().includes(q)) ||
-      (m.email && m.email.toLowerCase().includes(q)) ||
-      (m.studentId && m.studentId.toLowerCase().includes(q)) ||
-      (m.department && m.department.toLowerCase().includes(q))
-    );
+    return titleMatch || wingMatch || memberMatch;
   });
 
   const categoryLabel = category === "executive" ? "Executive Panel Roles" : "Advisor Panel Roles";
@@ -852,21 +888,149 @@ export function DesignationManager({
               <input
                 type="text"
                 className="db-search-input"
-                placeholder="Search approved members by name, student ID, department..."
+                placeholder="Type 3+ characters to search approved members..."
                 value={memberSearch}
-                onChange={(e) => setMemberSearch(e.target.value)}
-                style={{ width: "100%", paddingLeft: "32px", fontSize: "12px" }}
+                onChange={(e) => handleMemberSearchChange(e.target.value)}
+                style={{ width: "100%", paddingLeft: "32px", paddingRight: "32px", fontSize: "12px" }}
               />
+              {searchingMembers && (
+                <RefreshCw
+                  size={13}
+                  className="spin-animation"
+                  style={{
+                    position: "absolute",
+                    right: "10px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: "var(--text-secondary)",
+                  }}
+                />
+              )}
             </div>
 
             {/* Members Checklist */}
             <div className="assign-modal-list">
-              {modalFilteredMembers.length === 0 ? (
+              {memberSearch.trim().length < 3 ? (
+                <>
+                  <div
+                    style={{
+                      padding: "10px 14px",
+                      background: "var(--surface-secondary)",
+                      borderRadius: "var(--radius-sm)",
+                      border: "1px dashed var(--border-default)",
+                      marginBottom: "10px",
+                      fontSize: "12px",
+                      color: "var(--text-secondary)",
+                    }}
+                  >
+                    <p style={{ margin: "0 0 2px", fontWeight: 700, color: "var(--text-primary)" }}>
+                      🔍 Type at least 3 characters to search
+                    </p>
+                    <span style={{ fontSize: "11px" }}>
+                      Search across all approved club members by name, student ID, department, or email.
+                    </span>
+                  </div>
+
+                  {(assignTarget.assignedMembers || []).length > 0 ? (
+                    <div>
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          color: "var(--text-secondary)",
+                          marginBottom: "6px",
+                          letterSpacing: "0.05em",
+                        }}
+                      >
+                        Currently Assigned ({(assignTarget.assignedMembers || []).length}):
+                      </div>
+                      {(assignTarget.assignedMembers || []).map((m: any) => {
+                        const mId = m._id || m.id;
+                        const isSelected = selectedMemberIds.includes(mId);
+                        const initial = (m.fullName || "M").charAt(0).toUpperCase();
+
+                        return (
+                          <div
+                            key={mId}
+                            className={`assign-modal-item ${isSelected ? "is-selected" : ""}`}
+                            onClick={() => toggleMemberSelection(mId)}
+                          >
+                            <div className="assign-modal-item__info">
+                              <div
+                                style={{
+                                  width: "18px",
+                                  height: "18px",
+                                  borderRadius: "var(--radius-sm)",
+                                  border: isSelected ? "2px solid var(--accent-primary)" : "1px solid var(--border-default)",
+                                  background: isSelected ? "var(--accent-primary)" : "transparent",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  color: "#FFFFFF",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {isSelected && <Check size={12} />}
+                              </div>
+
+                              {m.imageUrl ? (
+                                <Image
+                                  src={m.imageUrl}
+                                  alt={m.fullName}
+                                  width={28}
+                                  height={28}
+                                  style={{ borderRadius: "50%", objectFit: "cover" }}
+                                />
+                              ) : (
+                                <div
+                                  style={{
+                                    width: "28px",
+                                    height: "28px",
+                                    borderRadius: "50%",
+                                    background: "var(--surface-secondary)",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontSize: "12px",
+                                    fontWeight: 800,
+                                    color: "var(--text-secondary)",
+                                  }}
+                                >
+                                  {initial}
+                                </div>
+                              )}
+
+                              <div className="assign-modal-item__text">
+                                <span className="assign-modal-item__name">{m.fullName}</span>
+                                <span className="assign-modal-item__sub">
+                                  {m.studentId ? `ID: ${m.studentId} · ` : ""}
+                                  {m.department || "CSE"}
+                                  {m.session ? ` (${m.session})` : ""}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{ padding: "24px", textAlign: "center", color: "var(--text-secondary)", fontSize: "12px" }}>
+                      No members currently hold this role. Type at least 3 characters above to search and add members.
+                    </div>
+                  )}
+                </>
+              ) : searchingMembers ? (
                 <div style={{ padding: "30px", textAlign: "center", color: "var(--text-secondary)", fontSize: "12px" }}>
-                  No members matched &quot;{memberSearch}&quot;
+                  <RefreshCw size={18} className="spin-animation" style={{ margin: "0 auto 8px" }} />
+                  Searching approved members matching &quot;{memberSearch.trim()}&quot;...
+                </div>
+              ) : searchedMembers.length === 0 ? (
+                <div style={{ padding: "30px", textAlign: "center", color: "var(--text-secondary)", fontSize: "12px" }}>
+                  No approved members found matching &quot;{memberSearch.trim()}&quot;
                 </div>
               ) : (
-                modalFilteredMembers.map((m) => {
+                searchedMembers.map((m) => {
                   const mId = m._id || m.id;
                   const isSelected = selectedMemberIds.includes(mId);
                   const initial = (m.fullName || "M").charAt(0).toUpperCase();

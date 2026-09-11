@@ -30,23 +30,7 @@ const TabButton: React.FC<{
 export default function RolesAndInvitationCodePage() {
   const [activeTab, setActiveTab] = useState<"roles" | "invitation" | "designations">("roles");
   const [designationCategory, setDesignationCategory] = useState<"executive" | "advisor">("executive");
-  const [allMembers, setAllMembers] = useState<any[]>([]);
   const { user } = useAuth();
-
-  const fetchMembers = async () => {
-    try {
-      const res = await api.get("/api/users/all-members");
-      if (res && res.members) {
-        setAllMembers(res.members);
-      }
-    } catch {
-      // fallback
-    }
-  };
-
-  useEffect(() => {
-    fetchMembers();
-  }, []);
 
   return (
     <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
@@ -105,8 +89,6 @@ export default function RolesAndInvitationCodePage() {
 
             <DesignationManager
               category={designationCategory}
-              allMembers={allMembers}
-              onRefreshAllData={fetchMembers}
               isAdminUser={user?.role === "admin"}
             />
           </div>
