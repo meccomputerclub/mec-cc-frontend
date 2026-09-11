@@ -1,20 +1,22 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, Suspense } from "react";
+import React, { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import {
   Calendar, MapPin, Tag, Link as LinkIcon, AlignLeft, Type, Clock,
   Save, ArrowLeft, Users, DollarSign, Mail, Phone,
   Globe, Code, Eye, EyeOff, Info, Image as ImageIcon, Trophy,
-  ListChecks, Plus, Trash2, HelpCircle, CheckCircle2, UserCheck, ShieldAlert
+  ListChecks, Plus, Trash2, HelpCircle, CheckCircle2, UserCheck,
+  Upload, Sparkles, AlertCircle
 } from "lucide-react";
 import axios from "axios";
 import { API_BASE_URL } from "@/lib/api";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import ImageUpload from "@/components/ui/shared/ImageUpload";
 import TagInput from "@/components/ui/shared/TagInput";
 import { Select } from "@/components/ui/Select";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
+import { compressImage } from "@/lib/imageCompressor";
+import toast from "react-hot-toast";
 
 // ── Reusable field wrapper ──────────────────────────────────────────────────
 function Field({ label, required, hint, children }: {
@@ -59,6 +61,206 @@ function Section({ icon: Icon, title, color = "text-indigo-500", children }: {
   );
 }
 
+// ── Deferred Image Dropzone Component ───────────────────────────────────────
+// Holds selected File locally with instant preview & drag/drop support.
+// Does NOT upload to cloud immediately — uploads only when form is submitted.
+function DeferredImageDropzone({
+  label,
+  hint,
+  aspectRatioHint,
+  currentUrl,
+  selectedFile,
+  onFileSelect,
+  onClear,
+}: {
+  label: string;
+  hint?: string;
+  aspectRatioHint?: string;
+  currentUrl: string;
+  selectedFile: File | null;
+  onFileSelect: (file: File) => void;
+  onClear: () => void;
+}) {
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [dragCounter, setDragCounter] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Local object URL preview for selected file
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (selectedFile) {
+      const url = URL.createObjectURL(selectedFile);
+      setLocalPreview(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setLocalPreview(null);
+    }
+  }, [selectedFile]);
+
+  const preview = localPreview || currentUrl;
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragCounter((prev) => prev + 1);
+    setIsDragOver(true);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "copy";
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragCounter((prev) => {
+      const next = prev - 1;
+      if (next <= 0) {
+        setIsDragOver(false);
+        return 0;
+      }
+      return next;
+    });
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    setDragCounter(0);
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      if (!file.type.startsWith("image/")) {
+        toast.error("Please drop an image file (PNG, JPG, WebP)");
+        return;
+      }
+      onFileSelect(file);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith("image/")) {
+        toast.error("Please select an image file (PNG, JPG, WebP)");
+        return;
+      }
+      onFileSelect(file);
+    }
+    e.target.value = "";
+  };
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+          {label}
+        </label>
+        {aspectRatioHint && (
+          <span className="text-[11px] font-mono text-slate-400 dark:text-slate-500">
+            {aspectRatioHint}
+          </span>
+        )}
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+
+      <div
+        onClick={() => fileInputRef.current?.click()}
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed transition-all cursor-pointer select-none p-4 ${
+          isDragOver
+            ? "border-indigo-500 bg-indigo-50/80 dark:bg-indigo-950/40 ring-4 ring-indigo-500/20"
+            : preview
+            ? "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+            : "border-slate-300 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/40 hover:border-indigo-400 hover:bg-indigo-50/30 dark:hover:bg-indigo-950/20"
+        }`}
+      >
+        {preview ? (
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full">
+            <div className="relative w-full sm:w-44 h-28 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={preview}
+                alt="preview"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="flex-1 min-w-0 text-center sm:text-left space-y-1">
+              <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
+                {selectedFile ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                    <Sparkles size={12} /> Ready to compress &amp; upload on save
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
+                    Current Cloud Image
+                  </span>
+                )}
+              </div>
+              <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
+                {selectedFile ? selectedFile.name : preview}
+              </p>
+              {selectedFile && (
+                <p className="text-[11px] text-slate-400">
+                  Size: {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB &bull; Will compress before cloud upload
+                </p>
+              )}
+              <p className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">
+                Click or drag another image to replace
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClear();
+              }}
+              className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition shrink-0"
+              title="Remove image"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center text-center py-4 space-y-2">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-transform ${
+              isDragOver
+                ? "bg-indigo-600 text-white scale-110"
+                : "bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400"
+            }`}>
+              <Upload size={22} className={isDragOver ? "animate-bounce" : ""} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                {isDragOver ? "Drop image right here!" : "Drag & drop image here, or click to browse"}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                PNG, JPG, WebP supported &bull; Uploads to cloud only when saving event
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+      {hint && <p className="text-xs text-slate-500">{hint}</p>}
+    </div>
+  );
+}
+
 // ── Main form options ───────────────────────────────────────────────────────
 const CATEGORY_OPTIONS = [
   { value: "workshop", label: "Workshop" },
@@ -91,8 +293,13 @@ function CreateEventFormContent() {
   const { settings } = useSiteSettings();
 
   const [saving, setSaving] = useState(false);
+  const [savingProgress, setSavingProgress] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [showHtmlPreview, setShowHtmlPreview] = useState(false);
+
+  // Local File states for deferred cloud upload
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
 
   const [form, setForm] = useState({
     title: "",
@@ -130,7 +337,7 @@ function CreateEventFormContent() {
   const [rules, setRules] = useState<string[]>([]);
   const [contributors, setContributors] = useState<{ name: string; role: string; department: string }[]>([]);
 
-  // Default contact information from global site settings (user instruction #3)
+  // Default contact information from global site settings
   useEffect(() => {
     if (!editId && settings) {
       setForm((prev) => ({
@@ -145,7 +352,7 @@ function CreateEventFormContent() {
   const set = (key: keyof typeof form, value: string | boolean | number) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
-  // Check if event is in the past (user instruction #1)
+  // Check if event is in the past
   const isPastEvent = useMemo(() => {
     if (form.status === "completed") return true;
     if (!form.date) return false;
@@ -232,13 +439,58 @@ function CreateEventFormContent() {
     loadEvent();
   }, [editId]);
 
+  // Helper to compress and upload a file to Cloudinary only when saving
+  const uploadAndCompressImage = async (file: File, folder: string = "events"): Promise<string> => {
+    const compressed = await compressImage(file, {
+      maxSizeMB: 1.5,
+      maxWidthOrHeight: 1920,
+      useWebWorker: true,
+    });
+
+    const fd = new FormData();
+    fd.append("image", compressed.file);
+    fd.append("folder", folder);
+
+    const res = await axios.post(
+      `${API_BASE_URL}/api/upload/image?folder=${encodeURIComponent(folder)}`,
+      fd,
+      {
+        withCredentials: true,
+        headers: { "Content-Type": "multipart/form-data" },
+      }
+    );
+
+    return res.data.url || res.data.secure_url;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    setSavingProgress("Saving event…");
     setError(null);
+
     try {
+      let finalCoverUrl = form.coverImageUrl;
+      let finalBannerUrl = form.bannerImageUrl;
+
+      // 1. Upload Cover Image if a local file was dropped or selected
+      if (coverFile) {
+        setSavingProgress("Compressing and uploading cover image…");
+        finalCoverUrl = await uploadAndCompressImage(coverFile, "events");
+      }
+
+      // 2. Upload Banner Image if a local file was dropped or selected
+      if (bannerFile) {
+        setSavingProgress("Compressing and uploading banner image…");
+        finalBannerUrl = await uploadAndCompressImage(bannerFile, "events");
+      }
+
+      setSavingProgress("Saving event details…");
+
       const payload = {
         ...form,
+        coverImageUrl: finalCoverUrl,
+        bannerImageUrl: finalBannerUrl,
         linkedForm: form.linkedForm ? form.linkedForm : "",
         registrationLink: form.registrationLink ? form.registrationLink.trim() : "",
         allowParticipationClaims: isPastEvent ? form.allowParticipationClaims : false,
@@ -257,14 +509,17 @@ function CreateEventFormContent() {
 
       if (editId) {
         await axios.patch(`${API_BASE_URL}/api/events/${editId}`, payload, { withCredentials: true });
+        toast.success("Event updated successfully!");
       } else {
         await axios.post(`${API_BASE_URL}/api/events`, payload, { withCredentials: true });
+        toast.success("Event created successfully!");
       }
       router.push("/dashboard/manage-events");
     } catch (err) {
-      setError(axios.isAxiosError(err) ? err.response?.data?.message || "Failed to save event." : "Unexpected error.");
+      setError(axios.isAxiosError(err) ? err.response?.data?.message || "Failed to save event." : (err as any)?.message || "Unexpected error.");
     } finally {
       setSaving(false);
+      setSavingProgress("");
     }
   };
 
@@ -282,7 +537,7 @@ function CreateEventFormContent() {
               {editId ? "Edit Event" : "Create New Event"}
             </h1>
             <p className="text-xs text-slate-500 hidden sm:block">
-              Configure event details, archiving, contributors, and registration rules
+              Configure event details, images, archiving, contributors, and registration rules
             </p>
           </div>
         </div>
@@ -296,7 +551,7 @@ function CreateEventFormContent() {
           <button type="submit" form="event-form" disabled={saving}
             className="flex items-center gap-2 px-4 sm:px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-sm shadow-sm transition disabled:opacity-60">
             <Save size={15} />
-            {saving ? "Saving…" : editId ? "Update Event" : "Create Event"}
+            {saving ? (savingProgress || "Saving…") : editId ? "Update Event" : "Create Event"}
           </button>
         </div>
       </div>
@@ -350,7 +605,42 @@ function CreateEventFormContent() {
           </Field>
         </Section>
 
-        {/* ── 2. Date & Location ── */}
+        {/* ── 2. Event Images (Placed directly below General Info per user request) ── */}
+        <Section icon={ImageIcon} title="Event Images" color="text-purple-500">
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Drag and drop your event images below. Images will be automatically compressed and uploaded to the cloud only when you click <strong>Create Event</strong>.
+          </p>
+
+          <div className="space-y-5">
+            <DeferredImageDropzone
+              label="Cover Image"
+              hint="Shown in event cards on the homepage and events list."
+              aspectRatioHint="Recommended: 16:9 (e.g. 1280×720 or min 800×450px)"
+              currentUrl={form.coverImageUrl}
+              selectedFile={coverFile}
+              onFileSelect={(file) => setCoverFile(file)}
+              onClear={() => {
+                setCoverFile(null);
+                set("coverImageUrl", "");
+              }}
+            />
+
+            <DeferredImageDropzone
+              label="Banner / Hero Image"
+              hint="Full-width hero banner shown on top of the event detail page."
+              aspectRatioHint="Recommended: 21:9 or 16:9 widescreen"
+              currentUrl={form.bannerImageUrl}
+              selectedFile={bannerFile}
+              onFileSelect={(file) => setBannerFile(file)}
+              onClear={() => {
+                setBannerFile(null);
+                set("bannerImageUrl", "");
+              }}
+            />
+          </div>
+        </Section>
+
+        {/* ── 3. Date & Location ── */}
         <Section icon={Calendar} title="Date & Location" color="text-blue-500">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <Field label="Start Date" required>
@@ -378,7 +668,7 @@ function CreateEventFormContent() {
           </Field>
         </Section>
 
-        {/* ── 3. Past Event Archiving & Participation Claims (User Instruction #1) ── */}
+        {/* ── 4. Past Event Archiving & Participation Claims ── */}
         <Section icon={UserCheck} title="Past Event Archiving & Participation Claims" color="text-emerald-500">
           {isPastEvent ? (
             <div className="p-4 rounded-xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/20 space-y-3">
@@ -413,7 +703,7 @@ function CreateEventFormContent() {
           )}
         </Section>
 
-        {/* ── 4. Event Contributors & Organizing Team ── */}
+        {/* ── 5. Event Contributors & Organizing Team ── */}
         <Section icon={Users} title="Event Contributors & Organizing Team" color="text-indigo-500">
           <p className="text-xs text-slate-500 leading-relaxed">
             Acknowledge the key people who organized, mentored, spoke, or contributed to this event. These individuals will be credited on the public event page.
@@ -487,7 +777,7 @@ function CreateEventFormContent() {
           </div>
         </Section>
 
-        {/* ── 5. Registration Settings ── */}
+        {/* ── 6. Registration Settings ── */}
         <Section icon={Users} title="Registration Settings" color="text-green-500">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <Field label="Registration Mode" hint="Individual participant or multi-member team">
@@ -590,7 +880,7 @@ function CreateEventFormContent() {
           </div>
         </Section>
 
-        {/* ── 6. Prizes & Rewards (Optional) ── */}
+        {/* ── 7. Prizes & Rewards (Optional) ── */}
         <Section icon={Trophy} title="Prize Pool & Rewards (Optional)" color="text-amber-500">
           <Field label="Total Prize Pool Title" hint="e.g. ৳15,000 BDT or Grand Trophy + Swags">
             <Input icon={Trophy} placeholder="e.g. ৳15,000 BDT" value={form.prizePool}
@@ -653,12 +943,12 @@ function CreateEventFormContent() {
           </div>
         </Section>
 
-        {/* ── 7. Schedule Timeline (Optional) ── */}
+        {/* ── 8. Schedule Timeline (Optional) ── */}
         <Section icon={Clock} title="Schedule Timeline (Optional)" color="text-teal-500">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                Event Stages & Timing
+                Event Stages &amp; Timing
               </label>
               <button
                 type="button"
@@ -724,12 +1014,12 @@ function CreateEventFormContent() {
           </div>
         </Section>
 
-        {/* ── 8. Rules & Guidelines (Optional) ── */}
+        {/* ── 9. Rules & Guidelines (Optional) ── */}
         <Section icon={ListChecks} title="Rules & Guidelines (Optional)" color="text-violet-500">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                Official Rules & Conduct
+                Official Rules &amp; Conduct
               </label>
               <button
                 type="button"
@@ -774,29 +1064,7 @@ function CreateEventFormContent() {
           </div>
         </Section>
 
-        {/* ── 9. Media ── */}
-        <Section icon={ImageIcon} title="Event Images" color="text-purple-500">
-          <Field label="Cover Image" hint="Shown in event cards on Home & Events hub (recommended: 16:9, min 800×450px)">
-            <ImageUpload
-              label=""
-              value={form.coverImageUrl}
-              onChange={(url) => set("coverImageUrl", url)}
-              folder="events"
-              hint="Shown in event cards (recommended: 16:9, min 800×450px)"
-            />
-          </Field>
-          <Field label="Banner / Hero Image" hint="Full-width banner shown at top of the dedicated event page">
-            <ImageUpload
-              label=""
-              value={form.bannerImageUrl}
-              onChange={(url) => set("bannerImageUrl", url)}
-              folder="events"
-              hint="Full-width banner shown on the event detail page"
-            />
-          </Field>
-        </Section>
-
-        {/* ── 10. Organiser & Contact (User Instruction #3: Pre-filled from Global Settings) ── */}
+        {/* ── 10. Organiser & Contact ── */}
         <Section icon={Info} title="Organiser & Contact" color="text-orange-500">
           <p className="text-xs text-slate-500 leading-relaxed">
             Pre-filled with MEC Computer Club global site contact information. You can modify these values if this event has a specific external partner or coordinator.
@@ -822,7 +1090,7 @@ function CreateEventFormContent() {
           <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 text-sm text-amber-800 dark:text-amber-300 flex gap-2">
             <Info size={16} className="flex-shrink-0 mt-0.5" />
             <div>
-              <strong>Embeds & widgets.</strong> Use this to embed tournament brackets (Challonge), YouTube live stream frames, or custom interactive standings.
+              <strong>Embeds &amp; widgets.</strong> Use this to embed tournament brackets (Challonge), YouTube live stream frames, or custom interactive standings.
             </div>
           </div>
 
@@ -866,7 +1134,7 @@ function CreateEventFormContent() {
           <button type="submit" disabled={saving}
             className="flex items-center gap-2 px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold shadow-lg shadow-indigo-200 dark:shadow-none transition disabled:opacity-60 text-sm">
             <Save size={16} />
-            {saving ? "Saving…" : editId ? "Update Event" : "Create Event"}
+            {saving ? (savingProgress || "Saving…") : editId ? "Update Event" : "Create Event"}
           </button>
         </div>
       </form>
