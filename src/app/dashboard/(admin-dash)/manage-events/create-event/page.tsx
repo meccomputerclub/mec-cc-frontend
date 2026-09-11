@@ -6,7 +6,7 @@ import {
   Save, ArrowLeft, Users, DollarSign, Mail, Phone,
   Globe, Code, Eye, EyeOff, Info, Image as ImageIcon, Trophy,
   ListChecks, Plus, Trash2, HelpCircle, CheckCircle2, UserCheck,
-  Upload, Sparkles, AlertCircle
+  Upload, Sparkles, AlertCircle, Loader2, ClipboardPaste
 } from "lucide-react";
 import axios from "axios";
 import { API_BASE_URL } from "@/lib/api";
@@ -62,7 +62,12 @@ function Section({ icon: Icon, title, color = "text-indigo-500", children }: {
 }
 
 // ── Deferred Image Dropzone Component ───────────────────────────────────────
-// Holds selected File locally with instant preview & drag/drop support.
+// Holds selected File locally with instant preview & drag/drop/paste support.
+// Supports:
+//  - Local OS files drag & drop
+//  - Web page images drag & drop (e.g. from Facebook, Instagram, Google Images)
+//  - Clipboard paste (Ctrl+V) directly on the dropzone or via paste button
+//  - File browser picker on click
 // Does NOT upload to cloud immediately — uploads only when form is submitted.
 function DeferredImageDropzone({
   label,
@@ -83,7 +88,9 @@ function DeferredImageDropzone({
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragCounter, setDragCounter] = useState(0);
+  const [isLoadingUrl, setIsLoadingUrl] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropzoneRef = useRef<HTMLDivElement>(null);
 
   // Local object URL preview for selected file
   const [localPreview, setLocalPreview] = useState<string | null>(null);
@@ -98,7 +105,117 @@ function DeferredImageDropzone({
     }
   }, [selectedFile]);
 
+  // Window-level dragover prevention: prevents browser from showing 🚫 cursor
+  // across the window and prevents accidentally dropping files from opening in a new tab.
+  useEffect(() => {
+    const handleWindowDragOver = (e: DragEvent) => {
+      if (
+        e.dataTransfer?.types?.some(
+          (t) => t === "Files" || t === "text/uri-list" || t === "text/html"
+        )
+      ) {
+        e.preventDefault();
+      }
+    };
+
+    const handleWindowDrop = (e: DragEvent) => {
+      if (
+        dropzoneRef.current &&
+        !dropzoneRef.current.contains(e.target as Node) &&
+        e.dataTransfer?.types?.some(
+          (t) => t === "Files" || t === "text/uri-list" || t === "text/html"
+        )
+      ) {
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener("dragover", handleWindowDragOver);
+    window.addEventListener("drop", handleWindowDrop);
+    return () => {
+      window.removeEventListener("dragover", handleWindowDragOver);
+      window.removeEventListener("drop", handleWindowDrop);
+    };
+  }, []);
+
   const preview = localPreview || currentUrl;
+
+  const processRemoteImageUrl = async (rawUrl: string) => {
+    let cleanUrl = rawUrl.trim();
+    if (!cleanUrl) return;
+
+    if (cleanUrl.includes("\n")) {
+      cleanUrl = cleanUrl.split("\n")[0].trim();
+    }
+
+    if (
+      !cleanUrl.startsWith("http://") &&
+      !cleanUrl.startsWith("https://") &&
+      !cleanUrl.startsWith("data:image/")
+    ) {
+      toast.error("Dropped link is not a valid image URL");
+      return;
+    }
+
+    setIsLoadingUrl(true);
+    const toastId = toast.loading("Capturing image from web…");
+
+    try {
+      let blob: Blob | null = null;
+      let mimeType = "image/jpeg";
+
+      if (cleanUrl.startsWith("data:image/")) {
+        const res = await fetch(cleanUrl);
+        blob = await res.blob();
+        mimeType = blob.type || "image/jpeg";
+      } else {
+        // Attempt direct client-side fetch first
+        try {
+          const directRes = await fetch(cleanUrl, { mode: "cors" });
+          if (directRes.ok) {
+            blob = await directRes.blob();
+            mimeType = blob.type || "image/jpeg";
+          }
+        } catch {
+          // Direct fetch failed (e.g. CORS on Facebook CDN). Fallback to backend proxy
+          blob = null;
+        }
+
+        // If direct fetch didn't yield blob, use backend proxy
+        if (!blob) {
+          const proxyUrl = `${API_BASE_URL}/api/upload/proxy-image?url=${encodeURIComponent(cleanUrl)}`;
+          const proxyRes = await fetch(proxyUrl);
+          if (!proxyRes.ok) {
+            const errData = await proxyRes.json().catch(() => ({}));
+            throw new Error(errData.message || `Proxy failed to fetch image (${proxyRes.status})`);
+          }
+          blob = await proxyRes.blob();
+          mimeType = blob.type || proxyRes.headers.get("content-type") || "image/jpeg";
+        }
+      }
+
+      if (!blob || !mimeType.startsWith("image/")) {
+        throw new Error("Downloaded data is not a valid image format");
+      }
+
+      let ext = "jpg";
+      if (mimeType.includes("png")) ext = "png";
+      else if (mimeType.includes("webp")) ext = "webp";
+      else if (mimeType.includes("gif")) ext = "gif";
+
+      const file = new File([blob], `web-image-${Date.now()}.${ext}`, {
+        type: mimeType,
+      });
+
+      onFileSelect(file);
+      toast.success("Image captured and attached!", { id: toastId });
+    } catch (err: any) {
+      console.error("Error capturing remote image:", err);
+      toast.error(err.message || "Failed to load image from this web address", { id: toastId });
+    } finally {
+      setIsLoadingUrl(false);
+    }
+  };
 
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
@@ -111,7 +228,7 @@ function DeferredImageDropzone({
     e.preventDefault();
     e.stopPropagation();
     e.dataTransfer.dropEffect = "copy";
-    setIsDragOver(true);
+    if (!isDragOver) setIsDragOver(true);
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
@@ -127,19 +244,163 @@ function DeferredImageDropzone({
     });
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(false);
     setDragCounter(0);
 
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
+    // 1. Check if local files were dropped
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
       if (!file.type.startsWith("image/")) {
         toast.error("Please drop an image file (PNG, JPG, WebP)");
         return;
       }
       onFileSelect(file);
+      return;
+    }
+
+    // 2. Check if items contains a file
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      for (let i = 0; i < e.dataTransfer.items.length; i++) {
+        const item = e.dataTransfer.items[i];
+        if (item.kind === "file" && item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) {
+            onFileSelect(file);
+            return;
+          }
+        }
+      }
+    }
+
+    // 3. Web image drag (e.g. from Facebook, Instagram, Google or another browser tab)
+    let candidateUrl: string | null = null;
+
+    const html = e.dataTransfer.getData("text/html");
+    if (html) {
+      try {
+        const doc = new DOMParser().parseFromString(html, "text/html");
+        const img = doc.querySelector("img");
+        if (img?.src) {
+          candidateUrl = img.src;
+        }
+      } catch (err) {
+        console.warn("Could not parse dropped HTML", err);
+      }
+    }
+
+    if (!candidateUrl) {
+      const uriList = e.dataTransfer.getData("text/uri-list");
+      if (uriList && uriList.trim()) {
+        candidateUrl = uriList.trim();
+      }
+    }
+
+    if (!candidateUrl) {
+      const plainText = e.dataTransfer.getData("text/plain");
+      if (
+        plainText &&
+        (plainText.startsWith("http://") ||
+          plainText.startsWith("https://") ||
+          plainText.startsWith("data:image/"))
+      ) {
+        candidateUrl = plainText.trim();
+      }
+    }
+
+    if (candidateUrl) {
+      await processRemoteImageUrl(candidateUrl);
+      return;
+    }
+
+    toast.error("No valid image detected in dropped item");
+  };
+
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    // 1. Direct file in clipboard (e.g. copied image or screenshot)
+    if (e.clipboardData.items && e.clipboardData.items.length > 0) {
+      for (let i = 0; i < e.clipboardData.items.length; i++) {
+        const item = e.clipboardData.items[i];
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) {
+            e.preventDefault();
+            e.stopPropagation();
+            onFileSelect(file);
+            toast.success("Image pasted from clipboard!");
+            return;
+          }
+        }
+      }
+    }
+
+    // 2. HTML containing <img>
+    const html = e.clipboardData.getData("text/html");
+    if (html) {
+      try {
+        const doc = new DOMParser().parseFromString(html, "text/html");
+        const img = doc.querySelector("img");
+        if (img?.src) {
+          e.preventDefault();
+          e.stopPropagation();
+          await processRemoteImageUrl(img.src);
+          return;
+        }
+      } catch (_) {}
+    }
+
+    // 3. Plain text URL
+    const text = e.clipboardData.getData("text/plain").trim();
+    if (
+      text &&
+      (text.startsWith("http://") ||
+        text.startsWith("https://") ||
+        text.startsWith("data:image/"))
+    ) {
+      e.preventDefault();
+      e.stopPropagation();
+      await processRemoteImageUrl(text);
+      return;
+    }
+  };
+
+  const handlePasteButtonClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      if (navigator.clipboard && navigator.clipboard.read) {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          for (const type of item.types) {
+            if (type.startsWith("image/")) {
+              const blob = await item.getType(type);
+              const ext = type.includes("png") ? "png" : type.includes("webp") ? "webp" : "jpg";
+              const file = new File([blob], `pasted-image-${Date.now()}.${ext}`, { type });
+              onFileSelect(file);
+              toast.success("Image pasted from clipboard!");
+              return;
+            }
+          }
+        }
+      }
+
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        const text = await navigator.clipboard.readText();
+        if (
+          text &&
+          (text.startsWith("http://") ||
+            text.startsWith("https://") ||
+            text.startsWith("data:image/"))
+        ) {
+          await processRemoteImageUrl(text);
+          return;
+        }
+      }
+
+      toast.error("No image or image link found in clipboard");
+    } catch {
+      toast.error("Click this area and press Ctrl+V to paste image");
     }
   };
 
@@ -177,22 +438,41 @@ function DeferredImageDropzone({
       />
 
       <div
-        onClick={() => fileInputRef.current?.click()}
+        ref={dropzoneRef}
+        tabIndex={0}
+        onClick={() => !isLoadingUrl && fileInputRef.current?.click()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            fileInputRef.current?.click();
+          }
+        }}
+        onPaste={handlePaste}
         onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed transition-all cursor-pointer select-none p-4 ${
+        className={`relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed transition-all cursor-pointer select-none p-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
           isDragOver
-            ? "border-indigo-500 bg-indigo-50/80 dark:bg-indigo-950/40 ring-4 ring-indigo-500/20"
+            ? "border-indigo-500 bg-indigo-50/90 dark:bg-indigo-950/60 ring-4 ring-indigo-500/30 scale-[1.008]"
             : preview
             ? "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
             : "border-slate-300 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/40 hover:border-indigo-400 hover:bg-indigo-50/30 dark:hover:bg-indigo-950/20"
         }`}
       >
-        {preview ? (
+        {isLoadingUrl ? (
+          <div className="flex flex-col items-center justify-center py-6 space-y-2 pointer-events-none">
+            <Loader2 className="w-8 h-8 animate-spin text-indigo-600 dark:text-indigo-400" />
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+              Capturing image from web…
+            </p>
+            <p className="text-xs text-slate-400">
+              Fetching and preparing image for deferred upload
+            </p>
+          </div>
+        ) : preview ? (
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full">
-            <div className="relative w-full sm:w-44 h-28 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 shrink-0">
+            <div className="relative w-full sm:w-44 h-28 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 shrink-0 pointer-events-none">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={preview}
@@ -200,7 +480,7 @@ function DeferredImageDropzone({
                 className="w-full h-full object-cover"
               />
             </div>
-            <div className="flex-1 min-w-0 text-center sm:text-left space-y-1">
+            <div className="flex-1 min-w-0 text-center sm:text-left space-y-1 pointer-events-none">
               <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
                 {selectedFile ? (
                   <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
@@ -217,11 +497,11 @@ function DeferredImageDropzone({
               </p>
               {selectedFile && (
                 <p className="text-[11px] text-slate-400">
-                  Size: {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB &bull; Will compress before cloud upload
+                  Size: {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB &bull; Compressing on save
                 </p>
               )}
               <p className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">
-                Click or drag another image to replace
+                Click, drag new image, or paste (Ctrl+V) to replace
               </p>
             </div>
             <button
@@ -230,28 +510,42 @@ function DeferredImageDropzone({
                 e.stopPropagation();
                 onClear();
               }}
-              className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition shrink-0"
+              className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition shrink-0 z-10 pointer-events-auto"
               title="Remove image"
             >
               <Trash2 size={16} />
             </button>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center text-center py-4 space-y-2">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-transform ${
-              isDragOver
-                ? "bg-indigo-600 text-white scale-110"
-                : "bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400"
-            }`}>
+          <div className="flex flex-col items-center justify-center text-center py-4 space-y-2 pointer-events-none">
+            <div
+              className={`w-12 h-12 rounded-xl flex items-center justify-center transition-transform ${
+                isDragOver
+                  ? "bg-indigo-600 text-white scale-110"
+                  : "bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400"
+              }`}
+            >
               <Upload size={22} className={isDragOver ? "animate-bounce" : ""} />
             </div>
             <div>
               <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                {isDragOver ? "Drop image right here!" : "Drag & drop image here, or click to browse"}
+                {isDragOver
+                  ? "Drop image right here!"
+                  : "Drag & drop image here, or click to browse"}
               </p>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                PNG, JPG, WebP supported &bull; Uploads to cloud only when saving event
+                Drop from disk or web (Facebook, etc.) &bull; Or paste with Ctrl+V
               </p>
+            </div>
+            <div className="pt-1 pointer-events-auto">
+              <button
+                type="button"
+                onClick={handlePasteButtonClick}
+                className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-indigo-600 transition shadow-2xs"
+              >
+                <ClipboardPaste size={13} />
+                <span>Paste from clipboard (Ctrl+V)</span>
+              </button>
             </div>
           </div>
         )}
