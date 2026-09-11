@@ -188,8 +188,7 @@ export default function DashboardMemberDetailsPage() {
             passingYear: json.data.passingYear || undefined,
             role: json.data.role || "member",
             clubRole: json.data.clubRole || "member",
-            customRole: json.data.customRole || json.data.designation || "",
-            designation: json.data.designation || "",
+            designation: json.data.designation || json.data.customRole || "",
             applicationStatus: json.data.applicationStatus || "approved",
             profileStatus: json.data.profileStatus || "active",
             contactNumber: json.data.contactNumber || "",
@@ -283,8 +282,7 @@ export default function DashboardMemberDetailsPage() {
     try {
       const payload = {
         ...editData,
-        designation: editData.customRole || editData.designation || "",
-        customRole: editData.customRole || editData.designation || "",
+        designation: editData.designation || "",
         passingYear: editData.passingYear ? Number(editData.passingYear) : null,
       };
 
@@ -463,8 +461,7 @@ export default function DashboardMemberDetailsPage() {
                     passingYear: member.passingYear || undefined,
                     role: member.role || "member",
                     clubRole: member.clubRole || "member",
-                    customRole: member.customRole || member.designation || "",
-                    designation: member.designation || "",
+                    designation: member.designation || member.customRole || "",
                     applicationStatus: member.applicationStatus || "approved",
                     profileStatus: member.profileStatus || "active",
                     contactNumber: member.contactNumber || "",
@@ -1250,11 +1247,10 @@ export default function DashboardMemberDetailsPage() {
                 </label>
                 <input
                   type="text"
-                  value={editData.customRole || editData.designation || ""}
+                  value={editData.designation || ""}
                   onChange={(e) =>
                     setEditData((prev) => ({
                       ...prev,
-                      customRole: e.target.value,
                       designation: e.target.value,
                     }))
                   }

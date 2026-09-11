@@ -227,7 +227,6 @@ export function AdminAddMemberModal({ isOpen, onClose, onSuccess }: AdminAddMemb
       if (targetType === "advisor") {
         payload.clubRole = "advisor";
         payload.designation = advisorDesignation.trim() || institutionalPost.trim() || "Faculty Advisor";
-        payload.customRole = advisorDesignation.trim() || institutionalPost.trim() || "Faculty Advisor";
         payload.session = institutionalPost.trim() || (department ? `Dept. of ${department}` : "Faculty");
         payload.batch = "Faculty";
         payload.studentId = facultyId.trim() || `FAC-${department}-${Date.now().toString().slice(-4)}`;
@@ -239,7 +238,6 @@ export function AdminAddMemberModal({ isOpen, onClose, onSuccess }: AdminAddMemb
         payload.batch = batch.trim() || `${department}-Alumni`;
         payload.studentId = formerStudentId.trim() || `ALM-${Date.now().toString().slice(-6)}`;
         payload.designation = currentJobTitle ? `${currentJobTitle} at ${currentCompany || "Industry"}` : "Alumni";
-        payload.customRole = payload.designation;
       } else {
         // General Member or Executive
         payload.clubRole = isGraduated ? "alumni" : memberCategory;
@@ -252,7 +250,6 @@ export function AdminAddMemberModal({ isOpen, onClose, onSuccess }: AdminAddMemb
         payload.session = session.trim();
         payload.batch = batch.trim() || `${department}-Batch`;
         payload.designation = memberCategory === "executive" ? executiveDesignation : "General Member";
-        payload.customRole = payload.designation;
       }
 
       const formData = new FormData();

@@ -722,7 +722,6 @@ function RegisterContent() {
         payload.facultyId = facultyId.trim() || `FAC-${advisorDepartment}-${Date.now().toString().slice(-4)}`;
         payload.studentId = payload.facultyId;
         payload.designation = advisorStanding.trim() || institutionalPost.trim() || "Faculty Advisor";
-        payload.customRole = advisorStanding.trim() || institutionalPost.trim() || "Faculty Advisor";
         payload.session = institutionalPost.trim() || (advisorDepartment ? `Dept. of ${advisorDepartment}` : "Faculty");
         payload.batch = "Faculty";
       } else if (effectiveRole === "alumni") {
@@ -739,7 +738,6 @@ function RegisterContent() {
         payload.passingYear = parseInt(passingYear) || new Date().getFullYear();
         payload.isGraduated = true;
         payload.designation = companyTitleText || "Alumni";
-        payload.customRole = payload.designation;
       } else {
         // Student member or Executive/Moderator/Admin
         payload.department = department || "CSE";

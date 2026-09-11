@@ -237,6 +237,7 @@ export interface AuthUser {
   studentId: string;
   role: "guest" | "member" | "moderator" | "admin" | "alumni" | "executive";
   clubRole?: "member" | "executive" | "alumni" | "advisor";
+  /** @deprecated Use designation */
   customRole?: string;
   designation?: string;
   imageUrl?: string;
