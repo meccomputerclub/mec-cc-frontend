@@ -506,20 +506,18 @@ const InvitationCodeContent = () => {
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm border-collapse">
+          <table className="w-full min-w-[920px] text-left text-sm border-collapse">
             <thead>
               <tr className="border-b border-border-default bg-surface-secondary text-text-secondary text-xs font-semibold uppercase tracking-wider">
                 <th className="p-3">Code Key</th>
                 <th className="p-3">Type</th>
                 <th className="p-3">Role</th>
                 <th className="p-3">Label / Recipient</th>
-                <th className="p-3 text-center w-16">Approval</th>
+                <th className="p-3 text-center">Approval</th>
                 <th className="p-3 text-center">Registrations</th>
-                <th className="p-3 text-center">Status</th>
-                <th className="p-3 text-center">Expires</th>
-                <th className="p-3 text-center sticky right-0 bg-surface-secondary z-10 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.08)] whitespace-nowrap w-28">
-                  Actions
-                </th>
+                <th className="p-3 text-center whitespace-nowrap">Status</th>
+                <th className="p-3 text-center whitespace-nowrap">Expires</th>
+                <th className="p-3 text-center whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-default">
@@ -596,31 +594,31 @@ const InvitationCodeContent = () => {
                         {inv.usageCount || 0} {isPermanent ? "users" : inv.usageCount === 1 ? "used" : "unused"}
                       </td>
 
-                      <td className="p-3 text-center">
+                      <td className="p-3 text-center whitespace-nowrap">
                         {isAvail ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                             ● Available
                           </span>
                         ) : isDiscontinued ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                             ⏸ Discontinued
                           </span>
                         ) : isConsumed ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
                             ✓ Consumed
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
                             Expired
                           </span>
                         )}
                       </td>
 
-                      <td className="p-3 text-center text-xs text-text-secondary whitespace-nowrap">
+                      <td className="p-3 text-center text-xs text-text-secondary whitespace-nowrap font-medium">
                         {isPermanent ? "Never" : inv.expiresAt ? new Date(inv.expiresAt).toLocaleDateString() : "15 days"}
                       </td>
 
-                      <td className="p-3 text-center sticky right-0 bg-surface-elevated group-hover:bg-accent-primary-light z-10 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.08)] transition-colors whitespace-nowrap">
+                      <td className="p-3 text-center whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1.5">
                           {/* Copy URL */}
                           <button
@@ -682,7 +680,7 @@ const InvitationCodeContent = () => {
                 })
               ) : (
                 <tr>
-                  <td colSpan={8} className="p-6 text-center text-text-secondary text-xs">
+                  <td colSpan={9} className="p-6 text-center text-text-secondary text-xs">
                     {fetchingList ? "Loading invitation codes..." : "No invitation codes found for this filter."}
                   </td>
                 </tr>
