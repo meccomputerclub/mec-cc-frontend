@@ -120,22 +120,62 @@ function buildSocialLinks(
   if (!socials) return [];
   const links: SocialLink[] = [];
 
-  if (socials.linkedin)
-    links.push({ href: ensureUrl('https://linkedin.com/in/', socials.linkedin), label: `${name}'s LinkedIn`, icon: <IconLinkedIn /> });
-  if (socials.github)
-    links.push({ href: ensureUrl('https://github.com/', socials.github), label: `${name}'s GitHub`, icon: <IconGitHub /> });
-  if (socials.email)
-    links.push({ href: `mailto:${socials.email}`, label: `Email ${name}`, icon: <IconEmail /> });
-  if (socials.discord)
-    links.push({ href: `https://discord.com`, label: `${name}'s Discord`, icon: <IconDiscord /> });
-  if (socials.facebook)
-    links.push({ href: ensureUrl('https://facebook.com/', socials.facebook), label: `${name}'s Facebook`, icon: <IconFacebook /> });
-  if (socials.codeforces)
-    links.push({ href: ensureUrl('https://codeforces.com/profile/', socials.codeforces), label: `${name}'s Codeforces`, icon: <IconCodeforces /> });
-  if (socials.codechef)
-    links.push({ href: ensureUrl('https://www.codechef.com/users/', socials.codechef), label: `${name}'s CodeChef`, icon: <IconCodeChef /> });
+  // Precedence: facebook > linkedin > github > codeforces > discord > codechef
+  // If anyone has more than 3, top 3 in precedence order are shown (max 3 visible).
+  if (socials.facebook?.trim()) {
+    links.push({
+      href: ensureUrl('https://facebook.com/', socials.facebook),
+      label: `${name}'s Facebook`,
+      icon: <IconFacebook />,
+    });
+  }
 
-  return links;
+  if (socials.linkedin?.trim()) {
+    links.push({
+      href: ensureUrl('https://linkedin.com/in/', socials.linkedin),
+      label: `${name}'s LinkedIn`,
+      icon: <IconLinkedIn />,
+    });
+  }
+
+  if (socials.github?.trim()) {
+    links.push({
+      href: ensureUrl('https://github.com/', socials.github),
+      label: `${name}'s GitHub`,
+      icon: <IconGitHub />,
+    });
+  }
+
+  if (socials.codeforces?.trim()) {
+    links.push({
+      href: ensureUrl('https://codeforces.com/profile/', socials.codeforces),
+      label: `${name}'s Codeforces`,
+      icon: <IconCodeforces />,
+    });
+  }
+
+  if (socials.discord?.trim()) {
+    const trimmed = socials.discord.trim();
+    const discordHref =
+      trimmed.startsWith('http://') || trimmed.startsWith('https://')
+        ? trimmed
+        : 'https://discord.com';
+    links.push({
+      href: discordHref,
+      label: `${name}'s Discord`,
+      icon: <IconDiscord />,
+    });
+  }
+
+  if (socials.codechef?.trim()) {
+    links.push({
+      href: ensureUrl('https://www.codechef.com/users/', socials.codechef),
+      label: `${name}'s CodeChef`,
+      icon: <IconCodeChef />,
+    });
+  }
+
+  return links.slice(0, 3);
 }
 
 export function ProfileCard({
