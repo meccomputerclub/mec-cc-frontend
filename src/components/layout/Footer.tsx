@@ -140,39 +140,36 @@ export function Footer() {
             </div>
           </div>
 
-          {/* Explore & Resources — Flexed & centered on mobile, separate grid columns on tablet/desktop */}
-          <div className="flex flex-row justify-around sm:contents w-full max-w-xs mx-auto sm:max-w-none text-center sm:text-left">
-            {/* Explore */}
-            <div className="flex flex-col items-center sm:items-start">
-              <h4 className={`${headingClass} justify-center sm:justify-start`}>
-                <Compass size={16} /> Explore
-              </h4>
-              <ul className="list-none p-0 m-0 flex flex-col items-center sm:items-start">
-                {footerLinks.explore.map((link) => (
-                  <li key={link.href} className="mb-[var(--space-2)]">
-                    <Link href={link.href} className={footerLinkClass}>
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
+          {/* Explore */}
+          <div className="flex flex-col items-center sm:items-start">
+            <h4 className={`${headingClass} justify-center sm:justify-start`}>
+              <Compass size={16} /> Explore
+            </h4>
+            <ul className="list-none p-0 m-0 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 sm:flex-col sm:items-start sm:gap-0">
+              {footerLinks.explore.map((link) => (
+                <li key={link.href} className="mb-0 sm:mb-[var(--space-2)]">
+                  <Link href={link.href} className={footerLinkClass}>
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
 
-            {/* Resources */}
-            <div className="flex flex-col items-center sm:items-start">
-              <h4 className={`${headingClass} justify-center sm:justify-start`}>
-                <BookOpen size={16} /> Resources
-              </h4>
-              <ul className="list-none p-0 m-0 flex flex-col items-center sm:items-start">
-                {footerLinks.resources.map((link) => (
-                  <li key={link.href} className="mb-[var(--space-2)]">
-                    <Link href={link.href} className={footerLinkClass}>
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
+          {/* Resources */}
+          <div className="flex flex-col items-center sm:items-start">
+            <h4 className={`${headingClass} justify-center sm:justify-start`}>
+              <BookOpen size={16} /> Resources
+            </h4>
+            <ul className="list-none p-0 m-0 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 sm:flex-col sm:items-start sm:gap-0">
+              {footerLinks.resources.map((link) => (
+                <li key={link.href} className="mb-0 sm:mb-[var(--space-2)]">
+                  <Link href={link.href} className={footerLinkClass}>
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
 
           {/* Connect — Hidden on mobile devices */}
