@@ -76,6 +76,7 @@ export function DesignationManager({
   const [searchedMembers, setSearchedMembers] = useState<any[]>([]);
   const [savingAssignments, setSavingAssignments] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const activeSearchQueryRef = useRef<string>("");
 
   // Fetch designations for this category
   const fetchDesignations = async () => {
@@ -218,12 +219,13 @@ export function DesignationManager({
     setMemberSearch("");
     setSearchedMembers([]);
     setSearchingMembers(false);
+    activeSearchQueryRef.current = "";
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
   };
 
-  // Debounced server search for assignable members (triggers at >= 3 chars)
+  // Debounced server search for assignable members (triggers at >= 3 chars, fetches in background)
   const handleMemberSearchChange = (value: string) => {
     setMemberSearch(value);
 
@@ -235,23 +237,31 @@ export function DesignationManager({
     if (trimmed.length < 3) {
       setSearchingMembers(false);
       setSearchedMembers([]);
+      activeSearchQueryRef.current = "";
       return;
     }
 
     setSearchingMembers(true);
+    activeSearchQueryRef.current = trimmed;
+
     searchTimeoutRef.current = setTimeout(async () => {
       try {
         const res = await api.get<{ success: boolean; members: any[]; data: any[] }>(
-          `/api/users/search-assignable?q=${encodeURIComponent(trimmed)}`
+          `/api/users/search-assignable?q=${encodeURIComponent(trimmed)}&category=${encodeURIComponent(category)}`
         );
-        const results = res?.members || res?.data || [];
-        setSearchedMembers(results);
+        // Only update if this request matches the current active search query
+        if (activeSearchQueryRef.current === trimmed) {
+          const results = res?.members || res?.data || [];
+          setSearchedMembers(results);
+        }
       } catch (err) {
         console.error("Member search error:", err);
       } finally {
-        setSearchingMembers(false);
+        if (activeSearchQueryRef.current === trimmed) {
+          setSearchingMembers(false);
+        }
       }
-    }, 350);
+    }, 300);
   };
 
   // Toggle member selection in modal
@@ -370,6 +380,11 @@ export function DesignationManager({
           .assign-modal-item.is-selected { background: var(--accent-primary-light); }
           .dark .assign-modal-item.is-selected { background: color-mix(in srgb, var(--accent-primary) 20%, var(--surface-primary)); }
           .assign-modal-item__info { display: flex; align-items: center; gap: 10px; }
+          .assign-modal-item__checkbox { width: 18px; height: 18px; border-radius: var(--radius-sm); border: 1px solid var(--border-default); background: transparent; display: flex; align-items: center; justify-content: center; color: #FFFFFF; flex-shrink: 0; transition: all var(--transition-fast); }
+          .assign-modal-item.is-selected .assign-modal-item__checkbox { border: 2px solid var(--accent-primary); background: var(--accent-primary); }
+          .assign-modal-avatar { width: 34px; height: 34px; min-width: 34px; min-height: 34px; max-width: 34px; max-height: 34px; border-radius: 50%; overflow: hidden; position: relative; flex-shrink: 0; border: 1px solid var(--border-default); background: var(--surface-secondary); display: flex; align-items: center; justify-content: center; }
+          .assign-modal-avatar__img, .assign-modal-avatar img { width: 100% !important; height: 100% !important; min-width: 100% !important; min-height: 100% !important; max-width: 100% !important; max-height: 100% !important; object-fit: cover !important; object-position: 50% 50%; border-radius: 50% !important; display: block !important; }
+          .assign-modal-avatar__initial { font-size: 13px; font-weight: 800; color: var(--text-secondary); line-height: 1; }
           .assign-modal-item__text { display: flex; flex-direction: column; }
           .assign-modal-item__name { font-size: 13px; font-weight: 700; color: var(--text-primary); }
           .assign-modal-item__sub { font-size: 11px; font-family: var(--font-body); color: var(--text-secondary); }
@@ -555,6 +570,7 @@ export function DesignationManager({
                                   width={20}
                                   height={20}
                                   className="desig-member-chip__avatar"
+                                  style={{ objectPosition: m.imagePosition || "50% 50%" }}
                                 />
                               ) : (
                                 <span className="desig-member-chip__avatar">{initial}</span>
@@ -957,52 +973,44 @@ export function DesignationManager({
                             onClick={() => toggleMemberSelection(mId)}
                           >
                             <div className="assign-modal-item__info">
-                              <div
-                                style={{
-                                  width: "18px",
-                                  height: "18px",
-                                  borderRadius: "var(--radius-sm)",
-                                  border: isSelected ? "2px solid var(--accent-primary)" : "1px solid var(--border-default)",
-                                  background: isSelected ? "var(--accent-primary)" : "transparent",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  color: "#FFFFFF",
-                                  flexShrink: 0,
-                                }}
-                              >
+                              <div className="assign-modal-item__checkbox">
                                 {isSelected && <Check size={12} />}
                               </div>
 
-                              {m.imageUrl ? (
-                                <Image
-                                  src={m.imageUrl}
-                                  alt={m.fullName}
-                                  width={28}
-                                  height={28}
-                                  style={{ borderRadius: "50%", objectFit: "cover" }}
-                                />
-                              ) : (
-                                <div
-                                  style={{
-                                    width: "28px",
-                                    height: "28px",
-                                    borderRadius: "50%",
-                                    background: "var(--surface-secondary)",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    fontSize: "12px",
-                                    fontWeight: 800,
-                                    color: "var(--text-secondary)",
-                                  }}
-                                >
-                                  {initial}
-                                </div>
-                              )}
+                              <div className="assign-modal-avatar">
+                                {m.imageUrl ? (
+                                  <Image
+                                    src={m.imageUrl}
+                                    alt={m.fullName}
+                                    width={34}
+                                    height={34}
+                                    className="assign-modal-avatar__img"
+                                    style={{ objectPosition: m.imagePosition || "50% 50%" }}
+                                  />
+                                ) : (
+                                  <span className="assign-modal-avatar__initial">{initial}</span>
+                                )}
+                              </div>
 
                               <div className="assign-modal-item__text">
-                                <span className="assign-modal-item__name">{m.fullName}</span>
+                                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                  <span className="assign-modal-item__name">{m.fullName}</span>
+                                  {category === "advisor" && (
+                                    <span
+                                      style={{
+                                        padding: "1px 5px",
+                                        borderRadius: "var(--radius-xs, 4px)",
+                                        fontSize: "9px",
+                                        fontWeight: 700,
+                                        background: m.clubRole === "advisor" ? "rgba(37, 99, 235, 0.12)" : "rgba(16, 185, 129, 0.12)",
+                                        color: m.clubRole === "advisor" ? "var(--accent-primary)" : "#10B981",
+                                        border: m.clubRole === "advisor" ? "1px solid var(--accent-primary)" : "1px solid #10B981",
+                                      }}
+                                    >
+                                      {m.clubRole === "advisor" ? "Advisor" : "Alumni"}
+                                    </span>
+                                  )}
+                                </div>
                                 <span className="assign-modal-item__sub">
                                   {m.studentId ? `ID: ${m.studentId} · ` : ""}
                                   {m.department || "CSE"}
@@ -1020,85 +1028,84 @@ export function DesignationManager({
                     </div>
                   )}
                 </>
-              ) : searchingMembers ? (
-                <div style={{ padding: "30px", textAlign: "center", color: "var(--text-secondary)", fontSize: "12px" }}>
-                  <RefreshCw size={18} className="spin-animation" style={{ margin: "0 auto 8px" }} />
-                  Searching approved members matching &quot;{memberSearch.trim()}&quot;...
-                </div>
-              ) : searchedMembers.length === 0 ? (
-                <div style={{ padding: "30px", textAlign: "center", color: "var(--text-secondary)", fontSize: "12px" }}>
-                  No approved members found matching &quot;{memberSearch.trim()}&quot;
-                </div>
-              ) : (
-                searchedMembers.map((m) => {
-                  const mId = m._id || m.id;
-                  const isSelected = selectedMemberIds.includes(mId);
-                  const initial = (m.fullName || "M").charAt(0).toUpperCase();
+              ) : searchedMembers.length > 0 ? (
+                <div
+                  style={{
+                    opacity: searchingMembers ? 0.6 : 1,
+                    transition: "opacity 0.2s ease",
+                  }}
+                >
+                  {searchedMembers.map((m) => {
+                    const mId = m._id || m.id;
+                    const isSelected = selectedMemberIds.includes(mId);
+                    const initial = (m.fullName || "M").charAt(0).toUpperCase();
 
-                  return (
-                    <div
-                      key={mId}
-                      className={`assign-modal-item ${isSelected ? "is-selected" : ""}`}
-                      onClick={() => toggleMemberSelection(mId)}
-                    >
-                      <div className="assign-modal-item__info">
-                        <div
-                          style={{
-                            width: "18px",
-                            height: "18px",
-                            borderRadius: "var(--radius-sm)",
-                            border: isSelected ? "2px solid var(--accent-primary)" : "1px solid var(--border-default)",
-                            background: isSelected ? "var(--accent-primary)" : "transparent",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            color: "#FFFFFF",
-                            flexShrink: 0,
-                          }}
-                        >
-                          {isSelected && <Check size={12} />}
-                        </div>
-
-                        {m.imageUrl ? (
-                          <Image
-                            src={m.imageUrl}
-                            alt={m.fullName}
-                            width={28}
-                            height={28}
-                            style={{ borderRadius: "50%", objectFit: "cover" }}
-                          />
-                        ) : (
-                          <div
-                            style={{
-                              width: "28px",
-                              height: "28px",
-                              borderRadius: "50%",
-                              background: "var(--surface-secondary)",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: "12px",
-                              fontWeight: 800,
-                              color: "var(--text-secondary)",
-                            }}
-                          >
-                            {initial}
+                    return (
+                      <div
+                        key={mId}
+                        className={`assign-modal-item ${isSelected ? "is-selected" : ""}`}
+                        onClick={() => toggleMemberSelection(mId)}
+                      >
+                        <div className="assign-modal-item__info">
+                          <div className="assign-modal-item__checkbox">
+                            {isSelected && <Check size={12} />}
                           </div>
-                        )}
 
-                        <div className="assign-modal-item__text">
-                          <span className="assign-modal-item__name">{m.fullName}</span>
-                          <span className="assign-modal-item__sub">
-                            {m.studentId ? `ID: ${m.studentId} · ` : ""}
-                            {m.department || "CSE"}
-                            {m.session ? ` (${m.session})` : ""}
-                            {m.designation && m.designation !== assignTarget.title ? ` · Current: ${m.designation}` : ""}
-                          </span>
+                          <div className="assign-modal-avatar">
+                            {m.imageUrl ? (
+                              <Image
+                                src={m.imageUrl}
+                                alt={m.fullName}
+                                width={34}
+                                height={34}
+                                className="assign-modal-avatar__img"
+                                style={{ objectPosition: m.imagePosition || "50% 50%" }}
+                              />
+                            ) : (
+                              <span className="assign-modal-avatar__initial">{initial}</span>
+                            )}
+                          </div>
+
+                          <div className="assign-modal-item__text">
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                              <span className="assign-modal-item__name">{m.fullName}</span>
+                              {category === "advisor" && (
+                                <span
+                                  style={{
+                                    padding: "1px 5px",
+                                    borderRadius: "var(--radius-xs, 4px)",
+                                    fontSize: "9px",
+                                    fontWeight: 700,
+                                    background: m.clubRole === "advisor" ? "rgba(37, 99, 235, 0.12)" : "rgba(16, 185, 129, 0.12)",
+                                    color: m.clubRole === "advisor" ? "var(--accent-primary)" : "#10B981",
+                                    border: m.clubRole === "advisor" ? "1px solid var(--accent-primary)" : "1px solid #10B981",
+                                  }}
+                                >
+                                  {m.clubRole === "advisor" ? "Advisor" : "Alumni"}
+                                </span>
+                              )}
+                            </div>
+                            <span className="assign-modal-item__sub">
+                              {m.studentId ? `ID: ${m.studentId} · ` : ""}
+                              {m.department || "CSE"}
+                              {m.session ? ` (${m.session})` : ""}
+                              {m.designation && m.designation !== assignTarget.title ? ` · Current: ${m.designation}` : ""}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })
+                    );
+                  })}
+                </div>
+              ) : searchingMembers ? (
+                <div style={{ padding: "32px", textAlign: "center", color: "var(--text-secondary)", fontSize: "12px" }}>
+                  <RefreshCw size={18} className="spin-animation" style={{ margin: "0 auto 8px", color: "var(--accent-primary)" }} />
+                  Searching approved members matching &quot;{memberSearch.trim()}&quot;...
+                </div>
+              ) : (
+                <div style={{ padding: "32px", textAlign: "center", color: "var(--text-secondary)", fontSize: "12px" }}>
+                  No approved members found matching &quot;{memberSearch.trim()}&quot;
+                </div>
               )}
             </div>
 
