@@ -19,6 +19,7 @@ interface CustomPage {
   description?: string;
   content: string;          // raw HTML
   isPublished: boolean;
+  showOnlyHtmlContent?: boolean;
   coverImageUrl?: string;
   createdAt: string;
   updatedAt: string;
@@ -34,7 +35,7 @@ function slugify(s: string) {
 // ── Empty form ─────────────────────────────────────────────────────────────
 const EMPTY = {
   title: "", slug: "", description: "",
-  content: "", isPublished: false, coverImageUrl: "",
+  content: "", isPublished: false, showOnlyHtmlContent: false, coverImageUrl: "",
 };
 
 // ── Sub-components (module scope — no focus-loss) ──────────────────────────
@@ -114,6 +115,7 @@ function PageEditorContent() {
       description: page.description || "",
       content: page.content,
       isPublished: page.isPublished,
+      showOnlyHtmlContent: Boolean(page.showOnlyHtmlContent),
       coverImageUrl: page.coverImageUrl || "",
     });
     setEditingId(page._id);
@@ -328,6 +330,26 @@ function PageEditorContent() {
               </div>
             )}
 
+            {/* Standalone Raw HTML Mode Toggle */}
+            <div className="p-4 rounded-xl border border-border-default bg-surface-secondary/70 flex flex-col gap-2">
+              <label className="flex items-start gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={form.showOnlyHtmlContent}
+                  onChange={(e) => set("showOnlyHtmlContent", e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-border-default text-accent-primary focus:ring-accent-primary accent-accent-primary"
+                />
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold text-text-primary flex items-center gap-1.5">
+                    ⚡ Show Only HTML Content (Standalone Raw HTML Mode)
+                  </span>
+                  <span className="text-xs text-text-secondary mt-0.5 leading-relaxed">
+                    When checked, visitors headed to this page will see <strong>only the HTML content</strong>. The MEC Computer Club header, navbar, and footer will be completely hidden.
+                  </span>
+                </div>
+              </label>
+            </div>
+
             <div className="flex items-center justify-between pt-2 border-t border-border-default">
               <label className="flex items-center gap-2 text-sm text-text-secondary font-semibold cursor-pointer select-none">
                 <input
@@ -379,6 +401,11 @@ function PageEditorContent() {
                     }`}>
                     {page.isPublished ? "Published" : "Draft"}
                   </span>
+                  {page.showOnlyHtmlContent && (
+                    <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                      ⚡ HTML Only
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 mt-1">
                   <code className="text-xs text-text-secondary bg-surface-secondary px-2 py-0.5 rounded font-semibold">

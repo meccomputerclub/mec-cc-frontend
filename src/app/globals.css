@@ -915,4 +915,22 @@ a[disabled] {
 .marquee-mask {
   mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
   -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
-}
+}
+
+/* ============================================================
+   Standalone Raw HTML Custom Pages Mode
+   ============================================================ */
+body.raw-html-page-active header.navbar,
+body.raw-html-page-active footer,
+body.raw-html-page-active .accent-indicator {
+  display: none !important;
+}
+
+body.raw-html-page-active #main-content {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  min-height: 100vh !important;
+}
+

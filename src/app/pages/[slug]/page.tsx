@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { RawHtmlChromeHider } from "./RawHtmlChromeHider";
+import { API_BASE_URL } from "@/lib/api";
 
 interface CustomPage {
   _id: string;
@@ -8,10 +10,10 @@ interface CustomPage {
   description?: string;
   content: string;
   isPublished: boolean;
+  showOnlyHtmlContent?: boolean;
   coverImageUrl?: string;
   updatedAt: string;
 }
-import { API_BASE_URL } from "@/lib/api";
 
 const API_BASE = API_BASE_URL;
 
@@ -89,7 +91,12 @@ function scopeCssRules(css: string): string {
  * 2. CSS variables and backgrounds declared inside :root / body in the custom page are attached directly to .custom-page-rendered.
  * 3. Links with www. are normalized.
  */
-function processCustomPageHtml(rawHtml: string): { scopedHtml: string; scopedCss: string } {
+function processCustomPageHtml(rawHtml: string): {
+  scopedHtml: string;
+  scopedCss: string;
+  bodyClass?: string;
+  bodyStyle?: string;
+} {
   if (!rawHtml) return { scopedHtml: "", scopedCss: "" };
 
   let html = rawHtml;
@@ -101,10 +108,18 @@ function processCustomPageHtml(rawHtml: string): { scopedHtml: string; scopedCss
     return "";
   });
 
-  // Extract body content if <body> tag exists
-  const bodyMatch = html.match(/<body\b[^>]*>([\s\S]*?)<\/body>/i);
+  let bodyClass = "";
+  let bodyStyle = "";
+
+  // Extract body content and attributes if <body> tag exists
+  const bodyMatch = html.match(/<body\b([^>]*)>([\s\S]*?)<\/body>/i);
   if (bodyMatch) {
-    html = bodyMatch[1];
+    const attrs = bodyMatch[1] || "";
+    html = bodyMatch[2];
+    const styleMatch = attrs.match(/\bstyle=(["'])([\s\S]*?)\1/i);
+    if (styleMatch) bodyStyle = styleMatch[2];
+    const classMatch = attrs.match(/\bclass=(["'])([\s\S]*?)\1/i);
+    if (classMatch) bodyClass = classMatch[2];
   } else {
     // Strip <!DOCTYPE...>, <html>, <head>...</head>, </html>, <body>
     html = html
@@ -130,7 +145,7 @@ function processCustomPageHtml(rawHtml: string): { scopedHtml: string; scopedCss
     scopedCss += "\n" + scopeCssRules(rawCss);
   }
 
-  return { scopedHtml: html, scopedCss };
+  return { scopedHtml: html, scopedCss, bodyClass, bodyStyle };
 }
 
 export default async function DynamicCustomPage({
@@ -145,8 +160,58 @@ export default async function DynamicCustomPage({
     notFound();
   }
 
-  const { scopedHtml, scopedCss } = processCustomPageHtml(page.content);
+  const { scopedHtml, scopedCss, bodyClass, bodyStyle } = processCustomPageHtml(page.content);
 
+  // ── Standalone Mode: Show ONLY HTML Content (No Navbar, No Footer, No Site Header) ──
+  if (page.showOnlyHtmlContent) {
+    return (
+      <div className="w-full min-h-screen overflow-x-hidden">
+        <RawHtmlChromeHider />
+
+        {/* Scoped CSS for Standalone Mode (Hides Navbar, Footer, and Accent Indicator) */}
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+              body.raw-html-page-active header.navbar,
+              body.raw-html-page-active footer,
+              body.raw-html-page-active .accent-indicator,
+              header.navbar,
+              footer,
+              .accent-indicator {
+                display: none !important;
+              }
+              #main-content {
+                max-width: 100% !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                min-height: 100vh !important;
+              }
+              .custom-page-rendered {
+                width: 100%;
+                min-height: 100vh;
+                word-break: break-word;
+              }
+              .custom-page-rendered img {
+                max-width: 100%;
+                height: auto;
+              }
+              ${bodyStyle ? `.custom-page-rendered { ${bodyStyle} }` : ""}
+              ${scopedCss}
+            `,
+          }}
+        />
+
+        {/* Pure Standalone HTML Content */}
+        <article
+          className={`custom-page-rendered w-full min-h-screen ${bodyClass || ""}`}
+          dangerouslySetInnerHTML={{ __html: scopedHtml }}
+        />
+      </div>
+    );
+  }
+
+  // ── Standard Mode: Normal Embedded Page with Site Header / Footer ──
   return (
     <div className="w-full min-h-[calc(100vh-var(--nav-height))] overflow-x-hidden">
       {/* Scoped CSS for CMS content rendering */}
@@ -174,7 +239,7 @@ export default async function DynamicCustomPage({
         }}
       />
 
-      {/* Full-width custom page content without restrictive container or header card */}
+      {/* Full-width custom page content */}
       <article
         className="custom-page-rendered w-full"
         dangerouslySetInnerHTML={{ __html: scopedHtml }}
