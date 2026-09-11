@@ -12,7 +12,7 @@ import {
   Image as ImageIcon, Award, Search, X, Plus, Trash2, Check,
   AlertCircle, Clock, Mail, User, Loader2,
   ExternalLink, Edit, Star, Printer, Eye, Copy, Share2, Sparkles, CheckCircle2,
-  FileCheck, ShieldAlert,
+  FileCheck, ShieldAlert, UserCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
@@ -136,6 +136,27 @@ interface EventData {
   attendees: UserRef[];
   approvedParticipants?: ApprovedParticipant[];
   pendingParticipants: PendingParticipant[];
+  allowParticipationClaims?: boolean;
+  participationClaims?: Array<{
+    _id: string;
+    userId?: UserRef;
+    fullName: string;
+    email: string;
+    studentId?: string;
+    department?: string;
+    phone?: string;
+    role: string;
+    notes?: string;
+    status: "pending" | "approved" | "rejected";
+    claimedAt: string;
+    reviewedAt?: string;
+  }>;
+  contributors?: Array<{
+    _id?: string;
+    name: string;
+    role: string;
+    department?: string;
+  }>;
   winners: Winner[];
   eventSponsors: EventSponsor[];
   media: MediaItem[];
@@ -460,6 +481,8 @@ function ParticipantsTab({
   event,
   onApprove,
   onReject,
+  onApproveClaim,
+  onRejectClaim,
   onRemove,
   onAdd,
   onAddNonMember,
@@ -468,6 +491,8 @@ function ParticipantsTab({
   event: EventData;
   onApprove: (targetId: string) => Promise<void>;
   onReject: (targetId: string) => Promise<void>;
+  onApproveClaim: (claimId: string) => Promise<void>;
+  onRejectClaim: (claimId: string) => Promise<void>;
   onRemove: (userId: string) => Promise<void>;
   onAdd: (user: UserRef) => Promise<void>;
   onAddNonMember: (guest: { fullName: string; email: string; studentId?: string; department?: string }) => Promise<void>;
@@ -539,6 +564,121 @@ function ParticipantsTab({
 
   return (
     <div className="space-y-6">
+      {/* ── Participation Claims Section (Archived / Past Event Claims) ── */}
+      {event.participationClaims && event.participationClaims.length > 0 && (
+        <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-5 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h3 className="font-bold text-emerald-900 dark:text-emerald-300 flex items-center gap-2 text-sm sm:text-base">
+              <UserCheck size={18} className="text-emerald-600 dark:text-emerald-400" />
+              Participation Claims ({event.participationClaims.filter((c) => c.status === "pending").length} Pending / {event.participationClaims.length} Total)
+            </h3>
+            <span className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+              Archived event attendance requests
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {event.participationClaims.map((claim) => {
+              const isPending = claim.status === "pending";
+              const isApproved = claim.status === "approved";
+
+              return (
+                <div
+                  key={claim._id}
+                  className={`bg-white dark:bg-slate-900 rounded-xl p-4 border shadow-sm space-y-3 transition-all ${
+                    isPending
+                      ? "border-amber-300 dark:border-amber-700/60"
+                      : isApproved
+                      ? "border-emerald-300 dark:border-emerald-700/60"
+                      : "border-slate-200 dark:border-slate-800 opacity-70"
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-3">
+                      {claim.userId && <Avatar user={claim.userId} size={40} />}
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                            {claim.fullName}
+                          </h4>
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${
+                              isApproved
+                                ? "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-700"
+                                : isPending
+                                ? "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-700"
+                                : "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/40 dark:text-red-300 dark:border-red-700"
+                            }`}
+                          >
+                            {claim.status}
+                          </span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800">
+                            Role: {claim.role}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Claimed {new Date(claim.claimedAt).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 self-end sm:self-auto flex-shrink-0">
+                      {isPending ? (
+                        <>
+                          <button
+                            onClick={() => onApproveClaim(claim._id)}
+                            disabled={inFlight.has(claim._id)}
+                            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition disabled:opacity-50"
+                            style={{ color: "#FFFFFF" }}
+                          >
+                            {inFlight.has(claim._id) ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                            Approve Claim
+                          </button>
+                          <button
+                            onClick={() => onRejectClaim(claim._id)}
+                            disabled={inFlight.has(claim._id)}
+                            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold transition disabled:opacity-50"
+                            style={{ color: "#FFFFFF" }}
+                          >
+                            <X size={13} /> Reject
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-xs text-slate-400 font-mono">
+                          Reviewed {claim.reviewedAt ? new Date(claim.reviewedAt).toLocaleDateString() : ""}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <div>
+                      <span className="text-slate-400">Email: </span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-200">{claim.email}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Student ID: </span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-200">{claim.studentId || "—"}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Department: </span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-200">{claim.department || "—"}</span>
+                    </div>
+                  </div>
+
+                  {claim.notes && (
+                    <div className="text-xs bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                      <span className="font-bold text-slate-500">Proof / Note: </span>
+                      <span className="whitespace-pre-wrap">{claim.notes}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {event.pendingParticipants.length > 0 && (
         <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-2xl p-5">
           <h3 className="font-semibold text-amber-800 dark:text-amber-300 mb-4 flex items-center gap-2">
@@ -2731,6 +2871,32 @@ export default function EventDetailPage() {
     }
   }, [id, addInFlight, removeInFlight, showToast, fetchEvent]);
 
+  const handleApproveClaim = useCallback(async (claimId: string) => {
+    addInFlight(claimId);
+    try {
+      await axios.patch(`${API}/events/${id}/claims/${claimId}/approve`, {}, { withCredentials: true });
+      await fetchEvent();
+      showToast("Participation claim approved and member added to attendees!");
+    } catch {
+      showToast("Failed to approve claim.", "error");
+    } finally {
+      removeInFlight(claimId);
+    }
+  }, [id, addInFlight, removeInFlight, showToast, fetchEvent]);
+
+  const handleRejectClaim = useCallback(async (claimId: string) => {
+    addInFlight(claimId);
+    try {
+      await axios.patch(`${API}/events/${id}/claims/${claimId}/reject`, {}, { withCredentials: true });
+      await fetchEvent();
+      showToast("Participation claim rejected.");
+    } catch {
+      showToast("Failed to reject claim.", "error");
+    } finally {
+      removeInFlight(claimId);
+    }
+  }, [id, addInFlight, removeInFlight, showToast, fetchEvent]);
+
   const handleRemoveAttendee = useCallback(async (userId: string) => {
     addInFlight(userId);
     try {
@@ -2950,6 +3116,8 @@ export default function EventDetailPage() {
           event={event}
           onApprove={handleApprove}
           onReject={handleReject}
+          onApproveClaim={handleApproveClaim}
+          onRejectClaim={handleRejectClaim}
           onRemove={handleRemoveAttendee}
           onAdd={handleAddAttendee}
           onAddNonMember={handleAddNonMemberAttendee}

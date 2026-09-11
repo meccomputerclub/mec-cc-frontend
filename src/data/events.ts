@@ -152,6 +152,9 @@ function mapBackendEvent(e: any): Event {
     tags: e.tags || [],
     linkedForm: e.linkedForm?._id ? String(e.linkedForm._id) : (e.linkedForm ? String(e.linkedForm) : (e.forms && e.forms[0]?._id ? String(e.forms[0]._id) : (e.forms && e.forms[0] ? String(e.forms[0]) : undefined))),
     media: Array.isArray(e.media) ? e.media : [],
+    allowParticipationClaims: Boolean(e.allowParticipationClaims),
+    participationClaims: Array.isArray(e.participationClaims) ? e.participationClaims : [],
+    contributors: Array.isArray(e.contributors) ? e.contributors : [],
   };
 }
 

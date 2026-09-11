@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { events, getEventBySlug } from "@/data/events";
 import { EventRegisterButton } from "./EventRegisterButton";
+import { EventParticipationClaim } from "./EventParticipationClaim";
 import { EventMediaGallery } from "./EventMediaGallery";
 import {
   Calendar,
@@ -160,8 +161,10 @@ export default async function EventDetailPage({
                 )}
               </div>
 
-              {event.status === "upcoming" && (
+              {event.status === "upcoming" ? (
                 <EventRegisterButton event={event} />
+              ) : (
+                <EventParticipationClaim event={event} />
               )}
             </div>
           </div>
@@ -283,6 +286,43 @@ export default async function EventDetailPage({
 
           {/* Sidebar Column */}
           <div className="space-y-6">
+            {/* Event Contributors & Organizing Team */}
+            {event.contributors && event.contributors.length > 0 && (
+              <div className="p-6 bg-surface-elevated rounded-2xl border-2 border-border-brutalist shadow-[4px_4px_0px_var(--border-brutalist)]">
+                <h2 className="text-lg font-bold text-text-primary mb-4 flex items-center gap-2">
+                  <Users size={18} className="text-accent-primary" /> Contributors &amp; Team
+                </h2>
+                <div className="space-y-3">
+                  {event.contributors.map((contrib, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3 bg-surface-secondary rounded-xl border border-border-default flex items-center gap-3"
+                    >
+                      <div className="w-9 h-9 rounded-full bg-accent-primary/10 border border-accent-primary/20 flex items-center justify-center font-bold text-xs text-accent-primary flex-shrink-0">
+                        {contrib.name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-bold text-sm text-text-primary truncate">{contrib.name}</p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="inline-block text-[11px] font-bold text-accent-primary">
+                            {contrib.role}
+                          </span>
+                          {contrib.department && (
+                            <>
+                              <span className="text-text-tertiary text-[10px]">&bull;</span>
+                              <span className="text-[11px] text-text-secondary truncate">
+                                {contrib.department}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Rules Card */}
             {event.rules && event.rules.length > 0 ? (
               <div className="p-6 bg-surface-elevated rounded-2xl border-2 border-border-brutalist shadow-[4px_4px_0px_var(--border-brutalist)]">

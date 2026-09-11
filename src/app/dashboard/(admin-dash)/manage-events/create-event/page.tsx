@@ -5,7 +5,7 @@ import {
   Calendar, MapPin, Tag, Link as LinkIcon, AlignLeft, Type, Clock,
   Save, ArrowLeft, Users, DollarSign, Mail, Phone,
   Globe, Code, Eye, EyeOff, Info, Image as ImageIcon, Trophy,
-  ListChecks, Plus, Trash2, HelpCircle
+  ListChecks, Plus, Trash2, HelpCircle, CheckCircle2, UserCheck, ShieldAlert
 } from "lucide-react";
 import axios from "axios";
 import { API_BASE_URL } from "@/lib/api";
@@ -14,6 +14,7 @@ import Link from "next/link";
 import ImageUpload from "@/components/ui/shared/ImageUpload";
 import TagInput from "@/components/ui/shared/TagInput";
 import { Select } from "@/components/ui/Select";
+import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 // ── Reusable field wrapper ──────────────────────────────────────────────────
 function Field({ label, required, hint, children }: {
@@ -58,7 +59,7 @@ function Section({ icon: Icon, title, color = "text-indigo-500", children }: {
   );
 }
 
-// ── Main form ───────────────────────────────────────────────────────────────
+// ── Main form options ───────────────────────────────────────────────────────
 const CATEGORY_OPTIONS = [
   { value: "workshop", label: "Workshop" },
   { value: "seminar", label: "Seminar" },
@@ -73,7 +74,7 @@ const CATEGORY_OPTIONS = [
 const STATUS_OPTIONS = [
   { value: "scheduled", label: "Scheduled" },
   { value: "ongoing", label: "Ongoing" },
-  { value: "completed", label: "Completed" },
+  { value: "completed", label: "Completed (Past Event)" },
   { value: "cancelled", label: "Cancelled" },
   { value: "postponed", label: "Postponed" },
 ];
@@ -87,6 +88,7 @@ function CreateEventFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get("edit");
+  const { settings } = useSiteSettings();
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -94,10 +96,10 @@ function CreateEventFormContent() {
 
   const [form, setForm] = useState({
     title: "",
-    category: "gaming",
+    category: "workshop",
     status: "scheduled",
-    registrationType: "team",
-    teamSizeMin: 4,
+    registrationType: "individual",
+    teamSizeMin: 1,
     teamSizeMax: 4,
     description: "",
     date: "",
@@ -111,60 +113,69 @@ function CreateEventFormContent() {
     registrationFee: "0",
     coverImageUrl: "",
     bannerImageUrl: "",
-    organizer: "MEC Computer Club",
-    contactEmail: "events@meccomputerclub.org",
-    contactPhone: "+8801700000000",
+    organizer: "",
+    contactEmail: "",
+    contactPhone: "",
     isPublished: true,
     prizePool: "",
     linkedForm: "",
     customHtmlSection: "",
+    allowParticipationClaims: false,
   });
 
   const [availableForms, setAvailableForms] = useState<{ _id: string; title: string; eventId?: any }[]>([]);
-  const [tags, setTags] = useState<string[]>(["FreeFire", "Gaming", "Esports", "MEC"]);
-  const [rewards, setRewards] = useState<{ position: string; prize: string }[]>([
-    { position: "1st Place (Champions)", prize: "৳8,000 BDT + Winner Trophy" },
-    { position: "2nd Place (Runners-up)", prize: "৳5,000 BDT + Certificate" },
-    { position: "3rd Place", prize: "৳2,000 BDT + Certificate" },
-  ]);
-  const [schedule, setSchedule] = useState<{ time: string; title: string; description: string }[]>([
-    { time: "09:00 AM", title: "Check-in & Discord Room Assignment", description: "All team captains join Discord voice room for verification." },
-    { time: "10:30 AM", title: "Round 1: Qualifying Matches (Bermuda)", description: "Group A and Group B battle for placement." },
-    { time: "03:30 PM", title: "Grand Finals & Award Ceremony", description: "Top 12 teams battle in 3 match series for the championship." },
-  ]);
-  const [rules, setRules] = useState<string[]>([
-    "Only mobile devices are permitted. Emulators, iPads, or tablets will result in immediate disqualification.",
-    "All squad members must be registered MEC students or registered guests with valid In-Game UIDs.",
-    "Toxic behavior, abusive chat, or hacking will lead to a permanent ban from MEC CC events.",
-    "Room ID and Password will be provided to approved team captains 15 minutes prior to match time.",
-  ]);
+  const [tags, setTags] = useState<string[]>([]);
+  const [rewards, setRewards] = useState<{ position: string; prize: string }[]>([]);
+  const [schedule, setSchedule] = useState<{ time: string; title: string; description: string }[]>([]);
+  const [rules, setRules] = useState<string[]>([]);
+  const [contributors, setContributors] = useState<{ name: string; role: string; department: string }[]>([]);
+
+  // Default contact information from global site settings (user instruction #3)
+  useEffect(() => {
+    if (!editId && settings) {
+      setForm((prev) => ({
+        ...prev,
+        organizer: prev.organizer || settings.club_name || "MEC Computer Club",
+        contactEmail: prev.contactEmail || settings.contact_email || "meccomputerclub@gmail.com",
+        contactPhone: prev.contactPhone || settings.contact_phone || "",
+      }));
+    }
+  }, [settings, editId]);
 
   const set = (key: keyof typeof form, value: string | boolean | number) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
+  // Check if event is in the past (user instruction #1)
+  const isPastEvent = useMemo(() => {
+    if (form.status === "completed") return true;
+    if (!form.date) return false;
+    const eventDate = new Date(form.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return eventDate < today;
+  }, [form.date, form.status]);
+
+  // If event is no longer past, automatically reset allowParticipationClaims
+  useEffect(() => {
+    if (!isPastEvent && form.allowParticipationClaims) {
+      set("allowParticipationClaims", false);
+    }
+  }, [isPastEvent, form.allowParticipationClaims]);
+
   // Independent forms or forms currently linked to this event
   const selectableForms = useMemo(() => {
     return availableForms.filter((f) => {
-      // If currently chosen on this form state
       if (form.linkedForm && f._id === form.linkedForm) return true;
-      // If linked to this event in the database
       const evId = f.eventId?._id ? String(f.eventId._id) : (f.eventId ? String(f.eventId) : undefined);
       if (editId && evId === editId) return true;
-
-      // Otherwise, only show independent forms (no eventId or dummy ID)
-      const isIndependent =
-        !evId ||
-        evId === "" ||
-        evId === "111111111111111111111111";
-
+      const isIndependent = !evId || evId === "" || evId === "111111111111111111111111";
       return isIndependent;
     });
   }, [availableForms, form.linkedForm, editId]);
 
   // Pre-load available forms from Form Builder
   useEffect(() => {
-    const api = API_BASE_URL;
-    axios.get(`${api}/api/forms`, { withCredentials: true })
+    axios.get(`${API_BASE_URL}/api/forms`, { withCredentials: true })
       .then((res) => {
         const list = res.data?.data || res.data || [];
         setAvailableForms(Array.isArray(list) ? list : []);
@@ -182,10 +193,10 @@ function CreateEventFormContent() {
         if (ev) {
           setForm({
             title: ev.title || "",
-            category: ev.category || "seminar",
+            category: ev.category || "workshop",
             status: ev.status || "scheduled",
             registrationType: ev.registrationType || "individual",
-            teamSizeMin: ev.teamSize?.min || 4,
+            teamSizeMin: ev.teamSize?.min || 1,
             teamSizeMax: ev.teamSize?.max || 4,
             description: ev.description || "",
             date: ev.date ? ev.date.split("T")[0] : "",
@@ -206,11 +217,13 @@ function CreateEventFormContent() {
             customHtmlSection: ev.customHtmlSection || "",
             prizePool: ev.prizePool || "",
             linkedForm: ev.linkedForm?._id || ev.linkedForm || (ev.forms && ev.forms[0]?._id) || (ev.forms && ev.forms[0]) || "",
+            allowParticipationClaims: ev.allowParticipationClaims ?? false,
           });
           if (ev.tags) setTags(ev.tags);
           if (ev.rewards) setRewards(ev.rewards);
           if (ev.schedule) setSchedule(ev.schedule);
           if (ev.rules) setRules(ev.rules);
+          if (ev.contributors) setContributors(ev.contributors);
         }
       } catch (err) {
         console.error("Failed to load event for edit", err);
@@ -227,9 +240,12 @@ function CreateEventFormContent() {
       const payload = {
         ...form,
         linkedForm: form.linkedForm ? form.linkedForm : "",
+        registrationLink: form.registrationLink ? form.registrationLink.trim() : "",
+        allowParticipationClaims: isPastEvent ? form.allowParticipationClaims : false,
+        contributors: contributors.filter((c) => c.name.trim() && c.role.trim()),
         tags,
         maxParticipants: form.maxParticipants ? Number(form.maxParticipants) : undefined,
-        registrationFee: Number(form.registrationFee),
+        registrationFee: Number(form.registrationFee) || 0,
         teamSize: form.registrationType === "team" ? { min: Number(form.teamSizeMin), max: Number(form.teamSizeMax) } : undefined,
         date: form.date || undefined,
         endDate: form.endDate || undefined,
@@ -265,7 +281,9 @@ function CreateEventFormContent() {
             <h1 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white truncate">
               {editId ? "Edit Event" : "Create New Event"}
             </h1>
-            <p className="text-xs text-slate-500 hidden sm:block">Fill in the event format, rewards, rules & schedule</p>
+            <p className="text-xs text-slate-500 hidden sm:block">
+              Configure event details, archiving, contributors, and registration rules
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -293,7 +311,7 @@ function CreateEventFormContent() {
         {/* ── 1. General Info ── */}
         <Section icon={Type} title="General Information">
           <Field label="Event Title" required>
-            <Input icon={Type} name="title" required placeholder="e.g. MEC FreeFire Tournament 2026: Clash of Squads"
+            <Input icon={Type} name="title" required placeholder="e.g. Workshop on Modern Full-Stack Development"
               value={form.title} onChange={(e) => set("title", e.target.value)} />
           </Field>
 
@@ -317,17 +335,17 @@ function CreateEventFormContent() {
           <Field label="Description" required>
             <div className="relative">
               <AlignLeft className="absolute left-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
-              <textarea name="description" required rows={4} placeholder="Describe the tournament or event, format, qualifiers, eligibility, and what participants can expect…"
+              <textarea name="description" required rows={4} placeholder="Describe the purpose, highlights, syllabus, eligibility, and what attendees will experience…"
                 value={form.description} onChange={(e) => set("description", e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none text-sm resize-y" />
             </div>
           </Field>
 
-          <Field label="Tags" hint="Press Enter or comma to add tags (e.g. FreeFire, Esports, Gaming)">
+          <Field label="Tags" hint="Press Enter or comma to add tags (e.g. Workshop, Python, WebDev, AI)">
             <TagInput
               value={tags}
               onChange={setTags}
-              placeholder="gaming, tournament, freefire…"
+              placeholder="Add tags…"
             />
           </Field>
         </Section>
@@ -344,33 +362,142 @@ function CreateEventFormContent() {
                 onChange={(e) => set("endDate", e.target.value)} />
             </Field>
             <Field label="Time / Duration">
-              <Input icon={Clock} placeholder="e.g. 10:00 AM – 06:00 PM" value={form.eventTime}
+              <Input icon={Clock} placeholder="e.g. 10:00 AM – 04:00 PM" value={form.eventTime}
                 onChange={(e) => set("eventTime", e.target.value)} />
             </Field>
           </div>
 
           <Field label="Venue / Location" required>
-            <Input icon={MapPin} required placeholder="e.g. MEC Campus Auditorium & Online Custom Room" value={form.location}
+            <Input icon={MapPin} required placeholder="e.g. MEC Campus Auditorium / CSE Lab 2" value={form.location}
               onChange={(e) => set("location", e.target.value)} />
           </Field>
 
-          <Field label="Online / Discord Room Link" hint="Tournament Discord server, Custom Room or Live Stream link">
-            <Input icon={Globe} type="url" placeholder="https://discord.gg/... or https://youtube.com/live/..." value={form.onlineLink}
+          <Field label="Online / Meeting Link" hint="Google Meet, Zoom, Discord, or YouTube live stream link">
+            <Input icon={Globe} type="url" placeholder="https://meet.google.com/... or https://zoom.us/..." value={form.onlineLink}
               onChange={(e) => set("onlineLink", e.target.value)} />
           </Field>
         </Section>
 
-        {/* ── 3. Registration Settings & Squad Setup ── */}
-        <Section icon={Users} title="Registration & Squad Format" color="text-green-500">
+        {/* ── 3. Past Event Archiving & Participation Claims (User Instruction #1) ── */}
+        <Section icon={UserCheck} title="Past Event Archiving & Participation Claims" color="text-emerald-500">
+          {isPastEvent ? (
+            <div className="p-4 rounded-xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-950/20 space-y-3">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <span className="text-sm font-semibold text-emerald-900 dark:text-emerald-200 flex items-center gap-2">
+                    <CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-400" />
+                    Allow Participation Claims (&quot;I Participated&quot;)
+                  </span>
+                  <p className="text-xs text-emerald-700 dark:text-emerald-400/90 leading-relaxed">
+                    This is recognized as a past event. When enabled, logged-in students who visit this event page can click &quot;I Participated&quot; to claim attendance. You can review, approve, or reject each claim in the dashboard.
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                  <input
+                    type="checkbox"
+                    checked={form.allowParticipationClaims}
+                    onChange={(e) => set("allowParticipationClaims", e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-emerald-600"></div>
+                </label>
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex items-start gap-3 text-xs text-slate-500 leading-relaxed">
+              <Info size={16} className="text-slate-400 shrink-0 mt-0.5" />
+              <div>
+                <strong>Upcoming Event Notice:</strong> Participation claims (&quot;I Participated&quot;) can only be enabled for events that have already occurred. Once this event concludes or status is set to &quot;Completed&quot;, you will be able to enable participation claims here.
+              </div>
+            </div>
+          )}
+        </Section>
+
+        {/* ── 4. Event Contributors & Organizing Team ── */}
+        <Section icon={Users} title="Event Contributors & Organizing Team" color="text-indigo-500">
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Acknowledge the key people who organized, mentored, spoke, or contributed to this event. These individuals will be credited on the public event page.
+          </p>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Contributors List
+              </label>
+              <button
+                type="button"
+                onClick={() => setContributors([...contributors, { name: "", role: "", department: "" }])}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+              >
+                <Plus size={14} /> Add Contributor
+              </button>
+            </div>
+
+            {contributors.length === 0 ? (
+              <p className="text-xs text-slate-400 italic py-2">
+                No contributors added yet. Click &quot;Add Contributor&quot; to credit speakers, mentors, or lead organizers.
+              </p>
+            ) : (
+              contributors.map((contrib, idx) => (
+                <div key={idx} className="flex flex-col sm:flex-row items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/40">
+                  <input
+                    type="text"
+                    placeholder="Full Name (e.g. Dr. John Doe)"
+                    value={contrib.name}
+                    onChange={(e) => {
+                      const next = [...contributors];
+                      next[idx].name = e.target.value;
+                      setContributors(next);
+                    }}
+                    className="w-full sm:w-1/3 px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Role (e.g. Keynote Speaker / Lead Organizer)"
+                    value={contrib.role}
+                    onChange={(e) => {
+                      const next = [...contributors];
+                      next[idx].role = e.target.value;
+                      setContributors(next);
+                    }}
+                    className="w-full sm:w-1/3 px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Dept / Affiliation (optional)"
+                    value={contrib.department}
+                    onChange={(e) => {
+                      const next = [...contributors];
+                      next[idx].department = e.target.value;
+                      setContributors(next);
+                    }}
+                    className="w-full sm:flex-1 px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setContributors(contributors.filter((_, i) => i !== idx))}
+                    className="p-2 text-slate-400 hover:text-red-500 transition self-end sm:self-center"
+                    title="Remove contributor"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </Section>
+
+        {/* ── 5. Registration Settings ── */}
+        <Section icon={Users} title="Registration Settings" color="text-green-500">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <Field label="Registration Mode" required hint="Individual participant or multi-member squad">
+            <Field label="Registration Mode" hint="Individual participant or multi-member team">
               <Select
                 value={form.registrationType}
                 onChange={(val) => set("registrationType", val)}
                 options={REGISTRATION_TYPE_OPTIONS}
               />
             </Field>
-            <Field label="Registration Deadline">
+            <Field label="Registration Deadline" hint="Optional deadline for upcoming events">
               <Input icon={Calendar} type="date" value={form.registrationDeadline}
                 onChange={(e) => set("registrationDeadline", e.target.value)} />
             </Field>
@@ -382,7 +509,7 @@ function CreateEventFormContent() {
                 <Users size={16} /> Team / Squad Roster Constraints
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Minimum Members per Team" hint="e.g. 4 for 4-player Squad">
+                <Field label="Minimum Members per Team" hint="e.g. 2 for pair, 4 for squad">
                   <Input type="number" min="1" max="10" value={form.teamSizeMin}
                     onChange={(e) => set("teamSizeMin", Number(e.target.value))} />
                 </Field>
@@ -395,8 +522,8 @@ function CreateEventFormContent() {
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <Field label="Max Participants / Teams" hint="Max approved capacity">
-              <Input icon={Users} type="number" min="1" placeholder="e.g. 24 squads" value={form.maxParticipants}
+            <Field label="Max Participants / Teams" hint="Leave blank for unlimited">
+              <Input icon={Users} type="number" min="1" placeholder="e.g. 100" value={form.maxParticipants}
                 onChange={(e) => set("maxParticipants", e.target.value)} />
             </Field>
             <Field label="Registration Fee (BDT)">
@@ -405,7 +532,13 @@ function CreateEventFormContent() {
             </Field>
           </div>
 
-          {/* ── Form Builder Linkage ── */}
+          {/* Direct External Registration URL */}
+          <Field label="External Registration URL (Optional)" hint="Paste a Google Form, Microsoft Form, or external ticketing link if registration is hosted outside">
+            <Input icon={LinkIcon} type="url" placeholder="https://forms.gle/... or https://eventbrite.com/..."
+              value={form.registrationLink} onChange={(e) => set("registrationLink", e.target.value)} />
+          </Field>
+
+          {/* Form Builder Linkage */}
           <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30 space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
@@ -421,11 +554,11 @@ function CreateEventFormContent() {
                 target="_blank"
                 className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
               >
-                <Plus size={13} /> Open Form Builder to create a form →
+                <Plus size={13} /> Open Form Builder →
               </Link>
             </div>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Link a custom registration form created in our Form Builder. Once linked, the form will automatically associate with this event, accommodating both club members and external participants (&ldquo;open for all&rdquo; events).
+              Link a custom registration form created in our Form Builder. Once linked, the public registration button will open this interactive form.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
               <Field label="Select Registration Form">
@@ -457,8 +590,8 @@ function CreateEventFormContent() {
           </div>
         </Section>
 
-        {/* ── 4. Prizes & Rewards ── */}
-        <Section icon={Trophy} title="Prize Pool & Rewards" color="text-amber-500">
+        {/* ── 6. Prizes & Rewards (Optional) ── */}
+        <Section icon={Trophy} title="Prize Pool & Rewards (Optional)" color="text-amber-500">
           <Field label="Total Prize Pool Title" hint="e.g. ৳15,000 BDT or Grand Trophy + Swags">
             <Input icon={Trophy} placeholder="e.g. ৳15,000 BDT" value={form.prizePool}
               onChange={(e) => set("prizePool", e.target.value)} />
@@ -478,48 +611,54 @@ function CreateEventFormContent() {
               </button>
             </div>
 
-            {rewards.map((rew, idx) => (
-              <div key={idx} className="flex items-center gap-3">
-                <input
-                  type="text"
-                  placeholder="Position (e.g. 1st Place)"
-                  value={rew.position}
-                  onChange={(e) => {
-                    const next = [...rewards];
-                    next[idx].position = e.target.value;
-                    setRewards(next);
-                  }}
-                  className="w-1/3 px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                <input
-                  type="text"
-                  placeholder="Prize (e.g. ৳8,000 + Trophy)"
-                  value={rew.prize}
-                  onChange={(e) => {
-                    const next = [...rewards];
-                    next[idx].prize = e.target.value;
-                    setRewards(next);
-                  }}
-                  className="flex-1 px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => setRewards(rewards.filter((_, i) => i !== idx))}
-                  className="p-2 text-slate-400 hover:text-red-500 transition"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ))}
+            {rewards.length === 0 ? (
+              <p className="text-xs text-slate-400 italic py-2">
+                No prize breakdown added. Click &quot;Add Position&quot; if this event offers awards or certificates.
+              </p>
+            ) : (
+              rewards.map((rew, idx) => (
+                <div key={idx} className="flex items-center gap-3">
+                  <input
+                    type="text"
+                    placeholder="Position (e.g. 1st Place)"
+                    value={rew.position}
+                    onChange={(e) => {
+                      const next = [...rewards];
+                      next[idx].position = e.target.value;
+                      setRewards(next);
+                    }}
+                    className="w-1/3 px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Prize (e.g. ৳5,000 + Certificate)"
+                    value={rew.prize}
+                    onChange={(e) => {
+                      const next = [...rewards];
+                      next[idx].prize = e.target.value;
+                      setRewards(next);
+                    }}
+                    className="flex-1 px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setRewards(rewards.filter((_, i) => i !== idx))}
+                    className="p-2 text-slate-400 hover:text-red-500 transition"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         </Section>
 
-        {/* ── 5. Tournament Schedule Timeline ── */}
-        <Section icon={Clock} title="Schedule Timeline" color="text-teal-500">
+        {/* ── 7. Schedule Timeline (Optional) ── */}
+        <Section icon={Clock} title="Schedule Timeline (Optional)" color="text-teal-500">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                Event Stages & Match Timing
+                Event Stages & Timing
               </label>
               <button
                 type="button"
@@ -530,57 +669,63 @@ function CreateEventFormContent() {
               </button>
             </div>
 
-            {schedule.map((item, idx) => (
-              <div key={idx} className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 space-y-2">
-                <div className="flex items-center gap-3">
+            {schedule.length === 0 ? (
+              <p className="text-xs text-slate-400 italic py-2">
+                No schedule items added yet. Click &quot;Add Timeline Item&quot; to lay out sessions or match timings.
+              </p>
+            ) : (
+              schedule.map((item, idx) => (
+                <div key={idx} className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 space-y-2">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="text"
+                      placeholder="Time (e.g. 10:00 AM)"
+                      value={item.time}
+                      onChange={(e) => {
+                        const next = [...schedule];
+                        next[idx].time = e.target.value;
+                        setSchedule(next);
+                      }}
+                      className="w-36 px-3 py-1.5 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Session / Stage Title (e.g. Opening Remarks)"
+                      value={item.title}
+                      onChange={(e) => {
+                        const next = [...schedule];
+                        next[idx].title = e.target.value;
+                        setSchedule(next);
+                      }}
+                      className="flex-1 px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setSchedule(schedule.filter((_, i) => i !== idx))}
+                      className="p-1.5 text-slate-400 hover:text-red-500 transition"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                   <input
                     type="text"
-                    placeholder="Time (e.g. 10:00 AM)"
-                    value={item.time}
+                    placeholder="Optional brief notes or speaker for this session..."
+                    value={item.description}
                     onChange={(e) => {
                       const next = [...schedule];
-                      next[idx].time = e.target.value;
+                      next[idx].description = e.target.value;
                       setSchedule(next);
                     }}
-                    className="w-36 px-3 py-1.5 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
+                    className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
                   />
-                  <input
-                    type="text"
-                    placeholder="Stage / Round Title (e.g. Quarter Finals)"
-                    value={item.title}
-                    onChange={(e) => {
-                      const next = [...schedule];
-                      next[idx].title = e.target.value;
-                      setSchedule(next);
-                    }}
-                    className="flex-1 px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setSchedule(schedule.filter((_, i) => i !== idx))}
-                    className="p-1.5 text-slate-400 hover:text-red-500 transition"
-                  >
-                    <Trash2 size={16} />
-                  </button>
                 </div>
-                <input
-                  type="text"
-                  placeholder="Optional brief notes or instructions for this phase..."
-                  value={item.description}
-                  onChange={(e) => {
-                    const next = [...schedule];
-                    next[idx].description = e.target.value;
-                    setSchedule(next);
-                  }}
-                  className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none"
-                />
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </Section>
 
-        {/* ── 6. Rules & Guidelines ── */}
-        <Section icon={ListChecks} title="Tournament Rules & Fair Play" color="text-violet-500">
+        {/* ── 8. Rules & Guidelines (Optional) ── */}
+        <Section icon={ListChecks} title="Rules & Guidelines (Optional)" color="text-violet-500">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -595,35 +740,41 @@ function CreateEventFormContent() {
               </button>
             </div>
 
-            {rules.map((rule, idx) => (
-              <div key={idx} className="flex items-center gap-3">
-                <span className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 flex-shrink-0">
-                  {idx + 1}
-                </span>
-                <input
-                  type="text"
-                  placeholder="e.g. Emulators or tablets are strictly forbidden."
-                  value={rule}
-                  onChange={(e) => {
-                    const next = [...rules];
-                    next[idx] = e.target.value;
-                    setRules(next);
-                  }}
-                  className="flex-1 px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => setRules(rules.filter((_, i) => i !== idx))}
-                  className="p-2 text-slate-400 hover:text-red-500 transition"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ))}
+            {rules.length === 0 ? (
+              <p className="text-xs text-slate-400 italic py-2">
+                No specific rules added. Click &quot;Add Rule&quot; to specify eligibility criteria or code of conduct.
+              </p>
+            ) : (
+              rules.map((rule, idx) => (
+                <div key={idx} className="flex items-center gap-3">
+                  <span className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 flex-shrink-0">
+                    {idx + 1}
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="e.g. Participants must bring their own laptop with Python 3.10+ installed."
+                    value={rule}
+                    onChange={(e) => {
+                      const next = [...rules];
+                      next[idx] = e.target.value;
+                      setRules(next);
+                    }}
+                    className="flex-1 px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setRules(rules.filter((_, i) => i !== idx))}
+                    className="p-2 text-slate-400 hover:text-red-500 transition"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         </Section>
 
-        {/* ── 7. Media ── */}
+        {/* ── 9. Media ── */}
         <Section icon={ImageIcon} title="Event Images" color="text-purple-500">
           <Field label="Cover Image" hint="Shown in event cards on Home & Events hub (recommended: 16:9, min 800×450px)">
             <ImageUpload
@@ -645,15 +796,18 @@ function CreateEventFormContent() {
           </Field>
         </Section>
 
-        {/* ── 8. Organiser ── */}
+        {/* ── 10. Organiser & Contact (User Instruction #3: Pre-filled from Global Settings) ── */}
         <Section icon={Info} title="Organiser & Contact" color="text-orange-500">
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Pre-filled with MEC Computer Club global site contact information. You can modify these values if this event has a specific external partner or coordinator.
+          </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <Field label="Organiser Name">
               <Input icon={Users} placeholder="e.g. MEC Computer Club" value={form.organizer}
                 onChange={(e) => set("organizer", e.target.value)} />
             </Field>
             <Field label="Contact Email">
-              <Input icon={Mail} type="email" placeholder="events@meccomputerclub.org" value={form.contactEmail}
+              <Input icon={Mail} type="email" placeholder="meccomputerclub@gmail.com" value={form.contactEmail}
                 onChange={(e) => set("contactEmail", e.target.value)} />
             </Field>
             <Field label="Contact Phone">
@@ -663,12 +817,12 @@ function CreateEventFormContent() {
           </div>
         </Section>
 
-        {/* ── 9. Custom HTML Section ── */}
-        <Section icon={Code} title="Custom HTML / Embed Section" color="text-rose-500">
+        {/* ── 11. Custom HTML Section ── */}
+        <Section icon={Code} title="Custom HTML / Embed Section (Optional)" color="text-rose-500">
           <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 text-sm text-amber-800 dark:text-amber-300 flex gap-2">
             <Info size={16} className="flex-shrink-0 mt-0.5" />
             <div>
-              <strong>Dynamic tournament section.</strong> Use this to embed tournament bracket widgets (e.g. Challonge, Battlefy), YouTube live stream frames, or custom standings tables.
+              <strong>Embeds & widgets.</strong> Use this to embed tournament brackets (Challonge), YouTube live stream frames, or custom interactive standings.
             </div>
           </div>
 
@@ -681,11 +835,10 @@ function CreateEventFormContent() {
           </div>
 
           <textarea
-            rows={8}
-            placeholder={`<!-- Example: Tournament live stream or brackets -->
+            rows={6}
+            placeholder={`<!-- Example: Tournament live stream or embedded frame -->
 <div style="text-align: center; padding: 20px;">
   <h3>Live Stream Arena</h3>
-  <p>Match broadcasts will begin at 10:30 AM.</p>
 </div>`}
             value={form.customHtmlSection}
             onChange={(e) => set("customHtmlSection", e.target.value)}

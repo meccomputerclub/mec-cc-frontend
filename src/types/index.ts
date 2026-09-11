@@ -48,6 +48,31 @@ export interface EventSponsorItem {
   tier?: string;
 }
 
+export interface EventContributor {
+  _id?: string;
+  name: string;
+  role: string;
+  department?: string;
+  userId?: string;
+  avatarUrl?: string;
+}
+
+export interface ParticipationClaim {
+  _id?: string;
+  userId: any;
+  fullName: string;
+  email: string;
+  studentId?: string;
+  department?: string;
+  phone?: string;
+  role: string;
+  notes?: string;
+  status: "pending" | "approved" | "rejected";
+  claimedAt: string;
+  reviewedAt?: string;
+  reviewedBy?: any;
+}
+
 export interface EventMediaItem {
   _id?: string;
   id?: string;
@@ -91,6 +116,9 @@ export interface Event {
   tags?: string[];
   linkedForm?: string;
   media?: EventMediaItem[];
+  allowParticipationClaims?: boolean;
+  participationClaims?: ParticipationClaim[];
+  contributors?: EventContributor[];
 }
 
 export interface Project {
