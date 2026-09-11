@@ -42,6 +42,24 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [statusAlert, setStatusAlert] = useState<ExtendedLoginState | null>(null);
+  const [rateLimitSeconds, setRateLimitSeconds] = useState<number | null>(null);
+
+  // Live countdown timer for IP rate limit
+  useEffect(() => {
+    if (rateLimitSeconds === null || rateLimitSeconds <= 0) return;
+
+    const timer = setInterval(() => {
+      setRateLimitSeconds((prev) => {
+        if (prev === null || prev <= 1) {
+          setStatusAlert(null);
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [rateLimitSeconds]);
 
   // If already authenticated, redirect to destination (with loop-protection)
   useEffect(() => {
@@ -134,11 +152,33 @@ function LoginForm() {
             : "/profile";
         window.location.href = destination;
       } else {
+        const isRateLimited =
+          Boolean(res.retryAfter) ||
+          (res.message && res.message.toLowerCase().includes("too many login attempts"));
+
+        if (isRateLimited) {
+          let secs = res.retryAfter;
+          if (!secs && res.message) {
+            const m = res.message.match(/wait\s+(\d+)\s+second/i) || res.message.match(/(\d+)\s*second/i);
+            if (m) secs = parseInt(m[1], 10);
+          }
+          const finalSecs = secs || 60;
+          setRateLimitSeconds(finalSecs);
+          setStatusAlert({
+            type: "error",
+            message: `Too many login attempts from this IP address. Please wait ${finalSecs} second(s) before trying again.`,
+          });
+          return;
+        }
+
+        setRateLimitSeconds(null);
         const isLocked = Boolean(res.isLocked) || Boolean(res.requiresSecurityCode);
 
         if (isLocked) {
           setShowSecurityCodeInput(true);
-          toast.error("Your account is locked. Please check your email and enter the security code.");
+          toast.error(
+            "Your account is locked due to several failed attempts. Please check your email and enter the security code to unlock."
+          );
         } else {
           const msg = res.message || "";
           if (msg.toLowerCase().includes("not approved") || msg.toLowerCase().includes("pending")) {
@@ -245,7 +285,11 @@ function LoginForm() {
                 <div className="text-accent-error p-3 bg-red-500/10 border border-accent-error/30 rounded-lg text-sm">
                   <div className="flex items-center gap-2">
                     <AlertCircle size={18} className="shrink-0" />
-                    <div>{statusAlert.message}</div>
+                    <div>
+                      {rateLimitSeconds !== null && rateLimitSeconds > 0
+                        ? `Too many login attempts from this IP address. Please wait ${rateLimitSeconds} second(s) before trying again.`
+                        : statusAlert.message}
+                    </div>
                   </div>
                 </div>
               )}
@@ -265,7 +309,7 @@ function LoginForm() {
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 autoComplete="username"
-                disabled={loading}
+                disabled={loading || (rateLimitSeconds !== null && rateLimitSeconds > 0)}
                 className="w-full px-3.5 py-2.5 border border-border-brutalist dark:border-border-default rounded-md bg-surface-primary text-base text-text-primary shadow-[2px_2px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_var(--border-default)] transition-all duration-200 focus:outline-none focus:border-accent-primary focus:shadow-[4px_4px_0px_var(--accent-primary)] focus:-translate-x-0.5 focus:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:bg-surface-secondary"
               />
             </div>
@@ -283,7 +327,7 @@ function LoginForm() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
-                  disabled={loading}
+                  disabled={loading || (rateLimitSeconds !== null && rateLimitSeconds > 0)}
                   className="w-full px-3.5 py-2.5 pr-11 border border-border-brutalist dark:border-border-default rounded-md bg-surface-primary text-base text-text-primary shadow-[2px_2px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_var(--border-default)] transition-all duration-200 focus:outline-none focus:border-accent-primary focus:shadow-[4px_4px_0px_var(--accent-primary)] focus:-translate-x-0.5 focus:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:bg-surface-secondary"
                 />
                 <button
@@ -316,13 +360,13 @@ function LoginForm() {
                   placeholder="e.g. 123456"
                   value={securityCode}
                   onChange={(e) => setSecurityCode(e.target.value.replace(/\D/g, ""))}
-                  disabled={loading}
+                  disabled={loading || (rateLimitSeconds !== null && rateLimitSeconds > 0)}
                   autoFocus
                   autoComplete="one-time-code"
                   className="w-full px-3.5 py-2.5 border border-border-brutalist dark:border-border-default rounded-md bg-surface-primary text-base text-text-primary shadow-[2px_2px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_var(--border-default)] transition-all duration-200 focus:outline-none focus:border-accent-primary focus:shadow-[4px_4px_0px_var(--accent-primary)] focus:-translate-x-0.5 focus:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:bg-surface-secondary"
                 />
                 <p className="text-xs text-text-secondary mt-1">
-                  Your account is locked. Please check your email and enter the security code.
+                  Your account is locked due to several failed attempts. Please check your email and enter the security code to unlock.
                 </p>
               </div>
             )}
@@ -345,7 +389,7 @@ function LoginForm() {
               type="submit"
               fullWidth
               className="w-full mt-1"
-              disabled={loading}
+              disabled={loading || (rateLimitSeconds !== null && rateLimitSeconds > 0)}
               id="login-submit"
             >
               {loading ? (
@@ -353,6 +397,8 @@ function LoginForm() {
                   <span className="w-4 h-4 border-2 border-text-primary/20 border-t-text-primary rounded-full animate-spin"></span>
                   Authenticating...
                 </div>
+              ) : (rateLimitSeconds !== null && rateLimitSeconds > 0) ? (
+                `PLEASE WAIT (${rateLimitSeconds}s)`
               ) : showSecurityCodeInput ? (
                 "UNLOCK & SIGN IN"
               ) : (

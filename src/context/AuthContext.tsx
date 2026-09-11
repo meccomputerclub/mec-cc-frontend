@@ -13,8 +13,8 @@ export interface LoginResponse {
   requiresSecurityCode?: boolean;
   isLocked?: boolean;
   lockRemainingMinutes?: number;
-  isDeviceBlocked?: boolean;
   attemptsRemaining?: number;
+  retryAfter?: number;
 }
 
 interface AuthContextType {
@@ -212,6 +212,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         Boolean(errData?.requiresSecurityCode) ||
         isLocked;
 
+      let retryAfter = errData?.retryAfter;
+      if (!retryAfter && typeof message === "string") {
+        const match = message.match(/wait\s+(\d+)\s+second/i) || message.match(/(\d+)\s*second/i);
+        if (match) {
+          retryAfter = parseInt(match[1], 10);
+        }
+      }
+
       return {
         success: false,
         message,
@@ -219,6 +227,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLocked,
         lockRemainingMinutes: errData?.lockRemainingMinutes,
         attemptsRemaining: errData?.attemptsRemaining,
+        retryAfter,
       };
     }
   };
