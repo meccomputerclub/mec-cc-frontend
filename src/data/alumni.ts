@@ -106,7 +106,7 @@ export const alumniBatches: AlumniBatch[] = [
 
 import { API_BASE_URL } from "@/lib/api";
 
-export async function getAlumni(): Promise<AlumniBatch[]> {
+export async function getAlumniMembers(): Promise<AlumniMember[]> {
   const API_URL = API_BASE_URL;
   try {
     const res = await fetch(`${API_URL}/api/users/profile/active`, {
@@ -123,8 +123,7 @@ export async function getAlumni(): Promise<AlumniBatch[]> {
       );
 
       if (alumniMembers.length > 0) {
-        // Map to AlumniMember shape
-        const mapped: AlumniMember[] = alumniMembers.map((m: any) => ({
+        return alumniMembers.map((m: any) => ({
           id: m._id || m.id,
           name: m.fullName,
           role:
@@ -145,19 +144,31 @@ export async function getAlumni(): Promise<AlumniBatch[]> {
             email: m.email || undefined,
           },
         }));
-
-        // Group by batch using robust batch utility
-        const grouped = groupPeopleByBatch(mapped);
-        return grouped.map((g) => ({
-          batchNumber: g.batchNumber,
-          year: g.year || "",
-          members: g.members.sort((a, b) => a.name.localeCompare(b.name)),
-        }));
       }
     }
   } catch (err) {
     console.warn("Could not fetch alumni from backend, using static fallback:", err);
   }
 
+  return alumniBatches.flatMap((b) =>
+    b.members.map((m) => ({
+      ...m,
+      batch: b.batchNumber,
+      session: b.year,
+      department: "CSE",
+    }))
+  );
+}
+
+export async function getAlumni(): Promise<AlumniBatch[]> {
+  const members = await getAlumniMembers();
+  if (members.length > 0) {
+    const grouped = groupPeopleByBatch(members);
+    return grouped.map((g) => ({
+      batchNumber: g.batchNumber,
+      year: g.year || "",
+      members: g.members.sort((a, b) => a.name.localeCompare(b.name)),
+    }));
+  }
   return alumniBatches;
 }
