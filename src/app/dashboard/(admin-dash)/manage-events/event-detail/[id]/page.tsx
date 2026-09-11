@@ -12,7 +12,7 @@ import {
   Image as ImageIcon, Award, Search, X, Plus, Trash2, Check,
   AlertCircle, Clock, Mail, User, Loader2,
   ExternalLink, Edit, Star, Printer, Eye, Copy, Share2, Sparkles, CheckCircle2,
-  FileCheck, ShieldAlert, UserCheck,
+  FileCheck, ShieldAlert, UserCheck, Play, Video, Maximize2, ClipboardPaste, Film,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
@@ -20,7 +20,7 @@ import FilterSelect from "@/app/dashboard/components/FilterSelect";
 import { CertificateTemplatePreviewModal } from "@/components/certificates/CertificateTemplatePreviewModal";
 import { TemplateItem } from "@/components/certificates/CertificateTemplateCard";
 import { interpolateCertificateHtml } from "@/lib/utils/templateInterpolation";
-import { getOptimizedImageUrl } from "@/data/gallery";
+import { getOptimizedImageUrl, getYoutubeEmbedUrl, getYoutubeThumbnail } from "@/data/gallery";
 import { API_BASE_URL } from "@/lib/api";
 
 const API = `${API_BASE_URL}/api`;
@@ -1300,7 +1300,7 @@ function SponsorsTab({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tab 5: Media Gallery (uses MultiFileUpload)
+// Tab 5: Media Gallery (uses MultiFileUpload + Video Player + Lightbox Modal)
 // ─────────────────────────────────────────────────────────────────────────────
 function MediaTab({
   event,
@@ -1317,6 +1317,7 @@ function MediaTab({
   const [videoTitle, setVideoTitle] = useState("");
   const [addingVideo, setAddingVideo] = useState(false);
   const [uploadResults, setUploadResults] = useState<{ name: string; ok: boolean }[]>([]);
+  const [activeMedia, setActiveMedia] = useState<MediaItem | null>(null);
 
   const handleUploaded = useCallback(async (files: UploadedFile[]) => {
     setUploadResults([]);
@@ -1327,67 +1328,241 @@ function MediaTab({
   const handleAddVideo = async () => {
     if (!videoUrl.trim()) return;
     setAddingVideo(true);
+
+    const isYt = !!getYoutubeEmbedUrl(videoUrl.trim());
+    let defaultTitle = "Video";
+    if (isYt) defaultTitle = "YouTube Video";
+
     await onUpload([{
       url: videoUrl.trim(),
       public_id: "",
       mediaType: "video",
-      originalName: videoTitle.trim() || "Video",
+      originalName: videoTitle.trim() || defaultTitle,
     }]);
     setVideoUrl("");
     setVideoTitle("");
     setAddingVideo(false);
   };
 
+  const previewYtEmbed = getYoutubeEmbedUrl(videoUrl.trim());
+  const previewYtThumb = previewYtEmbed ? getYoutubeThumbnail(videoUrl.trim()) : null;
+
   return (
     <div className="space-y-6">
-      <SectionCard title={`Media Gallery (${event.media.length})`}>
-        {event.media.length === 0 ? (
-          <p className="text-sm text-slate-400 text-center py-6">No media uploaded yet.</p>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {event.media.map((m) => (
-              <div
-                key={m._id}
-                className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 aspect-video bg-slate-100 dark:bg-slate-800"
-              >
-                {m.mediaType === "image" ? (
-                  <Image src={getOptimizedImageUrl(m.url, 400)} alt={m.title} fill style={{ objectFit: "cover" }} />
-                ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center gap-1">
-                    <ExternalLink size={20} className="text-slate-400" />
-                    <span className="text-xs text-slate-500 px-2 text-center truncate w-full">{m.title}</span>
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
-                  <a
-                    href={m.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-white transition"
-                  >
-                    <ExternalLink size={14} />
-                  </a>
-                  <button
-                    onClick={() => onRemove(m._id)}
-                    disabled={inFlight.has(m._id)}
-                    className="p-1.5 bg-red-500/80 hover:bg-red-600 rounded-lg text-white transition disabled:opacity-50"
-                  >
-                    {inFlight.has(m._id) ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                  </button>
-                </div>
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                  <p className="text-white text-xs truncate">{m.title}</p>
+      {/* Lightbox / Video Player Modal */}
+      {activeMedia && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-fade-in"
+          onClick={() => setActiveMedia(null)}
+        >
+          <div
+            className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl max-w-4xl w-full overflow-hidden shadow-2xl max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60">
+              <div className="min-w-0 pr-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300">
+                    {getYoutubeEmbedUrl(activeMedia.url)
+                      ? "YouTube Video"
+                      : activeMedia.mediaType === "video"
+                      ? "Video"
+                      : "Image"}
+                  </span>
+                  <h3 className="font-semibold text-sm sm:text-base text-slate-800 dark:text-slate-100 truncate">
+                    {activeMedia.title || "Gallery Media"}
+                  </h3>
                 </div>
               </div>
-            ))}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <a
+                  href={activeMedia.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                  title="Open original in new tab"
+                >
+                  <ExternalLink size={16} />
+                </a>
+                <button
+                  onClick={() => {
+                    onRemove(activeMedia._id);
+                    setActiveMedia(null);
+                  }}
+                  disabled={inFlight.has(activeMedia._id)}
+                  className="p-2 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition disabled:opacity-50"
+                  title="Delete from gallery"
+                >
+                  <Trash2 size={16} />
+                </button>
+                <button
+                  onClick={() => setActiveMedia(null)}
+                  className="p-2 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition"
+                  title="Close modal"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Media Body */}
+            <div className="relative bg-black flex items-center justify-center min-h-[300px] max-h-[70vh] overflow-hidden">
+              {getYoutubeEmbedUrl(activeMedia.url) ? (
+                <div className="w-full aspect-video max-h-[70vh]">
+                  <iframe
+                    src={`${getYoutubeEmbedUrl(activeMedia.url)}?autoplay=1&rel=0`}
+                    title={activeMedia.title}
+                    className="w-full h-full border-0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              ) : activeMedia.mediaType === "video" ? (
+                <video
+                  src={activeMedia.url}
+                  controls
+                  autoPlay
+                  className="w-full max-h-[70vh] object-contain"
+                />
+              ) : (
+                <div className="relative w-full h-[65vh]">
+                  <Image
+                    src={getOptimizedImageUrl(activeMedia.url, 1600)}
+                    alt={activeMedia.title}
+                    fill
+                    className="object-contain"
+                    priority
+                    unoptimized={!activeMedia.url.includes("cloudinary.com")}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Gallery Grid */}
+      <SectionCard title={`Media Gallery (${event.media.length})`}>
+        {event.media.length === 0 ? (
+          <p className="text-sm text-slate-400 text-center py-8">
+            No media in this gallery yet. Use the uploader below or paste a video link to add media.
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5">
+            {event.media.map((m) => {
+              const ytEmbed = getYoutubeEmbedUrl(m.url);
+              const ytThumb = ytEmbed ? getYoutubeThumbnail(m.url) : null;
+              const isVideo = m.mediaType === "video" || !!ytEmbed;
+
+              return (
+                <div
+                  key={m._id}
+                  onClick={() => setActiveMedia(m)}
+                  className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 aspect-video bg-slate-900 cursor-pointer shadow-xs hover:shadow-md hover:border-indigo-400 transition-all duration-200"
+                >
+                  {/* Top media badge */}
+                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-sm border border-white/20 text-white text-[10px] font-semibold flex items-center gap-1 z-10 pointer-events-none">
+                    {ytEmbed ? (
+                      <>
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                        <span>YouTube</span>
+                      </>
+                    ) : isVideo ? (
+                      <>
+                        <Video size={11} className="text-indigo-400" />
+                        <span>Video</span>
+                      </>
+                    ) : (
+                      <>
+                        <ImageIcon size={11} className="text-emerald-400" />
+                        <span>Photo</span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Thumbnail / Media render */}
+                  {ytThumb ? (
+                    <div className="relative w-full h-full">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={ytThumb}
+                        alt={m.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      <div className="absolute inset-0 bg-black/35 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                        <div className="w-11 h-11 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                          <Play size={18} className="fill-current ml-0.5" />
+                        </div>
+                      </div>
+                    </div>
+                  ) : isVideo ? (
+                    <div className="relative w-full h-full bg-slate-950 flex items-center justify-center">
+                      <video
+                        src={m.url}
+                        preload="metadata"
+                        className="w-full h-full object-cover"
+                        muted
+                        playsInline
+                      />
+                      <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                        <div className="w-11 h-11 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                          <Play size={18} className="fill-current ml-0.5" />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <Image
+                      src={getOptimizedImageUrl(m.url, 400)}
+                      alt={m.title}
+                      fill
+                      style={{ objectFit: "cover" }}
+                      className="group-hover:scale-105 transition-transform duration-300"
+                      unoptimized={!m.url.includes("cloudinary.com")}
+                    />
+                  )}
+
+                  {/* Hover action overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2.5">
+                    <div className="flex justify-end gap-1.5 pt-1 pr-1">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRemove(m._id);
+                        }}
+                        disabled={inFlight.has(m._id)}
+                        className="p-1.5 bg-red-600/90 hover:bg-red-600 rounded-lg text-white transition disabled:opacity-50 shadow-sm"
+                        title="Delete media"
+                      >
+                        {inFlight.has(m._id) ? (
+                          <Loader2 size={13} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={13} />
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between text-white text-xs">
+                      <p className="truncate font-medium flex-1 pr-2">{m.title}</p>
+                      <span className="text-[10px] font-mono text-indigo-300 flex items-center gap-0.5 shrink-0">
+                        View <Maximize2 size={10} />
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </SectionCard>
 
       {/* Upload images/videos via MultiFileUpload */}
-      <SectionCard title="Upload Images / Videos">
+      <SectionCard title="Upload Images & Videos">
         <p className="text-xs text-slate-500 mb-4">
-          Drag and drop or click to select images and video files. They will be uploaded to Cloudinary and added to the gallery automatically.
+          Drag & drop images from your computer or web (Facebook, Google, etc.), paste with <strong>Ctrl+V</strong>, or browse files. Images are automatically compressed to WebP and uploaded to Cloudinary.
         </p>
         <MultiFileUpload
           onUploaded={handleUploaded}
@@ -1398,7 +1573,12 @@ function MediaTab({
         {uploadResults.length > 0 && (
           <div className="mt-3 space-y-1">
             {uploadResults.map((r, i) => (
-              <div key={i} className={`flex items-center gap-2 text-xs ${r.ok ? "text-green-600 dark:text-green-400" : "text-red-500"}`}>
+              <div
+                key={i}
+                className={`flex items-center gap-2 text-xs ${
+                  r.ok ? "text-green-600 dark:text-green-400" : "text-red-500"
+                }`}
+              >
                 {r.ok ? <Check size={12} /> : <AlertCircle size={12} />}
                 {r.name} {r.ok ? "added to gallery" : "failed"}
               </div>
@@ -1407,34 +1587,81 @@ function MediaTab({
         )}
       </SectionCard>
 
-      {/* Add video URL (YouTube / Vimeo) */}
+      {/* Add video URL (YouTube / Vimeo / Direct Video) */}
       <SectionCard title="Add Video Link">
-        <p className="text-xs text-slate-500 mb-3">Paste a YouTube, Vimeo, or other video URL to add it to the gallery.</p>
+        <p className="text-xs text-slate-500 mb-3">
+          Paste a YouTube, Vimeo, or direct video URL (.mp4) to display it with video playback in the gallery.
+        </p>
         <div className="space-y-3">
           <input
             type="text"
             value={videoTitle}
             onChange={(e) => setVideoTitle(e.target.value)}
-            placeholder="Video title (optional)"
+            placeholder="Video title (optional - e.g. Prize Giving Ceremony)"
             className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
           />
-          <div className="flex gap-3">
+
+          <div className="flex gap-2">
             <input
               type="url"
               value={videoUrl}
               onChange={(e) => setVideoUrl(e.target.value)}
-              placeholder="https://youtube.com/watch?v=…"
+              placeholder="https://www.youtube.com/watch?v=… or https://youtu.be/…"
               className="flex-1 px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
             />
             <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const text = await navigator.clipboard.readText();
+                  if (text) setVideoUrl(text.trim());
+                } catch {
+                  // Ignore clipboard permission errors
+                }
+              }}
+              className="px-3 py-2 text-xs font-medium rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center gap-1 shrink-0 transition"
+              title="Paste URL from clipboard"
+            >
+              <ClipboardPaste size={13} />
+              <span>Paste</span>
+            </button>
+            <button
+              type="button"
               onClick={handleAddVideo}
               disabled={!videoUrl.trim() || addingVideo}
-              className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50"
+              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50 shrink-0"
             >
               {addingVideo ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-              Add
+              Add Video
             </button>
           </div>
+
+          {/* Live YouTube Preview */}
+          {previewYtThumb && (
+            <div className="flex items-center gap-3 p-3 rounded-xl border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-950/30 transition-all">
+              <div className="relative w-24 h-14 rounded-lg overflow-hidden flex-shrink-0 bg-slate-900 border border-emerald-300 dark:border-emerald-700">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={previewYtThumb}
+                  alt="YouTube Preview"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-black/25 flex items-center justify-center">
+                  <div className="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center shadow-xs">
+                    <Play size={10} className="fill-current ml-0.5" />
+                  </div>
+                </div>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
+                  <CheckCircle2 size={13} /> Valid YouTube Video detected
+                </p>
+                <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                  Will be added to the gallery with full thumbnail & embedded playback
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </SectionCard>
     </div>
