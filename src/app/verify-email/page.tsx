@@ -23,6 +23,7 @@ function VerifyEmailContent() {
   const [code, setCode] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState(false);
+  const [isApproved, setIsApproved] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Auto-verify token if both email and token are in URL query params
@@ -36,17 +37,24 @@ function VerifyEmailContent() {
     setVerifying(true);
     setErrorMessage(null);
     try {
-      await api.post("/api/users/verify/token", {
+      const res: any = await api.post("/api/users/verify/token", {
         email: targetEmail.trim(),
         token: targetToken.trim(),
       });
       setVerified(true);
+      if (res?.isApproved || res?.applicationStatus === "approved") {
+        setIsApproved(true);
+      }
       confetti({
         particleCount: 100,
         spread: 70,
         origin: { y: 0.6 },
       });
-      toast.success("Email verified successfully! Admins notified.");
+      toast.success(
+        res?.isApproved || res?.applicationStatus === "approved"
+          ? "Email verified! Your account is active and ready to sign in."
+          : "Email verified successfully! Admins notified."
+      );
     } catch (err: any) {
       const msg = err instanceof ApiError ? err.message : err?.message || "Invalid or expired email verification link.";
       setErrorMessage(msg);
@@ -63,17 +71,24 @@ function VerifyEmailContent() {
     setVerifying(true);
     setErrorMessage(null);
     try {
-      await api.post("/api/users/verify/code", {
+      const res: any = await api.post("/api/users/verify/code", {
         email: email.trim(),
         code: code.trim(),
       });
       setVerified(true);
+      if (res?.isApproved || res?.applicationStatus === "approved") {
+        setIsApproved(true);
+      }
       confetti({
         particleCount: 100,
         spread: 70,
         origin: { y: 0.6 },
       });
-      toast.success("Email verified successfully! Admins notified.");
+      toast.success(
+        res?.isApproved || res?.applicationStatus === "approved"
+          ? "Email verified! Your account is active and ready to sign in."
+          : "Email verified successfully! Admins notified."
+      );
     } catch (err: any) {
       const msg = err instanceof ApiError ? err.message : err?.message || "Invalid or expired verification code.";
       setErrorMessage(msg);
@@ -123,27 +138,41 @@ function VerifyEmailContent() {
               </p>
             </div>
 
-            <div className="bg-surface-elevated border border-border-default rounded-xl p-5 shadow-sm">
-              <h2 className="text-base font-bold text-text-primary mb-1 flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-surface-secondary text-text-primary inline-flex items-center justify-center text-xs">
-                  <Clock size={12} />
-                </span>
-                Pending Executive Committee Approval
-              </h2>
-              <p className="text-text-secondary text-sm m-0">
-                Our club administrators have been notified via email. They will cross-verify your offline joining form &amp; billing to activate your account.
-              </p>
-            </div>
-
-            <div className="bg-surface-secondary border border-border-default rounded-xl p-4 flex gap-3">
-              <Mail size={24} className="text-accent-warning shrink-0 mt-0.5" />
-              <div>
-                <h4 className="m-0 mb-1 text-sm font-bold text-text-primary">Admins Notified</h4>
-                <p className="m-0 text-sm text-text-secondary">
-                  An automated notification was dispatched to club administrators. Once approved, you will be able to log into your member dashboard.
+            {isApproved ? (
+              <div className="bg-surface-elevated border-2 border-emerald-500 rounded-xl p-5 shadow-sm space-y-2">
+                <h2 className="text-base font-bold text-text-primary flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-emerald-600 text-white inline-flex items-center justify-center text-xs">✓</span>
+                  Account Activated &amp; Ready
+                </h2>
+                <p className="text-text-secondary text-sm m-0">
+                  Your account has been confirmed and activated without requiring manual review. You can now sign in directly to access all club member features and your dashboard.
                 </p>
               </div>
-            </div>
+            ) : (
+              <>
+                <div className="bg-surface-elevated border border-border-default rounded-xl p-5 shadow-sm">
+                  <h2 className="text-base font-bold text-text-primary mb-1 flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-surface-secondary text-text-primary inline-flex items-center justify-center text-xs">
+                      <Clock size={12} />
+                    </span>
+                    Pending Executive Committee Approval
+                  </h2>
+                  <p className="text-text-secondary text-sm m-0">
+                    Our club administrators have been notified via email. They will cross-verify your offline joining form &amp; billing to activate your account.
+                  </p>
+                </div>
+
+                <div className="bg-surface-secondary border border-border-default rounded-xl p-4 flex gap-3">
+                  <Mail size={24} className="text-accent-warning shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="m-0 mb-1 text-sm font-bold text-text-primary">Admins Notified</h4>
+                    <p className="m-0 text-sm text-text-secondary">
+                      An automated notification was dispatched to club administrators. Once approved, you will be able to log into your member dashboard.
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
 
             <div className="mt-4 flex gap-3 justify-center">
               <Button href="/login" size="lg">

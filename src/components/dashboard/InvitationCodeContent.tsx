@@ -46,7 +46,15 @@ const InvitationCodeContent = () => {
   const [inviteLabel, setInviteLabel] = useState("");
   const [selectedRole, setSelectedRole] = useState<Role>("member");
   const [expiresInDays, setExpiresInDays] = useState("30");
+  const [requireApproval, setRequireApproval] = useState(true);
   const [invitationResult, setInvitationResult] = useState<any | null>(null);
+  const [batchInvitesResult, setBatchInvitesResult] = useState<any[] | null>(null);
+
+  // Parse comma or newline separated emails
+  const parsedEmails = inviteEmail
+    .split(/[\n,]+/)
+    .map((e) => e.trim().toLowerCase())
+    .filter((e) => Boolean(e) && e.includes("@"));
 
   // Table filters & search
   const [filterTab, setFilterTab] = useState<"all" | "available" | "permanent" | "single_use" | "discontinued">("all");
@@ -78,8 +86,8 @@ const InvitationCodeContent = () => {
 
   const handleGenerateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (codeType === "single_use" && !inviteEmail.trim()) {
-      toast.error("Please enter a recipient email for single-use codes.");
+    if (codeType === "single_use" && parsedEmails.length === 0) {
+      toast.error("Please enter at least one valid recipient email for single-use codes.");
       return;
     }
 
@@ -88,19 +96,29 @@ const InvitationCodeContent = () => {
       const res = await api.post("/api/invite/create", {
         codeType,
         email: inviteEmail.trim(),
+        emails: parsedEmails,
         role: selectedRole,
         customCode: customCode.trim(),
         label: inviteLabel.trim(),
+        requireApproval: codeType === "permanent" ? requireApproval : false,
         expiresInDays: codeType === "permanent" ? 36500 : parseInt(expiresInDays) || 30,
       });
 
-      if (res.success && res.invite) {
-        setInvitationResult(res.invite);
-        toast.success(
-          codeType === "permanent"
-            ? `Permanent invitation code "${res.invite.code}" created!`
-            : `Invitation code generated and emailed to ${inviteEmail}!`
-        );
+      if (res.success) {
+        if (res.invites && res.invites.length > 1) {
+          setBatchInvitesResult(res.invites);
+          setInvitationResult(res.invites[0]);
+          toast.success(`Generated and emailed ${res.invites.length} invitation codes!`);
+        } else if (res.invite || (res.invites && res.invites.length === 1)) {
+          const singleInvite = res.invite || res.invites[0];
+          setInvitationResult(singleInvite);
+          setBatchInvitesResult(null);
+          toast.success(
+            codeType === "permanent"
+              ? `Permanent invitation code "${singleInvite.code}" created!`
+              : `Invitation code generated and emailed to ${singleInvite.email}!`
+          );
+        }
         setInviteEmail("");
         setCustomCode("");
         setInviteLabel("");
@@ -203,6 +221,7 @@ const InvitationCodeContent = () => {
               onClick={() => {
                 setCodeType("permanent");
                 setInvitationResult(null);
+                setBatchInvitesResult(null);
               }}
               className={`px-3 py-1.5 text-xs font-semibold rounded-md transition ${codeType === "permanent"
                   ? "bg-accent-primary text-accent-primary-text shadow-sm"
@@ -216,6 +235,7 @@ const InvitationCodeContent = () => {
               onClick={() => {
                 setCodeType("single_use");
                 setInvitationResult(null);
+                setBatchInvitesResult(null);
               }}
               className={`px-3 py-1.5 text-xs font-semibold rounded-md transition ${codeType === "single_use"
                   ? "bg-accent-primary text-accent-primary-text shadow-sm"
@@ -228,20 +248,30 @@ const InvitationCodeContent = () => {
         </div>
 
         <form onSubmit={handleGenerateSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
             {codeType === "single_use" ? (
-              <div className="space-y-1">
-                <label className="block text-xs font-semibold text-text-primary">
-                  Recipient Email <span className="text-accent-error">*</span>
-                </label>
-                <input
-                  type="email"
+              <div className="space-y-1.5 md:col-span-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-text-primary">
+                    Candidate Email(s) <span className="text-accent-error">*</span>
+                  </label>
+                  {parsedEmails.length > 0 && (
+                    <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-accent-primary-light text-text-primary border border-border-default">
+                      {parsedEmails.length} {parsedEmails.length === 1 ? "email detected" : "emails detected"}
+                    </span>
+                  )}
+                </div>
+                <textarea
+                  rows={2}
                   required
-                  placeholder="student@mec.edu.bd"
+                  placeholder="e.g. alice@mec.edu.bd, bob@mec.edu.bd, charlie@mec.edu.bd"
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
-                  className="w-full border border-border-default p-2.5 rounded-lg bg-surface-primary text-text-primary text-sm font-medium focus:outline-none focus:border-accent-primary shadow-[2px_2px_0px_0px_var(--border-default)]"
+                  className="w-full border border-border-default p-2.5 rounded-lg bg-surface-primary text-text-primary text-sm font-medium focus:outline-none focus:border-accent-primary shadow-[2px_2px_0px_0px_var(--border-default)] resize-y"
                 />
+                <p className="text-[11px] text-text-secondary">
+                  Separate multiple emails with commas. Each candidate gets an individual single-use key with direct, auto-approved access.
+                </p>
               </div>
             ) : (
               <div className="space-y-1">
@@ -279,8 +309,8 @@ const InvitationCodeContent = () => {
               />
             </div>
 
-            {codeType === "single_use" ? (
-              <div className="space-y-1">
+            {codeType === "single_use" && (
+              <div className="space-y-1 md:col-span-2 lg:col-span-1">
                 <label className="block text-xs font-semibold text-text-primary">Validity</label>
                 <Select
                   id="dashboard-expires-days"
@@ -294,40 +324,106 @@ const InvitationCodeContent = () => {
                   ]}
                 />
               </div>
-            ) : (
-              <div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-text-primary text-surface-primary border border-border-default py-2.5 px-4 rounded-lg font-semibold hover:bg-surface-inverse transition flex items-center justify-center shadow-[3px_3px_0px_0px_var(--border-default)] disabled:opacity-50 text-sm"
-                >
-                  {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
-                  Create Permanent Key
-                </button>
-              </div>
             )}
           </div>
 
-          {codeType === "single_use" && (
-            <div className="flex justify-end pt-2">
-              <button
-                type="submit"
-                disabled={loading || !inviteEmail.trim()}
-                className="bg-text-primary text-surface-primary border border-border-default py-2.5 px-6 rounded-lg font-semibold hover:bg-surface-inverse transition flex items-center shadow-[3px_3px_0px_0px_var(--border-default)] disabled:opacity-50 text-sm"
-              >
-                {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
-                Generate &amp; Email Key
-              </button>
+          {/* Permanent Code Options (Admin Approval Toggle) */}
+          {codeType === "permanent" && (
+            <div className="p-3.5 rounded-lg bg-surface-secondary border border-border-default flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="perm-require-approval-toggle"
+                checked={requireApproval}
+                onChange={(e) => setRequireApproval(e.target.checked)}
+                className="w-4 h-4 mt-0.5 rounded border-border-default text-accent-primary focus:ring-accent-primary cursor-pointer"
+              />
+              <label htmlFor="perm-require-approval-toggle" className="text-xs font-semibold text-text-primary cursor-pointer select-none">
+                Require Admin Approval for Registrations
+                <span className="block text-[11px] font-normal text-text-secondary mt-0.5">
+                  {requireApproval
+                    ? "Candidates who register using this permanent code will be placed in pending review until approved by an administrator."
+                    : "Candidates will be immediately approved and activated upon email confirmation without needing manual admin review."}
+                </span>
+              </label>
             </div>
           )}
+
+          <div className="flex justify-end pt-2">
+            <button
+              type="submit"
+              disabled={loading || (codeType === "single_use" && parsedEmails.length === 0)}
+              className="bg-text-primary text-surface-primary border border-border-default py-2.5 px-6 rounded-lg font-semibold hover:bg-surface-inverse transition flex items-center shadow-[3px_3px_0px_0px_var(--border-default)] disabled:opacity-50 text-sm"
+            >
+              {loading ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : codeType === "permanent" ? (
+                <Send className="w-4 h-4 mr-2" />
+              ) : (
+                <Mail className="w-4 h-4 mr-2" />
+              )}
+              {codeType === "permanent"
+                ? "Create Permanent Key"
+                : parsedEmails.length > 1
+                ? `Generate & Email ${parsedEmails.length} Keys`
+                : "Generate & Email Key"}
+            </button>
+          </div>
         </form>
 
-        {/* Success Result Box */}
-        {invitationResult && (
+        {/* Batch Success Box */}
+        {batchInvitesResult && batchInvitesResult.length > 1 && (
+          <div className="p-4 rounded-lg bg-surface-secondary border-2 border-accent-success space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-default pb-2">
+              <span className="text-xs font-semibold uppercase text-accent-success flex items-center gap-1">
+                <Check className="w-4 h-4" /> Generated {batchInvitesResult.length} Individual Invitation Codes
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  const text = batchInvitesResult.map((i) => `${i.email}: ${i.code}`).join("\n");
+                  navigator.clipboard.writeText(text);
+                  toast.success("All invitation codes copied to clipboard!");
+                }}
+                className="bg-surface-elevated border border-border-default px-3 py-1 rounded-md text-xs font-semibold text-text-primary hover:bg-accent-primary-light flex items-center gap-1.5 shadow-[2px_2px_0px_0px_var(--border-default)]"
+              >
+                <Copy className="w-3.5 h-3.5" /> Copy All Codes
+              </button>
+            </div>
+            <div className="max-h-56 overflow-y-auto divide-y divide-border-default pr-1">
+              {batchInvitesResult.map((inv) => (
+                <div key={inv.code} className="py-2 flex items-center justify-between text-xs gap-3">
+                  <div className="min-w-0">
+                    <span className="font-semibold text-text-primary block truncate">{inv.email}</span>
+                    <span className="text-[11px] text-text-secondary uppercase">{inv.role || selectedRole} • Auto-Approved</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <code className="font-mono font-bold text-text-primary px-2 py-0.5 rounded bg-surface-elevated border border-border-default">
+                      {inv.code}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(inv.code);
+                        toast.success(`Code for ${inv.email} copied!`);
+                      }}
+                      className="p-1 hover:text-accent-primary text-text-secondary"
+                      title="Copy Code"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Single Success Result Box */}
+        {invitationResult && (!batchInvitesResult || batchInvitesResult.length <= 1) && (
           <div className="p-4 rounded-lg bg-surface-secondary border-2 border-accent-success flex flex-wrap items-center justify-between gap-4">
             <div>
               <span className="text-xs font-semibold uppercase text-accent-success flex items-center gap-1">
-                <Check className="w-4 h-4" /> Code Created ({invitationResult.codeType === "permanent" ? "Permanent / Reusable" : "Single-Use"})
+                <Check className="w-4 h-4" /> Code Created ({invitationResult.codeType === "permanent" ? "Permanent / Reusable" : "Single-Use Direct Access"})
               </span>
               <div className="mt-1 flex items-center gap-3">
                 <code className="text-2xl font-mono font-extrabold text-text-primary tracking-wider">
@@ -335,6 +431,11 @@ const InvitationCodeContent = () => {
                 </code>
                 <span className="text-xs text-text-secondary font-semibold">
                   Role: <strong className="uppercase text-text-primary">{invitationResult.role}</strong>
+                </span>
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
+                  {invitationResult.codeType === "single_use" || invitationResult.requireApproval === false
+                    ? "⚡ Instant Access"
+                    : "🛡️ Needs Review"}
                 </span>
               </div>
             </div>
@@ -433,6 +534,7 @@ const InvitationCodeContent = () => {
                 <th className="p-3">Type</th>
                 <th className="p-3">Role</th>
                 <th className="p-3">Label / Recipient</th>
+                <th className="p-3">Approval</th>
                 <th className="p-3">Registrations</th>
                 <th className="p-3">Status</th>
                 <th className="p-3">Expires</th>
@@ -491,6 +593,18 @@ const InvitationCodeContent = () => {
                           {inv.label || (isPermanent ? "Permanent Code" : "Individual Member Invite")}
                         </div>
                         {inv.email && <div className="text-text-secondary text-[11px]">{inv.email}</div>}
+                      </td>
+
+                      <td className="p-3">
+                        {inv.codeType === "single_use" || inv.requireApproval === false ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                            ⚡ Instant Access
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                            🛡️ Review
+                          </span>
+                        )}
                       </td>
 
                       <td className="p-3 font-mono font-semibold text-xs text-text-primary">

@@ -421,6 +421,8 @@ function RegisterContent() {
   const [codeChecking, setCodeChecking] = useState(Boolean(initialUrlCode));
   const [gateError, setGateError] = useState<string | null>(null);
   const [emailLocked, setEmailLocked] = useState(false);
+  const [inviteRequiresApproval, setInviteRequiresApproval] = useState(false);
+  const [accountApproved, setAccountApproved] = useState(false);
 
   // Exact system role from invitation clearance key
   const [invitedRole, setInvitedRole] = useState<string>(
@@ -565,6 +567,11 @@ function RegisterContent() {
           } else {
             setFormRole("member");
           }
+        }
+        if (res.data?.requireApproval !== undefined) {
+          setInviteRequiresApproval(Boolean(res.data.requireApproval));
+        } else {
+          setInviteRequiresApproval(res.data?.codeType === "permanent");
         }
         toast.success("Invitation clearance verified! Form unlocked.");
         setStage(2);
@@ -818,12 +825,15 @@ function RegisterContent() {
 
     setEmailVerifying(true);
     try {
-      await api.post("/api/users/verify/code", {
+      const res: any = await api.post("/api/users/verify/code", {
         email: registeredEmail,
         code: otpCode.trim(),
       });
       setEmailVerified(true);
-      toast.success("Email verified successfully!");
+      if (res?.isApproved || res?.applicationStatus === "approved" || !inviteRequiresApproval) {
+        setAccountApproved(true);
+      }
+      toast.success(res?.message || "Email verified successfully!");
     } catch (err: any) {
       const msg = err instanceof ApiError ? err.message : err?.message || "Invalid or expired verification code.";
       toast.error(msg);
@@ -2257,13 +2267,25 @@ function RegisterContent() {
                 </div>
 
                 <h1 className="reg-gate-title">
-                  {emailVerified ? "Email Confirmed Successfully!" : "Confirm Your Email Address"}
+                  {emailVerified
+                    ? accountApproved
+                      ? "Account Activated & Ready!"
+                      : "Email Confirmed Successfully!"
+                    : "Confirm Your Email Address"}
                 </h1>
 
                 <p className="reg-gate-desc" style={{ marginBottom: "var(--space-5)" }}>
                   {emailVerified ? (
                     <>
-                      Thank you <strong>{registeredName}</strong>. Your account has been registered and is pending administrator activation.
+                      {accountApproved ? (
+                        <>
+                          Congratulations <strong>{registeredName}</strong>! Your account has been verified and activated. You can now proceed to log in.
+                        </>
+                      ) : (
+                        <>
+                          Thank you <strong>{registeredName}</strong>. Your account has been registered and is pending administrator activation.
+                        </>
+                      )}
                     </>
                   ) : (
                     <>
