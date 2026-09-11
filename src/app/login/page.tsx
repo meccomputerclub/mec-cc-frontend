@@ -365,7 +365,7 @@ function LoginForm() {
                   autoComplete="one-time-code"
                   className="w-full px-3.5 py-2.5 border border-border-brutalist dark:border-border-default rounded-md bg-surface-primary text-base text-text-primary shadow-[2px_2px_0px_var(--border-brutalist)] dark:shadow-[2px_2px_0px_var(--border-default)] transition-all duration-200 focus:outline-none focus:border-accent-primary focus:shadow-[4px_4px_0px_var(--accent-primary)] focus:-translate-x-0.5 focus:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:bg-surface-secondary"
                 />
-                <p className="text-xs text-text-secondary mt-1">
+                <p className="text-xs text-accent-error dark:text-red-400 font-medium mt-1">
                   Your account is locked due to several failed attempts. Please check your email and enter the security code to unlock.
                 </p>
               </div>
