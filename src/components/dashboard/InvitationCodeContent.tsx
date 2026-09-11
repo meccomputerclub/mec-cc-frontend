@@ -45,7 +45,6 @@ const InvitationCodeContent = () => {
   const [customCode, setCustomCode] = useState("");
   const [inviteLabel, setInviteLabel] = useState("");
   const [selectedRole, setSelectedRole] = useState<Role>("member");
-  const [expiresInDays, setExpiresInDays] = useState("30");
   const [requireApproval, setRequireApproval] = useState(true);
   const [invitationResult, setInvitationResult] = useState<any | null>(null);
   const [batchInvitesResult, setBatchInvitesResult] = useState<any[] | null>(null);
@@ -101,7 +100,7 @@ const InvitationCodeContent = () => {
         customCode: customCode.trim(),
         label: inviteLabel.trim(),
         requireApproval: codeType === "permanent" ? requireApproval : false,
-        expiresInDays: codeType === "permanent" ? 36500 : parseInt(expiresInDays) || 30,
+        expiresInDays: codeType === "permanent" ? 36500 : 15,
       });
 
       if (res.success) {
@@ -248,7 +247,7 @@ const InvitationCodeContent = () => {
         </div>
 
         <form onSubmit={handleGenerateSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+          <div className={`grid grid-cols-1 ${codeType === "single_use" ? "md:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-3"} gap-4 items-start`}>
             {codeType === "single_use" ? (
               <div className="space-y-1.5 md:col-span-2">
                 <div className="flex items-center justify-between">
@@ -269,9 +268,6 @@ const InvitationCodeContent = () => {
                   onChange={(e) => setInviteEmail(e.target.value)}
                   className="w-full border border-border-default p-2.5 rounded-lg bg-surface-primary text-text-primary text-sm font-medium focus:outline-none focus:border-accent-primary shadow-[2px_2px_0px_0px_var(--border-default)] resize-y"
                 />
-                <p className="text-[11px] text-text-secondary">
-                  Separate multiple emails with commas. Each candidate gets an individual single-use key with direct, auto-approved access.
-                </p>
               </div>
             ) : (
               <div className="space-y-1">
@@ -308,23 +304,6 @@ const InvitationCodeContent = () => {
                 options={ROLE_OPTIONS}
               />
             </div>
-
-            {codeType === "single_use" && (
-              <div className="space-y-1 md:col-span-2 lg:col-span-1">
-                <label className="block text-xs font-semibold text-text-primary">Validity</label>
-                <Select
-                  id="dashboard-expires-days"
-                  value={expiresInDays}
-                  onChange={setExpiresInDays}
-                  options={[
-                    { value: "7", label: "7 Days" },
-                    { value: "14", label: "14 Days" },
-                    { value: "30", label: "30 Days (Default)" },
-                    { value: "90", label: "90 Days" },
-                  ]}
-                />
-              </div>
-            )}
           </div>
 
           {/* Permanent Code Options (Admin Approval Toggle) */}
@@ -534,11 +513,11 @@ const InvitationCodeContent = () => {
                 <th className="p-3">Type</th>
                 <th className="p-3">Role</th>
                 <th className="p-3">Label / Recipient</th>
-                <th className="p-3">Approval</th>
-                <th className="p-3">Registrations</th>
-                <th className="p-3">Status</th>
-                <th className="p-3">Expires</th>
-                <th className="p-3 text-right sticky right-0 bg-surface-secondary z-10 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.08)] whitespace-nowrap">
+                <th className="p-3 text-center w-16">Approval</th>
+                <th className="p-3 text-center">Registrations</th>
+                <th className="p-3 text-center">Status</th>
+                <th className="p-3 text-center">Expires</th>
+                <th className="p-3 text-center sticky right-0 bg-surface-secondary z-10 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.08)] whitespace-nowrap w-28">
                   Actions
                 </th>
               </tr>
@@ -595,23 +574,29 @@ const InvitationCodeContent = () => {
                         {inv.email && <div className="text-text-secondary text-[11px]">{inv.email}</div>}
                       </td>
 
-                      <td className="p-3">
+                      <td className="p-3 text-center">
                         {inv.codeType === "single_use" || inv.requireApproval === false ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                            ⚡ Instant Access
+                          <span
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 cursor-help shadow-sm"
+                            title="Instant Access: No admin approval required upon email verification"
+                          >
+                            ⚡
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                            🛡️ Review
+                          <span
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 cursor-help shadow-sm"
+                            title="Review Required: Registrations require manual admin approval"
+                          >
+                            🛡️
                           </span>
                         )}
                       </td>
 
-                      <td className="p-3 font-mono font-semibold text-xs text-text-primary">
+                      <td className="p-3 text-center font-mono font-semibold text-xs text-text-primary">
                         {inv.usageCount || 0} {isPermanent ? "users" : inv.usageCount === 1 ? "used" : "unused"}
                       </td>
 
-                      <td className="p-3">
+                      <td className="p-3 text-center">
                         {isAvail ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                             ● Available
@@ -631,12 +616,12 @@ const InvitationCodeContent = () => {
                         )}
                       </td>
 
-                      <td className="p-3 text-xs text-text-secondary">
-                        {isPermanent ? "Never" : inv.expiresAt ? new Date(inv.expiresAt).toLocaleDateString() : "30 days"}
+                      <td className="p-3 text-center text-xs text-text-secondary whitespace-nowrap">
+                        {isPermanent ? "Never" : inv.expiresAt ? new Date(inv.expiresAt).toLocaleDateString() : "15 days"}
                       </td>
 
-                      <td className="p-3 text-right sticky right-0 bg-surface-elevated group-hover:bg-accent-primary-light z-10 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.08)] transition-colors whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1.5">
+                      <td className="p-3 text-center sticky right-0 bg-surface-elevated group-hover:bg-accent-primary-light z-10 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.08)] transition-colors whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1.5">
                           {/* Copy URL */}
                           <button
                             type="button"
@@ -647,10 +632,11 @@ const InvitationCodeContent = () => {
                               );
                               toast.success(`Registration URL for "${inv.code}" copied!`);
                             }}
-                            className="px-2 py-1 text-xs font-semibold rounded border border-border-default bg-surface-secondary text-text-primary hover:bg-surface-elevated transition shadow-sm"
+                            className="p-1.5 text-xs font-semibold rounded border border-border-default bg-surface-secondary text-text-primary hover:bg-surface-primary hover:border-accent-primary transition shadow-sm"
                             title="Copy Registration Link"
+                            aria-label="Copy Registration Link"
                           >
-                            <ExternalLink className="w-3 h-3 inline mr-1" /> Link
+                            <ExternalLink className="w-3.5 h-3.5" />
                           </button>
 
                           {/* Discontinue / Make Available */}
@@ -659,20 +645,22 @@ const InvitationCodeContent = () => {
                               type="button"
                               disabled={actionLoadingId === (inv._id || inv.code)}
                               onClick={() => handleToggleStatus(inv._id, inv.status)}
-                              className="px-2 py-1 text-xs font-semibold rounded border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 transition"
+                              className="p-1.5 text-xs font-semibold rounded border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 transition shadow-sm disabled:opacity-50"
                               title="Discontinue / Pause Code"
+                              aria-label="Discontinue Code"
                             >
-                              <PauseCircle className="w-3 h-3 inline mr-1" /> Discontinue
+                              <PauseCircle className="w-3.5 h-3.5" />
                             </button>
                           ) : (
                             <button
                               type="button"
                               disabled={actionLoadingId === (inv._id || inv.code)}
                               onClick={() => handleToggleStatus(inv._id, inv.status)}
-                              className="px-2 py-1 text-xs font-semibold rounded border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 transition"
+                              className="p-1.5 text-xs font-semibold rounded border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 transition shadow-sm disabled:opacity-50"
                               title="Make Code Available"
+                              aria-label="Make Available"
                             >
-                              <PlayCircle className="w-3 h-3 inline mr-1" /> Make Available
+                              <PlayCircle className="w-3.5 h-3.5" />
                             </button>
                           )}
 
@@ -681,11 +669,11 @@ const InvitationCodeContent = () => {
                             type="button"
                             disabled={actionLoadingId === (inv._id || inv.code)}
                             onClick={() => openDeleteModal(inv)}
-                            className="px-2.5 py-1 text-xs font-bold rounded border border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800 transition flex items-center gap-1 shadow-sm"
+                            className="p-1.5 text-xs font-bold rounded border border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800 transition shadow-sm disabled:opacity-50"
                             title="Delete Invitation Code Permanently"
+                            aria-label="Delete Invitation Code"
                           >
                             <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-                            <span>Delete</span>
                           </button>
                         </div>
                       </td>
