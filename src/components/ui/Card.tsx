@@ -93,7 +93,7 @@ export function EventCard({
             </div>
             {attendeeCount ? (
               <div className="font-mono [font-feature-settings:'liga'_0,'calt'_0] text-xs text-text-primary font-bold">
-                {attendeeCount} ATTENDING
+                {attendeeCount} {status === "past" ? "ATTENDED" : "ATTENDING"}
               </div>
             ) : null}
           </div>

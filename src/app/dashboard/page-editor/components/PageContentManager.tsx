@@ -15,6 +15,8 @@ import {
   MessageSquare,
   Award,
   BookOpen,
+  BarChart3,
+  Layers,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { API_BASE_URL } from "@/lib/api";
@@ -48,6 +50,18 @@ export default function PageContentManager() {
       badge: "Notice",
       text: "Intra-MEC Programming Contest 2026 pre-registration is now open!",
       link: "/events",
+    },
+    stats: {
+      members: "70+",
+      segments: "5+",
+      events: "12+",
+    },
+    techTreeEvents: {
+      cp: "8+ EVENTS",
+      webdev: "5+ EVENTS",
+      ml: "3+ EVENTS",
+      cybersec: "3+ EVENTS",
+      gaming: "3+ EVENTS",
     },
   });
 
@@ -86,6 +100,8 @@ export default function PageContentManager() {
             hero: { ...prev.hero, ...(sections.hero || {}) },
             contact: { ...prev.contact, ...(sections.contact || {}) },
             announcement: { ...prev.announcement, ...(sections.announcement || {}) },
+            stats: { ...prev.stats, ...(sections.stats || {}) },
+            techTreeEvents: { ...prev.techTreeEvents, ...(sections.techTreeEvents || {}) },
           }));
         } else if (pageKey === "cp-hub") {
           setCpContent((prev) => ({
@@ -504,6 +520,189 @@ export default function PageContentManager() {
                   }
                   placeholder="e.g. Registration for Contest 2026 is now open!"
                   className="w-full px-3 py-2 text-sm bg-surface-secondary border border-border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-primary text-text-primary"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 4. Hero Counter Stats */}
+          <div className="bg-surface-elevated border border-border-brutalist dark:border-border-default rounded-2xl p-5 shadow-[4px_4px_0px_var(--accent-primary)] space-y-4">
+            <div className="flex items-center gap-2 border-b border-border-default pb-3">
+              <BarChart3 className="w-4 h-4 text-accent-primary" />
+              <h2 className="text-base font-bold text-text-primary">
+                Hero Counter Stats (Members, Segments, Events)
+              </h2>
+            </div>
+            <p className="text-xs text-text-tertiary">
+              Customize the three highlight metrics displayed right beneath the hero action buttons on the home page.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary mb-1">
+                  Members Metric
+                </label>
+                <input
+                  type="text"
+                  value={homeContent.stats.members}
+                  onChange={(e) =>
+                    setHomeContent({
+                      ...homeContent,
+                      stats: { ...homeContent.stats, members: e.target.value },
+                    })
+                  }
+                  placeholder="70+"
+                  className="w-full px-3 py-2 text-sm bg-surface-secondary border border-border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-primary text-text-primary font-bold font-mono"
+                />
+                <span className="text-[11px] text-text-tertiary">
+                  Label: Members
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary mb-1">
+                  Segments Metric
+                </label>
+                <input
+                  type="text"
+                  value={homeContent.stats.segments}
+                  onChange={(e) =>
+                    setHomeContent({
+                      ...homeContent,
+                      stats: { ...homeContent.stats, segments: e.target.value },
+                    })
+                  }
+                  placeholder="5+"
+                  className="w-full px-3 py-2 text-sm bg-surface-secondary border border-border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-primary text-text-primary font-bold font-mono"
+                />
+                <span className="text-[11px] text-text-tertiary">
+                  Label: Segments
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary mb-1">
+                  Events Metric
+                </label>
+                <input
+                  type="text"
+                  value={homeContent.stats.events}
+                  onChange={(e) =>
+                    setHomeContent({
+                      ...homeContent,
+                      stats: { ...homeContent.stats, events: e.target.value },
+                    })
+                  }
+                  placeholder="12+"
+                  className="w-full px-3 py-2 text-sm bg-surface-secondary border border-border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-primary text-text-primary font-bold font-mono"
+                />
+                <span className="text-[11px] text-text-tertiary">
+                  Label: Events this year
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* 5. Tech Tree Domain Event Numbers */}
+          <div className="bg-surface-elevated border border-border-brutalist dark:border-border-default rounded-2xl p-5 shadow-[4px_4px_0px_var(--accent-primary)] space-y-4">
+            <div className="flex items-center gap-2 border-b border-border-default pb-3">
+              <Layers className="w-4 h-4 text-accent-primary" />
+              <h2 className="text-base font-bold text-text-primary">
+                Tech Tree Domain Event Numbers (&quot;Choose Your Tech Tree&quot;)
+              </h2>
+            </div>
+            <p className="text-xs text-text-tertiary">
+              Set the event badge text displayed on each of the 5 tech tree track cards on the home page.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary mb-1">
+                  [CP] Competitive Programming
+                </label>
+                <input
+                  type="text"
+                  value={homeContent.techTreeEvents.cp}
+                  onChange={(e) =>
+                    setHomeContent({
+                      ...homeContent,
+                      techTreeEvents: { ...homeContent.techTreeEvents, cp: e.target.value },
+                    })
+                  }
+                  placeholder="8+ EVENTS"
+                  className="w-full px-3 py-2 text-sm bg-surface-secondary border border-border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-primary text-text-primary font-mono font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary mb-1">
+                  [WEB] Web Development
+                </label>
+                <input
+                  type="text"
+                  value={homeContent.techTreeEvents.webdev}
+                  onChange={(e) =>
+                    setHomeContent({
+                      ...homeContent,
+                      techTreeEvents: { ...homeContent.techTreeEvents, webdev: e.target.value },
+                    })
+                  }
+                  placeholder="5+ EVENTS"
+                  className="w-full px-3 py-2 text-sm bg-surface-secondary border border-border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-primary text-text-primary font-mono font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary mb-1">
+                  [ML] Machine Learning &amp; AI
+                </label>
+                <input
+                  type="text"
+                  value={homeContent.techTreeEvents.ml}
+                  onChange={(e) =>
+                    setHomeContent({
+                      ...homeContent,
+                      techTreeEvents: { ...homeContent.techTreeEvents, ml: e.target.value },
+                    })
+                  }
+                  placeholder="3+ EVENTS"
+                  className="w-full px-3 py-2 text-sm bg-surface-secondary border border-border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-primary text-text-primary font-mono font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary mb-1">
+                  [SEC] Cybersecurity
+                </label>
+                <input
+                  type="text"
+                  value={homeContent.techTreeEvents.cybersec}
+                  onChange={(e) =>
+                    setHomeContent({
+                      ...homeContent,
+                      techTreeEvents: { ...homeContent.techTreeEvents, cybersec: e.target.value },
+                    })
+                  }
+                  placeholder="3+ EVENTS"
+                  className="w-full px-3 py-2 text-sm bg-surface-secondary border border-border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-primary text-text-primary font-mono font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-mono uppercase tracking-wider text-text-tertiary mb-1">
+                  [GAME] Game Dev &amp; Esports
+                </label>
+                <input
+                  type="text"
+                  value={homeContent.techTreeEvents.gaming}
+                  onChange={(e) =>
+                    setHomeContent({
+                      ...homeContent,
+                      techTreeEvents: { ...homeContent.techTreeEvents, gaming: e.target.value },
+                    })
+                  }
+                  placeholder="3+ EVENTS"
+                  className="w-full px-3 py-2 text-sm bg-surface-secondary border border-border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-primary text-text-primary font-mono font-bold"
                 />
               </div>
             </div>

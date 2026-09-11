@@ -45,12 +45,15 @@ export default async function HomePage() {
   const heroCtaText = homeContent?.hero?.ctaText || "Become a Member";
   const heroCtaLink = homeContent?.hero?.ctaLink || "/join";
   const announcement = homeContent?.announcement;
+  const statsMembers = homeContent?.stats?.members || "70+";
+  const statsSegments = homeContent?.stats?.segments || "5+";
+  const statsEvents = homeContent?.stats?.events || "12+";
 
   return (
     <div className="w-full overflow-x-hidden">
       {/* ===== 1. HERO SECTION ===== */}
       <section
-        className="relative min-h-[calc(100vh-var(--nav-height))] flex flex-col justify-center overflow-hidden py-[var(--space-8)] max-[1024px]:py-[var(--space-6)] max-[480px]:py-[var(--space-4)]"
+        className="relative flex flex-col justify-center overflow-hidden pt-4 pb-10 sm:pt-6 sm:pb-14 lg:pt-8 lg:pb-16"
         id="hero"
       >
         {announcement?.enabled && announcement?.text && (
@@ -89,17 +92,17 @@ export default async function HomePage() {
             </div>
             <div className="flex items-center gap-[var(--space-4)] max-[768px]:gap-[var(--space-3)] max-[480px]:grid max-[480px]:grid-cols-3 max-[480px]:gap-2 max-[480px]:w-full max-[480px]:text-center max-[480px]:py-[var(--space-3)] max-[480px]:border-t max-[480px]:border-b max-[480px]:border-border-default">
               <div className="flex flex-col">
-                <span className="font-heading text-2xl font-bold text-text-primary leading-none max-[480px]:text-xl">70+</span>
+                <span className="font-heading text-2xl font-bold text-text-primary leading-none max-[480px]:text-xl">{statsMembers}</span>
                 <span className="font-mono text-[10px] text-text-tertiary uppercase tracking-wider mt-1 max-[480px]:text-[9px]">Members</span>
               </div>
               <div className="w-[1px] h-8 bg-border-default max-[480px]:hidden" />
               <div className="flex flex-col">
-                <span className="font-heading text-2xl font-bold text-text-primary leading-none max-[480px]:text-xl">5</span>
-                <span className="font-mono text-[10px] text-text-tertiary uppercase tracking-wider mt-1 max-[480px]:text-[9px]">Departments</span>
+                <span className="font-heading text-2xl font-bold text-text-primary leading-none max-[480px]:text-xl">{statsSegments}</span>
+                <span className="font-mono text-[10px] text-text-tertiary uppercase tracking-wider mt-1 max-[480px]:text-[9px]">Segments</span>
               </div>
               <div className="w-[1px] h-8 bg-border-default max-[480px]:hidden" />
               <div className="flex flex-col">
-                <span className="font-heading text-2xl font-bold text-text-primary leading-none max-[480px]:text-xl">12+</span>
+                <span className="font-heading text-2xl font-bold text-text-primary leading-none max-[480px]:text-xl">{statsEvents}</span>
                 <span className="font-mono text-[10px] text-text-tertiary uppercase tracking-wider mt-1 max-[480px]:text-[9px]">Events this year</span>
               </div>
             </div>
@@ -183,11 +186,12 @@ export default async function HomePage() {
                   : "/events";
 
               const eventCountText =
-                dept.id === "cp"
+                homeContent?.techTreeEvents?.[dept.id] ||
+                (dept.id === "cp"
                   ? "8+ EVENTS"
                   : dept.id === "webdev"
                   ? "5+ EVENTS"
-                  : "3+ EVENTS";
+                  : "3+ EVENTS");
 
               return (
                 <Link
@@ -390,7 +394,7 @@ export default async function HomePage() {
 
       {/* ===== 11. JOIN CTA BAND ===== */}
       <section
-        className="bg-[linear-gradient(135deg,var(--surface-secondary)_0%,var(--surface-primary)_100%)] py-[var(--space-8)] border-t border-border-default max-[480px]:py-[var(--space-6)]"
+        className="bg-[linear-gradient(135deg,var(--surface-secondary)_0%,var(--surface-primary)_100%)] py-10 md:py-14 border-t border-border-default max-[480px]:py-8"
         id="join-cta"
       >
         <div className="container">

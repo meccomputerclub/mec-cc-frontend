@@ -94,7 +94,7 @@ export function Footer() {
     "flex items-center gap-2 font-mono text-xs font-semibold uppercase tracking-wider text-text-primary mb-[var(--space-3)]";
 
   return (
-    <footer className="bg-surface-secondary border-t border-border-default pt-[var(--space-7)] pb-[var(--space-5)] mt-[var(--space-8)] max-[640px]:pt-[var(--space-6)] max-[640px]:pb-[var(--space-4)] max-[640px]:mt-[var(--space-6)]" role="contentinfo">
+    <footer className="bg-surface-secondary border-t border-border-default pt-[var(--space-7)] pb-[var(--space-5)] mt-6 md:mt-10 max-[640px]:mt-6 max-[640px]:pt-[var(--space-6)] max-[640px]:pb-[var(--space-4)]" role="contentinfo">
       <div className="container">
 
         {/* Main grid */}
