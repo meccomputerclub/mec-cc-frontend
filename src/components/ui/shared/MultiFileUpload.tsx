@@ -1,6 +1,6 @@
 "use client";
 /**
- * MultiFileUpload — drag-drop / click / paste zone that uploads multiple files
+ * MultiFileUpload — central multi-file upload zone that uploads multiple files
  * to Cloudinary via POST /api/upload/image and returns each result.
  * Supports:
  *  - Native file select & drag-and-drop
@@ -29,6 +29,11 @@ import {
   ClipboardPaste,
 } from "lucide-react";
 import { compressImage } from "@/lib/imageCompressor";
+import {
+  parseDroppedOrPastedFiles,
+  readClipboardMedia,
+  isDragTransferValid,
+} from "@/lib/utils/mediaDropzone";
 import toast from "react-hot-toast";
 
 export interface UploadedFile {
@@ -66,84 +71,35 @@ export default function MultiFileUpload({
 }: Props) {
   const [files, setFiles] = useState<FileState[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [isFetchingWebImage, setIsFetchingWebImage] = useState(false);
+  const [isFetchingWeb, setIsFetchingWeb] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Fetch remote image from URL (with CORS proxy fallback) and convert to File
-  const fetchFileFromUrl = useCallback(
-    async (rawUrl: string): Promise<File | null> => {
-      let cleanUrl = rawUrl.trim();
-      if (!cleanUrl) return null;
-      if (cleanUrl.includes("\n")) cleanUrl = cleanUrl.split("\n")[0].trim();
+  // Safe window-level dragover prevention
+  useEffect(() => {
+    const handleWindowDragOver = (e: DragEvent) => {
+      if (isDragTransferValid(e.dataTransfer)) {
+        e.preventDefault();
+      }
+    };
 
+    const handleWindowDrop = (e: DragEvent) => {
       if (
-        !cleanUrl.startsWith("http://") &&
-        !cleanUrl.startsWith("https://") &&
-        !cleanUrl.startsWith("data:image/")
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node) &&
+        isDragTransferValid(e.dataTransfer)
       ) {
-        return null;
+        e.preventDefault();
       }
+    };
 
-      setIsFetchingWebImage(true);
-      try {
-        let blob: Blob | null = null;
-        let mimeType = "image/jpeg";
-
-        if (cleanUrl.startsWith("data:image/")) {
-          const res = await fetch(cleanUrl);
-          blob = await res.blob();
-          mimeType = blob.type || "image/jpeg";
-        } else {
-          // 1. Try direct fetch
-          try {
-            const res = await fetch(cleanUrl, { mode: "cors" });
-            if (res.ok) {
-              blob = await res.blob();
-              mimeType = blob.type || "image/jpeg";
-            }
-          } catch {
-            blob = null;
-          }
-
-          // 2. Fallback to backend CORS proxy (e.g. for Facebook CDN, etc.)
-          if (!blob) {
-            const base = API_BASE_URL;
-            const proxyUrl = `${base}/api/upload/proxy-image?url=${encodeURIComponent(
-              cleanUrl
-            )}`;
-            const res = await fetch(proxyUrl);
-            if (res.ok) {
-              blob = await res.blob();
-              mimeType =
-                blob.type ||
-                res.headers.get("content-type") ||
-                "image/jpeg";
-            }
-          }
-        }
-
-        if (!blob || !mimeType.startsWith("image/")) {
-          return null;
-        }
-
-        let ext = "jpg";
-        if (mimeType.includes("png")) ext = "png";
-        else if (mimeType.includes("webp")) ext = "webp";
-        else if (mimeType.includes("gif")) ext = "gif";
-
-        return new File([blob], `web-image-${Date.now()}.${ext}`, {
-          type: mimeType,
-        });
-      } catch (err) {
-        console.error("fetchFileFromUrl error:", err);
-        return null;
-      } finally {
-        setIsFetchingWebImage(false);
-      }
-    },
-    []
-  );
+    window.addEventListener("dragover", handleWindowDragOver);
+    window.addEventListener("drop", handleWindowDrop);
+    return () => {
+      window.removeEventListener("dragover", handleWindowDragOver);
+      window.removeEventListener("drop", handleWindowDrop);
+    };
+  }, []);
 
   const uploadOne = useCallback(
     async (fs: FileState): Promise<FileState> => {
@@ -264,238 +220,63 @@ export default function MultiFileUpload({
     setIsDragOver(false);
     if (disabled) return;
 
-    // 1. Local disk files
-    const droppedFiles = Array.from(e.dataTransfer.files || []);
-    if (droppedFiles.length > 0) {
-      processFiles(droppedFiles);
-      return;
-    }
-
-    // 2. DataTransfer items
-    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
-      const itemFiles: File[] = [];
-      for (let i = 0; i < e.dataTransfer.items.length; i++) {
-        const item = e.dataTransfer.items[i];
-        if (item.kind === "file") {
-          const f = item.getAsFile();
-          if (f) itemFiles.push(f);
-        }
-      }
-      if (itemFiles.length > 0) {
-        processFiles(itemFiles);
-        return;
-      }
-    }
-
-    // 3. Web image drag (e.g. from Facebook, Instagram, Google, other browser tabs)
-    let candidateUrl: string | null = null;
-    const html = e.dataTransfer.getData("text/html");
-    if (html) {
-      try {
-        const doc = new DOMParser().parseFromString(html, "text/html");
-        const img = doc.querySelector("img");
-        if (img?.src) candidateUrl = img.src;
-      } catch (_) {}
-    }
-
-    if (!candidateUrl) {
-      const uriList = e.dataTransfer.getData("text/uri-list");
-      if (uriList && uriList.trim()) candidateUrl = uriList.trim();
-    }
-
-    if (!candidateUrl) {
-      const plainText = e.dataTransfer.getData("text/plain");
-      if (
-        plainText &&
-        (plainText.startsWith("http://") ||
-          plainText.startsWith("https://") ||
-          plainText.startsWith("data:image/"))
-      ) {
-        candidateUrl = plainText.trim();
-      }
-    }
-
-    if (candidateUrl) {
-      const toastId = toast.loading("Capturing image from web…");
-      const file = await fetchFileFromUrl(candidateUrl);
-      if (file) {
-        toast.success("Image captured and preparing upload!", { id: toastId });
-        processFiles([file]);
+    setIsFetchingWeb(true);
+    try {
+      const parsed = await parseDroppedOrPastedFiles(e.dataTransfer, {
+        accept,
+        maxFiles,
+      });
+      if (parsed.length > 0) {
+        processFiles(parsed);
       } else {
-        toast.error("Could not capture image from this URL", { id: toastId });
+        toast.error("No valid file recognized in dropped item");
       }
-      return;
+    } finally {
+      setIsFetchingWeb(false);
     }
-
-    toast.error("No valid image or video detected in dropped item");
   };
 
-  const handlePaste = useCallback(
-    async (e: React.ClipboardEvent) => {
-      if (disabled) return;
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    if (disabled) return;
 
-      // 1. Files in clipboard
-      if (e.clipboardData.items && e.clipboardData.items.length > 0) {
-        const pastedFiles: File[] = [];
-        for (let i = 0; i < e.clipboardData.items.length; i++) {
-          const item = e.clipboardData.items[i];
-          if (
-            item.type.startsWith("image/") ||
-            item.type.startsWith("video/")
-          ) {
-            const file = item.getAsFile();
-            if (file) pastedFiles.push(file);
-          }
-        }
-        if (pastedFiles.length > 0) {
-          e.preventDefault();
-          e.stopPropagation();
-          toast.success(
-            `${pastedFiles.length} file${
-              pastedFiles.length > 1 ? "s" : ""
-            } pasted from clipboard!`
-          );
-          processFiles(pastedFiles);
-          return;
-        }
-      }
-
-      // 2. HTML with <img>
-      const html = e.clipboardData.getData("text/html");
-      if (html) {
-        try {
-          const doc = new DOMParser().parseFromString(html, "text/html");
-          const img = doc.querySelector("img");
-          if (img?.src) {
-            e.preventDefault();
-            e.stopPropagation();
-            const toastId = toast.loading("Capturing pasted image link…");
-            const file = await fetchFileFromUrl(img.src);
-            if (file) {
-              toast.success("Pasted image captured!", { id: toastId });
-              processFiles([file]);
-            } else {
-              toast.error("Failed to load image from pasted HTML", {
-                id: toastId,
-              });
-            }
-            return;
-          }
-        } catch (_) {}
-      }
-
-      // 3. Plain text URL
-      const text = e.clipboardData.getData("text/plain").trim();
-      if (
-        text &&
-        (text.startsWith("http://") ||
-          text.startsWith("https://") ||
-          text.startsWith("data:image/"))
-      ) {
+    setIsFetchingWeb(true);
+    try {
+      const parsed = await parseDroppedOrPastedFiles(e.clipboardData, {
+        accept,
+        maxFiles,
+      });
+      if (parsed.length > 0) {
         e.preventDefault();
         e.stopPropagation();
-        const toastId = toast.loading("Capturing pasted image link…");
-        const file = await fetchFileFromUrl(text);
-        if (file) {
-          toast.success("Pasted image captured!", { id: toastId });
-          processFiles([file]);
-        } else {
-          toast.error("Failed to load image from pasted URL", { id: toastId });
-        }
-        return;
+        toast.success(
+          `${parsed.length} file${parsed.length > 1 ? "s" : ""} pasted!`
+        );
+        processFiles(parsed);
       }
-    },
-    [disabled, fetchFileFromUrl, processFiles]
-  );
+    } finally {
+      setIsFetchingWeb(false);
+    }
+  };
 
   const handlePasteButtonClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (disabled) return;
 
+    setIsFetchingWeb(true);
     try {
-      if (navigator.clipboard && navigator.clipboard.read) {
-        const items = await navigator.clipboard.read();
-        for (const item of items) {
-          for (const type of item.types) {
-            if (type.startsWith("image/")) {
-              const blob = await item.getType(type);
-              const ext = type.includes("png")
-                ? "png"
-                : type.includes("webp")
-                ? "webp"
-                : "jpg";
-              const file = new File([blob], `pasted-image-${Date.now()}.${ext}`, {
-                type,
-              });
-              toast.success("Image pasted from clipboard!");
-              processFiles([file]);
-              return;
-            }
-          }
-        }
+      const parsed = await readClipboardMedia({ accept });
+      if (parsed.length > 0) {
+        toast.success("Media captured from clipboard!");
+        processFiles(parsed);
+      } else {
+        toast.error(
+          "No image or video found in clipboard. Press Ctrl+V to paste."
+        );
       }
-
-      if (navigator.clipboard && navigator.clipboard.readText) {
-        const text = await navigator.clipboard.readText();
-        if (
-          text &&
-          (text.startsWith("http://") ||
-            text.startsWith("https://") ||
-            text.startsWith("data:image/"))
-        ) {
-          const toastId = toast.loading("Fetching image from clipboard link…");
-          const file = await fetchFileFromUrl(text);
-          if (file) {
-            toast.success("Image captured!", { id: toastId });
-            processFiles([file]);
-          } else {
-            toast.error("Could not load image from clipboard link", {
-              id: toastId,
-            });
-          }
-          return;
-        }
-      }
-
-      toast.error(
-        "No image or image link found in clipboard. Try copying an image and pressing Ctrl+V."
-      );
-    } catch {
-      toast.error("Click inside this area and press Ctrl+V to paste.");
+    } finally {
+      setIsFetchingWeb(false);
     }
   };
-
-  // Prevent browser from showing 🚫 cursor and prevent navigating away if dropped outside
-  useEffect(() => {
-    const handleWindowDragOver = (e: DragEvent) => {
-      if (
-        e.dataTransfer?.types?.some(
-          (t) => t === "Files" || t === "text/uri-list" || t === "text/html"
-        )
-      ) {
-        e.preventDefault();
-      }
-    };
-
-    const handleWindowDrop = (e: DragEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node) &&
-        e.dataTransfer?.types?.some(
-          (t) => t === "Files" || t === "text/uri-list" || t === "text/html"
-        )
-      ) {
-        e.preventDefault();
-      }
-    };
-
-    window.addEventListener("dragover", handleWindowDragOver);
-    window.addEventListener("drop", handleWindowDrop);
-    return () => {
-      window.removeEventListener("dragover", handleWindowDragOver);
-      window.removeEventListener("drop", handleWindowDrop);
-    };
-  }, []);
 
   const removeFile = (id: string) => {
     setFiles((prev) => prev.filter((f) => f.id !== id));
@@ -505,7 +286,7 @@ export default function MultiFileUpload({
 
   const compressing = files.some((f) => f.status === "compressing");
   const uploading = files.some((f) => f.status === "uploading");
-  const isBusy = compressing || uploading || isFetchingWebImage;
+  const isBusy = compressing || uploading || isFetchingWeb;
   const doneCount = files.filter((f) => f.status === "done").length;
   const errorCount = files.filter((f) => f.status === "error").length;
 
@@ -531,7 +312,9 @@ export default function MultiFileUpload({
         onDragOver={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          e.dataTransfer.dropEffect = "copy";
+          if (e.dataTransfer) {
+            e.dataTransfer.dropEffect = "copy";
+          }
           if (!disabled && !isDragOver) setIsDragOver(true);
         }}
         onDragLeave={(e) => {
@@ -541,7 +324,7 @@ export default function MultiFileUpload({
         }}
         onDrop={handleDrop}
         className={[
-          "flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-7 cursor-pointer transition-all select-none focus:outline-none focus:ring-2 focus:ring-indigo-500",
+          "flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-7 cursor-pointer transition-all select-none outline-none focus-visible:ring-2 focus-visible:ring-indigo-500",
           isDragOver
             ? "border-indigo-500 bg-indigo-50/90 dark:bg-indigo-950/50 ring-4 ring-indigo-500/20 scale-[1.006]"
             : "border-slate-300 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-800/40 hover:border-indigo-400 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20",
@@ -549,7 +332,7 @@ export default function MultiFileUpload({
         ].join(" ")}
       >
         <div className="pointer-events-none flex flex-col items-center gap-2">
-          {isFetchingWebImage ? (
+          {isFetchingWeb ? (
             <Loader2 size={30} className="text-indigo-600 animate-spin" />
           ) : compressing ? (
             <div className="relative">
@@ -578,7 +361,7 @@ export default function MultiFileUpload({
 
           <div className="text-center">
             <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-              {isFetchingWebImage
+              {isFetchingWeb
                 ? "Capturing image from web…"
                 : compressing
                 ? "Compressing & optimizing image…"

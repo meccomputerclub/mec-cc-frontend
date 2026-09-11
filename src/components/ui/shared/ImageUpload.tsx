@@ -26,9 +26,14 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import Image from "next/image";
-import { Upload, X, Link as LinkIcon, ImageIcon } from "lucide-react";
+import { Upload, X, Link as LinkIcon, ImageIcon, ClipboardPaste } from "lucide-react";
 import toast from "react-hot-toast";
 import { compressImage } from "@/lib/imageCompressor";
+import {
+  parseDroppedOrPastedFiles,
+  readClipboardMedia,
+  isDragTransferValid,
+} from "@/lib/utils/mediaDropzone";
 
 export interface ImageUploadProps {
   value: string;
@@ -137,42 +142,96 @@ export default function ImageUpload({
     if (file) uploadFile(file);
     e.target.value = "";
   };
+  // Safe window-level dragover prevention
+  useEffect(() => {
+    const handleWindowDragOver = (e: DragEvent) => {
+      if (isDragTransferValid(e.dataTransfer)) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("dragover", handleWindowDragOver);
+    return () => window.removeEventListener("dragover", handleWindowDragOver);
+  }, []);
 
   // ── Drag & drop ─────────────────────────────────────────────────────────
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = "copy";
+    }
     if (!disabled) setIsDragOver(true);
   };
+
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragOver(false);
   };
-  const handleDrop = (e: React.DragEvent) => {
+
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragOver(false);
-    if (disabled) return;
-    const file = e.dataTransfer.files?.[0];
-    if (file) uploadFile(file);
+    if (disabled || uploading) return;
+
+    const files = await parseDroppedOrPastedFiles(e.dataTransfer, {
+      accept: "image/*",
+      maxFiles: 1,
+    });
+    if (files.length > 0) {
+      uploadFile(files[0]);
+    } else {
+      toast.error("No valid image file detected in dropped item");
+    }
   };
 
   // ── Paste from clipboard ────────────────────────────────────────────────
   const handlePaste = useCallback(
-    (e: ClipboardEvent) => {
-      if (disabled) return;
-      // Check if the zone or any child has focus
-      if (!zoneRef.current?.contains(document.activeElement) &&
-          document.activeElement !== zoneRef.current) return;
-      const items = e.clipboardData?.items;
-      if (!items) return;
-      for (const item of Array.from(items)) {
-        if (item.type.startsWith("image/")) {
-          const file = item.getAsFile();
-          if (file) { uploadFile(file); break; }
-        }
+    async (e: ClipboardEvent) => {
+      if (disabled || uploading) return;
+      // Check if the zone or any child has focus or is hovered
+      const activeEl = document.activeElement;
+      if (
+        activeEl &&
+        (activeEl.tagName === "INPUT" ||
+          activeEl.tagName === "TEXTAREA" ||
+          (activeEl as HTMLElement).isContentEditable) &&
+        !zoneRef.current?.contains(activeEl)
+      ) {
+        return;
+      }
+
+      if (!zoneRef.current?.contains(activeEl) && activeEl !== zoneRef.current) {
+        return;
+      }
+
+      const files = await parseDroppedOrPastedFiles(e.clipboardData, {
+        accept: "image/*",
+        maxFiles: 1,
+      });
+      if (files.length > 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        toast.success("Image pasted from clipboard!");
+        uploadFile(files[0]);
       }
     },
-    [disabled, uploadFile]
+    [disabled, uploading, uploadFile]
   );
+
+  const handlePasteClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (disabled || uploading) return;
+
+    const files = await readClipboardMedia({ accept: "image/*" });
+    if (files.length > 0) {
+      toast.success("Image captured from clipboard!");
+      uploadFile(files[0]);
+    } else {
+      toast.error("No image found in clipboard. Press Ctrl+V to paste.");
+    }
+  };
 
   useEffect(() => {
     document.addEventListener("paste", handlePaste);
@@ -258,7 +317,18 @@ export default function ImageUpload({
               <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
                 {isDragOver ? "Drop to upload" : "Click, drag & drop, or paste"}
               </p>
-              <p className="text-xs text-slate-400 mt-0.5">PNG, JPG, WEBP · max 5 MB</p>
+              <p className="text-xs text-slate-400 mt-0.5">PNG, JPG, WEBP &bull; From computer or web</p>
+            </div>
+            <div className="pt-1 pointer-events-auto">
+              <button
+                type="button"
+                onClick={handlePasteClick}
+                disabled={disabled || uploading}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-indigo-600 transition shadow-2xs"
+              >
+                <ClipboardPaste size={12} />
+                <span>Paste (Ctrl+V)</span>
+              </button>
             </div>
           </>
         )}
