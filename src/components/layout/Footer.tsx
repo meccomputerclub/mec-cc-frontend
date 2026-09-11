@@ -140,40 +140,43 @@ export function Footer() {
             </div>
           </div>
 
-          {/* Explore */}
-          <div>
-            <h4 className={headingClass}>
-              <Compass size={16} /> Explore
-            </h4>
-            <ul className="list-none p-0 m-0">
-              {footerLinks.explore.map((link) => (
-                <li key={link.href} className="mb-[var(--space-2)]">
-                  <Link href={link.href} className={footerLinkClass}>
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+          {/* Explore & Resources — Flexed & centered on mobile, separate grid columns on tablet/desktop */}
+          <div className="flex flex-row justify-around sm:contents w-full max-w-xs mx-auto sm:max-w-none text-center sm:text-left">
+            {/* Explore */}
+            <div className="flex flex-col items-center sm:items-start">
+              <h4 className={`${headingClass} justify-center sm:justify-start`}>
+                <Compass size={16} /> Explore
+              </h4>
+              <ul className="list-none p-0 m-0 flex flex-col items-center sm:items-start">
+                {footerLinks.explore.map((link) => (
+                  <li key={link.href} className="mb-[var(--space-2)]">
+                    <Link href={link.href} className={footerLinkClass}>
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Resources */}
+            <div className="flex flex-col items-center sm:items-start">
+              <h4 className={`${headingClass} justify-center sm:justify-start`}>
+                <BookOpen size={16} /> Resources
+              </h4>
+              <ul className="list-none p-0 m-0 flex flex-col items-center sm:items-start">
+                {footerLinks.resources.map((link) => (
+                  <li key={link.href} className="mb-[var(--space-2)]">
+                    <Link href={link.href} className={footerLinkClass}>
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
 
-          {/* Resources */}
-          <div>
-            <h4 className={headingClass}>
-              <BookOpen size={16} /> Resources
-            </h4>
-            <ul className="list-none p-0 m-0">
-              {footerLinks.resources.map((link) => (
-                <li key={link.href} className="mb-[var(--space-2)]">
-                  <Link href={link.href} className={footerLinkClass}>
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Connect */}
-          <div>
+          {/* Connect — Hidden on mobile devices */}
+          <div className="hidden sm:block">
             <h4 className={headingClass}>
               <Link2 size={16} /> Connect
             </h4>

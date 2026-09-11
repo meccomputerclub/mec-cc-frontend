@@ -237,7 +237,7 @@ export default async function HomePage() {
             </p>
           </div>
           <div className="max-w-[850px] mx-auto max-[768px]:max-w-full">
-            <div className="w-full overflow-x-auto [WebkitOverflowScrolling:touch] pb-1">
+            <div className="w-full overflow-x-auto [WebkitOverflowScrolling:touch] p-2 sm:p-3 pb-5 sm:pb-6 -m-2 sm:-m-3">
               <div className="min-w-[560px] bg-surface-elevated border border-border-brutalist rounded-[var(--radius-lg)] overflow-hidden transition-all duration-200 hover:border-border-brutalist hover:shadow-[6px_6px_0px_var(--accent-primary)] hover:translate-x-[-2px] hover:translate-y-[-2px] max-[768px]:min-w-[500px] max-[480px]:min-w-[420px]">
                 <div className="grid grid-cols-[55px_1.6fr_1.1fr_85px_75px] p-[var(--space-3)_var(--space-4)] bg-surface-secondary font-mono text-xs font-semibold uppercase tracking-wider text-text-tertiary max-[480px]:grid-cols-[45px_1.4fr_1fr_75px_65px] max-[480px]:p-[var(--space-2)_var(--space-3)]">
                   <span>Rank</span>
