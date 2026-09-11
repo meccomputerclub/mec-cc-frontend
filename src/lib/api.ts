@@ -30,15 +30,6 @@ async function request<T = any>(
   }
 
   if (typeof window !== "undefined") {
-    let deviceId = localStorage.getItem("mec_device_id");
-    if (!deviceId) {
-      deviceId = "dev_" + Math.random().toString(36).substring(2, 12) + "_" + Date.now().toString(36);
-      localStorage.setItem("mec_device_id", deviceId);
-    }
-    if (!headers.has("X-Device-Id")) {
-      headers.set("X-Device-Id", deviceId);
-    }
-
     if (!headers.has("Authorization")) {
       const token =
         localStorage.getItem("auth_token") || Cookies.get("auth_token");

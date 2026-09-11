@@ -161,18 +161,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (identifier: string, password: string, securityCode?: string): Promise<LoginResponse> => {
     try {
-      const deviceId =
-        typeof window !== "undefined"
-          ? localStorage.getItem("mec_device_id") || undefined
-          : undefined;
-
       const res = await api.post("/api/users/login", {
         email: identifier,
         studentId: identifier,
         identifier,
         password,
         securityCode: securityCode ? securityCode.trim() : undefined,
-        deviceId,
       });
       if (res && res.user) {
         if (typeof window !== "undefined") {
@@ -212,19 +206,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const isLocked =
         Boolean(errData?.isLocked) ||
-        status === 423 ||
-        message.toLowerCase().includes("lock");
+        status === 423;
 
       const requiresSecurityCode =
         Boolean(errData?.requiresSecurityCode) ||
-        isLocked ||
-        message.toLowerCase().includes("security code") ||
-        message.toLowerCase().includes("lock");
-
-      const isDeviceBlocked =
-        Boolean(errData?.isDeviceBlocked) ||
-        message.toLowerCase().includes("device has been blocked") ||
-        message.toLowerCase().includes("device login blocked");
+        isLocked;
 
       return {
         success: false,
@@ -232,7 +218,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         requiresSecurityCode,
         isLocked,
         lockRemainingMinutes: errData?.lockRemainingMinutes,
-        isDeviceBlocked,
         attemptsRemaining: errData?.attemptsRemaining,
       };
     }
