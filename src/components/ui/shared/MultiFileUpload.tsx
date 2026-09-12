@@ -74,20 +74,21 @@ export default function MultiFileUpload({
   const [isFetchingWeb, setIsFetchingWeb] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const dragCounter = useRef(0);
 
-  // Safe window-level dragover prevention
+  // Safe window-level dragover prevention: prevents blocked icon (🚫) and tab hijacking
   useEffect(() => {
     const handleWindowDragOver = (e: DragEvent) => {
-      if (isDragTransferValid(e.dataTransfer)) {
-        e.preventDefault();
+      e.preventDefault();
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = "copy";
       }
     };
 
     const handleWindowDrop = (e: DragEvent) => {
       if (
         containerRef.current &&
-        !containerRef.current.contains(e.target as Node) &&
-        isDragTransferValid(e.dataTransfer)
+        !containerRef.current.contains(e.target as Node)
       ) {
         e.preventDefault();
       }
@@ -108,7 +109,10 @@ export default function MultiFileUpload({
       let compressedSize = fs.file.size;
 
       // Automatically compress images client-side before Cloudinary upload
-      if (fs.file.type.startsWith("image/")) {
+      if (
+        fs.file.type.startsWith("image/") ||
+        /\.(jpe?g|png|webp|gif|avif)$/i.test(fs.file.name)
+      ) {
         setFiles((prev) =>
           prev.map((f) =>
             f.id === fs.id ? { ...f, status: "compressing" } : f
@@ -236,6 +240,55 @@ export default function MultiFileUpload({
     }
   };
 
+  // Global window paste listener: allows pressing Ctrl+V anywhere on the page
+  useEffect(() => {
+    const handleGlobalPaste = async (e: ClipboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isTextInput =
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable);
+
+      const hasFiles =
+        e.clipboardData?.files && e.clipboardData.files.length > 0;
+      const hasMediaItem = Array.from(e.clipboardData?.items || []).some(
+        (item) =>
+          item.type.startsWith("image/") || item.type.startsWith("video/")
+      );
+
+      // If user is typing normal text into an input field, do not hijack text paste
+      if (isTextInput && !hasFiles && !hasMediaItem) {
+        return;
+      }
+
+      if (disabled) return;
+
+      setIsFetchingWeb(true);
+      try {
+        const parsed = await parseDroppedOrPastedFiles(e.clipboardData, {
+          accept,
+          maxFiles,
+        });
+        if (parsed.length > 0) {
+          e.preventDefault();
+          e.stopPropagation();
+          toast.success(
+            `${parsed.length} file${parsed.length > 1 ? "s" : ""} pasted from clipboard!`
+          );
+          processFiles(parsed);
+        }
+      } finally {
+        setIsFetchingWeb(false);
+      }
+    };
+
+    window.addEventListener("paste", handleGlobalPaste);
+    return () => {
+      window.removeEventListener("paste", handleGlobalPaste);
+    };
+  }, [disabled, accept, maxFiles, processFiles]);
+
   const handlePaste = async (e: React.ClipboardEvent) => {
     if (disabled) return;
 
@@ -307,6 +360,7 @@ export default function MultiFileUpload({
         onDragEnter={(e) => {
           e.preventDefault();
           e.stopPropagation();
+          dragCounter.current++;
           if (!disabled) setIsDragOver(true);
         }}
         onDragOver={(e) => {
@@ -320,9 +374,16 @@ export default function MultiFileUpload({
         onDragLeave={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          setIsDragOver(false);
+          dragCounter.current--;
+          if (dragCounter.current <= 0) {
+            setIsDragOver(false);
+            dragCounter.current = 0;
+          }
         }}
-        onDrop={handleDrop}
+        onDrop={(e) => {
+          dragCounter.current = 0;
+          handleDrop(e);
+        }}
         className={[
           "flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-7 cursor-pointer transition-all select-none outline-none focus-visible:ring-2 focus-visible:ring-indigo-500",
           isDragOver

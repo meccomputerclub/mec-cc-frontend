@@ -51,6 +51,7 @@ export default function UniversalImageDropzone({
   const [localPreview, setLocalPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropzoneRef = useRef<HTMLDivElement>(null);
+  const dragCounter = useRef(0);
 
   // Sync local object URL for preview when selectedFile changes
   useEffect(() => {
@@ -70,16 +71,16 @@ export default function UniversalImageDropzone({
   // and prevents Chrome from opening dropped files in new tabs if dropped outside
   useEffect(() => {
     const handleWindowDragOver = (e: DragEvent) => {
-      if (isDragTransferValid(e.dataTransfer)) {
-        e.preventDefault();
+      e.preventDefault();
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = "copy";
       }
     };
 
     const handleWindowDrop = (e: DragEvent) => {
       if (
         dropzoneRef.current &&
-        !dropzoneRef.current.contains(e.target as Node) &&
-        isDragTransferValid(e.dataTransfer)
+        !dropzoneRef.current.contains(e.target as Node)
       ) {
         e.preventDefault();
       }
@@ -96,7 +97,7 @@ export default function UniversalImageDropzone({
   // Process a newly acquired File (from disk, web, or clipboard)
   const handleIncomingFile = useCallback(
     async (file: File) => {
-      if (!file.type.startsWith("image/")) {
+      if (!file.type.startsWith("image/") && !/\.(jpe?g|png|webp|gif|avif|svg)$/i.test(file.name)) {
         toast.error("Please provide a valid image file (PNG, JPG, WebP)");
         return;
       }
@@ -274,6 +275,7 @@ export default function UniversalImageDropzone({
         onDragEnter={(e) => {
           e.preventDefault();
           e.stopPropagation();
+          dragCounter.current++;
           if (!disabled) setIsDragOver(true);
         }}
         onDragOver={(e) => {
@@ -287,9 +289,16 @@ export default function UniversalImageDropzone({
         onDragLeave={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          setIsDragOver(false);
+          dragCounter.current--;
+          if (dragCounter.current <= 0) {
+            setIsDragOver(false);
+            dragCounter.current = 0;
+          }
         }}
-        onDrop={handleDrop}
+        onDrop={(e) => {
+          dragCounter.current = 0;
+          handleDrop(e);
+        }}
         className={`relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed transition-all cursor-pointer select-none p-4 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
           isDragOver
             ? "border-indigo-500 bg-indigo-50/90 dark:bg-indigo-950/60 ring-4 ring-indigo-500/30 scale-[1.006]"
